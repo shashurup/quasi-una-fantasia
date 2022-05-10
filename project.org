@@ -1,0 +1,5 @@
+* TODO need to do something with cljs reader
+  edn reader is sometimes not enough to read repl output
+* DONE ns prompt
+* TODO extensibility
+  need to define the architecture

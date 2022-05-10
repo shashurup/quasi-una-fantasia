@@ -1,0 +1,71 @@
+/* some style */
+
+p.err {
+    color: red;
+}
+
+p.ex {
+    color: red;
+    font-weight: bold;
+}
+
+body {
+    font-family: monospace;
+}
+
+.ra-composite-wrapper {
+    display: flex;
+}
+
+.ra-composite-entry {
+    display: flex;
+    column-gap: 1ch;
+}
+
+span.ra-closing-paren {
+    align-self: end;
+}
+
+.ra-string {
+    color: green;
+}
+
+.ra-keyword {
+    color: blue;
+}
+
+.ra-number {
+    color: brown;
+}
+
+.ra-symbol {
+    color: darkblue;
+}
+
+.ra-bool {
+    color: brown;
+}
+
+input:checked + div {
+    display: none;
+}
+
+label {
+    cursor: pointer;
+}
+
+label.ra-ellipsis {
+    display: none;
+}
+
+input:checked ~ label.ra-ellipsis {
+    display: inline;
+}
+
+label:checked {
+    content: "+"
+}
+
+input {
+    font-family: monospace;
+}
