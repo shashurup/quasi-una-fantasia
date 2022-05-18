@@ -1,10 +1,10 @@
 /* some style */
 
-p.err {
+p.ra-err {
     color: red;
 }
 
-p.ex {
+p.ra-ex {
     color: red;
     font-weight: bold;
 }

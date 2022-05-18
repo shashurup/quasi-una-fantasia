@@ -3,6 +3,7 @@
    [crate.def-macros :only [defpartial]])
   (:require
    [goog.dom :as gdom]
+   [goog.events :as gevents]
    [cljs.reader :refer [read-string]]
    [crate.core :as crate]
    [clojure.string :as s]
@@ -10,15 +11,15 @@
 
 (defonce app-state (atom {}))
 
-(defonce msg-id (atom 0))
-
 (defonce check-id (atom 0))
 
 (defn new-check-id []
   (swap! check-id inc))
 
-(defn new-msg-id []
-  (swap! msg-id inc))
+(defonce cell-id (atom 0))
+
+(defn new-cell-id []
+  (swap! cell-id inc))
 
 (defn get-app-element []
   (gdom/getElement "app"))
@@ -29,22 +30,25 @@
         req (js/XMLHttpRequest.)]
     (.open req "POST" "repl")
     (.setRequestHeader req "Content-Type" "application/octet-stream")
-    (.addEventListener req
-                       "loadend"
-                       #(callback (if (= 200 (.-status req))
-                                    (read-string (.-responseText req))
-                                    (.-responseText req))))
+    (gevents/listen req
+                    "loadend"
+                    #(callback (if (= 200 (.-status req))
+                                 (read-string (.-responseText req))
+                                 (.-responseText req))))
     (.send req msg)))
 
-(defn extract-single [subj]
-  (if (= 1 (count subj))
-    (first subj)
-    subj))
+(defn wrap-with-rackushka [subj]
+  (if (and (vector? subj)
+           (let [kw (first subj)]
+             (and (keyword? kw)
+                  (= "rackushka" (namespace kw)))))
+    subj
+    [:rackushka/data subj]))
 
 (defn read-value [subj]
   (try
-    (read-string subj)
-    (catch js/Object _ subj)))
+    (wrap-with-rackushka (read-string subj))
+    (catch js/Object _ [:rackushka/as-is subj])))
 
 (defn merge-eval-result [subj]
   (if (string? subj)
@@ -56,8 +60,7 @@
      :value (->> subj
                  (map :value)
                  (remove nil?)
-                 (map read-value)
-                 extract-single)}))
+                 (map read-value))}))
 
 (defn update-ns [resp]
   (when-let [ns (some :ns resp)]
@@ -145,11 +148,22 @@
 (defmethod render PersistentHashMap [subj]
   (make-map subj))
 
+(defmulti render-cell first)
+
+(defmethod render-cell :rackushka/data [subj]
+  (render (second subj)))
+
+(defmethod render-cell :rackushka/as-is [subj]
+  [:pre (second subj)])
+
+(defmethod render-cell :rackushka/html [subj]
+  (second subj))
+
 (defn out-class [line]
   (cond
-    (:out line) "out"
-    (:err line) "err"
-    (:ex line)  "ex"))
+    (:out line) "ra-out"
+    (:err line) "ra-err"
+    (:ex line)  "ra-ex"))
 
 (declare add-new-cell)
 
@@ -163,11 +177,10 @@
              (crate/html [:p {:class (out-class line)}
                           (s/join ", " (vals line))])))
     (gdom/removeChildren valdiv)
-    (->> result
-         :value
-         render
-         crate/html
-         (gdom/appendChild valdiv))
+    (mapv (comp #(gdom/appendChild valdiv %)
+                crate/html
+                render-cell)
+          (:value result))
     (add-new-cell)))
 
 (defn eval-expr [id]
@@ -177,7 +190,7 @@
 (defn add-new-cell []
   (let [ns (:ns @app-state)]
     (if ns
-      (let [id (new-msg-id)
+      (let [id (new-cell-id)
             cell (create-cell id ns)
             keydown (fn [e]
                       (when (= e.code "Enter")
@@ -187,6 +200,10 @@
           (.focus expr-input)
           (.addEventListener expr-input "keydown" keydown)))
       (nrepl-eval "*ns*" #(add-new-cell)))))
+
+(gevents/listen js/window
+                "load"
+                (fn [_] (add-new-cell)))
 
 ;; specify reload hook with ^:after-load metadata
 (defn ^:after-load on-reload []
