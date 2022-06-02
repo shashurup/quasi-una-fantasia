@@ -151,17 +151,19 @@
 (defmethod render PersistentHashMap [subj]
   (make-map subj))
 
-(defmethod render :rackushka/text [subj]
+(defmethod render :text [subj]
   [:pre (s/join "\n" subj)])
 
-(defmethod render :rackushka/html [subj] subj)
+(defmethod render :html [subj] subj)
 
 ;; Table
 
 (defmulti render-cell type)
 
 (defmethod render-cell :default [value]
-  [:td.ra (pr-str value)] )
+  [:td.ra (if (coll? value)
+            (render value)
+            (pr-str value))])
 
 (defmethod render-cell nil [_] [:td.ra])
 
@@ -169,25 +171,8 @@
   [:td {:class (str "ra " "ra-string-cell")} value])
 
 (defmethod render-cell js/Number [value]
-  [:td {:class (str "ra " "ra-number-cell")} (str value)])
-
-(defn fallback-to-render [value]
-  [:td.ra (render value)])
-
-(defmethod render-cell PersistentVector [value]
-  (fallback-to-render value))
-
-(defmethod render-cell PersistentHashMap [value]
-  (fallback-to-render value))
-
-(defmethod render-cell PersistentHashSet [value]
-  (fallback-to-render value))
-
-(defmethod render-cell PersistentArrayMap [value]
-  (fallback-to-render value))
-
-(defmethod render-cell List [value]
-  (fallback-to-render value))
+  [:td {:class (str "ra " "ra-number-cell")}
+   (.format (js/Intl.NumberFormat.) value)])
 
 (defn guess-columns [data]
   (let [row (first data)]
