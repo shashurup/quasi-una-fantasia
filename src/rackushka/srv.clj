@@ -10,6 +10,11 @@
             [nrepl.core :as nrepl]
             [nrepl.server :as srv]))
 
+(defn pr-with-meta [subj target _]
+  (binding [*out* target
+            *print-meta* true]
+    (pr subj)))
+
 (defn create-web-session []
   (let [tr (t/piped-transports)]
     {:server (future (srv/handle (srv/default-handler)

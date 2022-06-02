@@ -1,5 +1,9 @@
 /* some style */
 
+div.ra-result {
+    padding: 1ch;
+}
+
 p.ra-err {
     color: red;
 }
@@ -68,4 +72,25 @@ label:checked {
 
 input {
     font-family: monospace;
+}
+
+table.ra {
+    border-collapse: collapse;
+    border-spacing: 0px;
+}
+
+table.ra, th.ra, td.ra {
+    border: solid 1px;
+}
+
+th.ra, td.ra {
+    padding: 1ch;
+}
+
+td.ra-string-cell {
+    white-space: pre;
+}
+
+td.ra-number-cell {
+    text-align: right;
 }

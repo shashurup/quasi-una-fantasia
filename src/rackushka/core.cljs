@@ -37,18 +37,11 @@
                                  (.-responseText req))))
     (.send req msg)))
 
-(defn wrap-with-rackushka [subj]
-  (if (and (vector? subj)
-           (let [kw (first subj)]
-             (and (keyword? kw)
-                  (= "rackushka" (namespace kw)))))
-    subj
-    [:rackushka/data subj]))
-
 (defn read-value [subj]
   (try
-    (wrap-with-rackushka (read-string subj))
-    (catch js/Object _ [:rackushka/as-is subj])))
+    (read-string subj)
+    (catch js/Object _
+      ^{:rackushka/hint :rackushka/text} [subj])))
 
 (defn merge-eval-result [subj]
   (if (string? subj)
@@ -72,7 +65,10 @@
 (defn nrepl-eval [expr callback]
   (let [session (:session @app-state)]
     (if session
-      (nrepl-op {:op "eval" :code expr :session session}
+      (nrepl-op {:op "eval"
+                 :code expr
+                 :session session
+                 :nrepl.middleware.print/print "rackushka.srv/pr-with-meta"}
                 (fn [resp]
                   (update-ns resp)
                   (callback (merge-eval-result resp))))
@@ -81,17 +77,24 @@
                   (update-session resp)
                   (nrepl-eval expr callback))))))
 
+;; Tree
+
 (defn create-cell [id ns]
   (crate/html [:div {:id (str "cell-" id)}
                [:span.ra-prompt (str ns "=> ")]
                [:input {:id (str "expr-" id) :type "text" :size 80}]
                [:div {:id (str "out-" id)}]
-               [:div {:id (str "result-" id)}]]))
+               [:div.ra-result {:id (str "result-" id)}]]))
 
 (defn make-scalar [class val]
   [:span {:class class} (pr-str val)])
 
-(defmulti render type)
+(defmulti render (fn [subj]
+                   (if-let [hint (:rackushka/hint (meta subj))]
+                     (if (keyword? hint)
+                       hint
+                       (first hint))
+                     (type subj))))
 
 (defmethod render :default [subj]
   [:pre (pr-str subj)])
@@ -148,16 +151,65 @@
 (defmethod render PersistentHashMap [subj]
   (make-map subj))
 
-(defmulti render-cell first)
+(defmethod render :rackushka/text [subj]
+  [:pre (s/join "\n" subj)])
 
-(defmethod render-cell :rackushka/data [subj]
-  (render (second subj)))
+(defmethod render :rackushka/html [subj] subj)
 
-(defmethod render-cell :rackushka/as-is [subj]
-  [:pre (second subj)])
+;; Table
 
-(defmethod render-cell :rackushka/html [subj]
-  (second subj))
+(defmulti render-cell type)
+
+(defmethod render-cell :default [value]
+  [:td.ra (pr-str value)] )
+
+(defmethod render-cell nil [_] [:td.ra])
+
+(defmethod render-cell js/String [value]
+  [:td {:class (str "ra " "ra-string-cell")} value])
+
+(defmethod render-cell js/Number [value]
+  [:td {:class (str "ra " "ra-number-cell")} (str value)])
+
+(defn fallback-to-render [value]
+  [:td.ra (render value)])
+
+(defmethod render-cell PersistentVector [value]
+  (fallback-to-render value))
+
+(defmethod render-cell PersistentHashMap [value]
+  (fallback-to-render value))
+
+(defmethod render-cell PersistentHashSet [value]
+  (fallback-to-render value))
+
+(defmethod render-cell PersistentArrayMap [value]
+  (fallback-to-render value))
+
+(defmethod render-cell List [value]
+  (fallback-to-render value))
+
+(defn guess-columns [data]
+  (let [row (first data)]
+    (if (map? row)
+      (keys row)
+      (range (count row)))))
+
+(defn cell-value [row col]
+  (if (map? row)
+    (get row col)
+    (when (number? col) (nth row col))))
+
+(defmethod render :table [data]
+  (let [hint (:rackushka/hint (meta data))
+        columns (if (keyword? hint)
+                  (guess-columns data)
+                  (:columns (second hint)))]
+    [:table.ra [:thead [:tr (for [col columns]
+                              [:th.ra col])]]
+               [:tbody (for [row data]
+                         [:tr (for [col columns]
+                                (render-cell (cell-value row col)))])]]))
 
 (defn out-class [line]
   (cond
@@ -179,7 +231,7 @@
     (gdom/removeChildren valdiv)
     (mapv (comp #(gdom/appendChild valdiv %)
                 crate/html
-                render-cell)
+                render)
           (:value result))
     (add-new-cell)))
 
