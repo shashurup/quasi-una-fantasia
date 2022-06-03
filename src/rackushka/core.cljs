@@ -204,6 +204,11 @@
 
 (declare add-new-cell)
 
+(defn focus-next-cell [id]
+  (if-let [el (gdom/getElement (str "expr-" (inc id)))]
+    (.focus el)
+    (add-new-cell)))
+
 (defn apply-result [id result]
   (let [valdiv (gdom/getElement (str "result-" id))
         outdiv (gdom/getElement (str "out-" id))]
@@ -218,7 +223,7 @@
                 crate/html
                 render)
           (:value result))
-    (add-new-cell)))
+    (focus-next-cell id)))
 
 (defn eval-expr [id]
   (let [expr (.-value (gdom/getElement (str "expr-" id)))]
