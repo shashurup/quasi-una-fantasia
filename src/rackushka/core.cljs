@@ -2,6 +2,7 @@
   (:use-macros
    [crate.def-macros :only [defpartial]])
   (:require
+   [rackushka.desc :as desc]
    [goog.dom :as gdom]
    [goog.events :as gevents]
    [cljs.reader :refer [read-string]]
@@ -59,6 +60,10 @@
   (when-let [ns (some :ns resp)]
     (swap! app-state assoc :ns ns)))
 
+(defn history-append [expr]
+  (when-not (empty? expr)
+    (swap! app-state update :history #(conj % expr))))
+
 (defn update-session [resp]
   (swap! app-state assoc :session (:new-session (first resp))))
 
@@ -70,6 +75,7 @@
                  :session session
                  :nrepl.middleware.print/print "rackushka.srv/pr-with-meta"}
                 (fn [resp]
+                  (history-append expr)
                   (update-ns resp)
                   (callback (merge-eval-result resp))))
       (nrepl-op {:op "clone"}
@@ -180,21 +186,20 @@
       (keys row)
       (range (count row)))))
 
-(defn cell-value [row col]
-  (if (map? row)
-    (get row col)
-    (when (number? col) (nth row col))))
-
 (defmethod render :table [data]
   (let [hint (:rackushka/hint (meta data))
-        columns (if (keyword? hint)
-                  (guess-columns data)
-                  (:columns (second hint)))]
-    [:table.ra [:thead [:tr (for [col columns]
-                              [:th.ra col])]]
+        [names rndrs] (if (keyword? hint)
+                        (desc/table-desc (guess-columns data))
+                        (when (coll? hint)
+                          (let [sec (second hint)]
+                            (if (keyword? sec)
+                              (desc/table-desc sec (nth hint 2))
+                              (desc/table-desc sec)))))]
+    [:table.ra [:thead [:tr (for [name names]
+                              [:th.ra name])]]
                [:tbody (for [row data]
-                         [:tr (for [col columns]
-                                (render-cell (cell-value row col)))])]]))
+                         [:tr (for [rndr rndrs]
+                                (render-cell (rndr row)))])]]))
 
 (defn out-class [line]
   (cond
