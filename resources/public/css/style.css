@@ -77,15 +77,35 @@ input {
 table.ra {
     border-collapse: collapse;
     border-spacing: 0px;
-}
-
-table.ra, th.ra, td.ra {
-    border: solid 2px;
-    border-color: grey;
+    border-style: none;
 }
 
 th.ra, td.ra {
-    padding: 1ch;
+    padding: 0 1ch;
+    border: solid 1px;
+    border-color: grey;
+}
+
+td.ra {
+    border-left-style: solid;
+    border-bottom-style: none;
+    border-top-style: none;
+    border-right-style: none;
+}
+
+th.ra {
+    border-left-style: solid;
+    border-bottom-style: solid;
+    border-top-style: none;
+    border-right-style: none;
+}
+
+td.ra:nth-child(1) {
+    border-left-style: none;
+}
+
+th.ra:nth-child(1) {
+    border-left-style: none;
 }
 
 td.ra-string-cell {

@@ -47,10 +47,11 @@
   (let [date (js/Date. subj)
         this-year (.getFullYear (js/Date.))
         year-ago (.setFullYear (js/Date.) (- this-year 1))
-        parts (datetime-parts date)]
+        parts (datetime-parts date)
+        {M :month d :day y :year h :hour m :minute} parts]
     (if (< subj year-ago)
-      (str (:month parts) " " (:day parts) " " (:year parts))
-      (str (:month parts) " " (:day parts) " " (:hour parts) ":" (:minute parts)))))
+      (str M " " (.padStart d 2) " " y)
+      (str M " " (.padStart d 2) " " h ":" m))))
 
 (defn- full-time-from-milliseconds [subj]
   (.toISOString (js/Date. subj)))
