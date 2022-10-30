@@ -24,11 +24,14 @@
        (map permission-map)
        (into #{})))
 
+(defn- symlink? [subj]
+  (.get subj "isSymbolicLink"))
+
 (defn- convert-attrs [subj]
   {:size (.get subj "size")
    :directory? (.get subj "isDirectory")
    :regular-file? (.get subj "isRegularFile")
-   :symlink? (.get subj "isSymbolicLink")
+   :symlink? (symlink? subj)
    :user (.getName (.get subj "owner"))
    :group (.getName (.get subj "group"))
    :permissions (convert-permissions (.get subj "permissions")) ;TODO figure how to store them
@@ -39,10 +42,14 @@
   )
 
 (defn- file-by-path [path]
-  (let [attrs (Files/readAttributes path "posix:*" no-opts)]
-    (assoc (convert-attrs attrs)
-           :path (.toString path)
-           :name (.toString (.getFileName path)))))
+  (let [attrs (Files/readAttributes path
+                                    "posix:*"
+                                    (into-array [LinkOption/NOFOLLOW_LINKS]))]
+    (merge (convert-attrs attrs)
+           {:path (.toString path)
+            :name (.toString (.getFileName path))}
+           (when (symlink? attrs)
+             {:link-target (.toString (Files/readSymbolicLink path))}))))
 
 (defn file [path]
   (file-by-path (make-path path)))
@@ -56,3 +63,8 @@
 (defn list [path]
   (map file-by-path
        (list-by-path (make-path path))))
+
+(defn ls [path]
+  (with-meta (list path)
+    {:rackushka/hint [:table :rackushka.fs/file
+                      [:size :modified :permissions :name-ex]]}))

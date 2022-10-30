@@ -2,7 +2,7 @@
   (:require [rackushka.desc :as desc]))
 
 (defn- local-class [subj]
-  (str "rackushka.fs-" subj))
+  (str "rackushka-fs-" subj))
 
 (defn- render-name [[name directory? symlink?]]
   (let [class (cond
@@ -14,7 +14,7 @@
 (defn- render-name-with-link [[name directory? symlink? target] ]
   (let [name-span (render-name [name directory? symlink?])]
     (if symlink?
-      [name-span "->" [:span {:class (local-class "link-target")} target]]
+      (list name-span " -> " [:span {:class (local-class "link-target")} target])
       name-span)))
 
 (def permmap [[:owner-read     \r]
