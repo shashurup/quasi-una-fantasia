@@ -1,6 +1,7 @@
 (ns rackushka.fs
   (:import [java.nio.file Files Paths LinkOption]
-           [java.nio.file.attribute PosixFilePermission]))
+           [java.nio.file.attribute PosixFilePermission])
+  (:require [clojure.string :as s]))
 
 (def permission-map
   {PosixFilePermission/OWNER_READ :owner-read
@@ -17,6 +18,15 @@
 
 (defn- make-path [subj]
   (Paths/get subj (into-array java.lang.String [])))
+
+(defonce cwd (atom "/"))
+
+(defn- resolve-path [base path]
+  (str (.normalize (.resolve (make-path base)
+                             (make-path path)))))
+
+(defn cd [path]
+  (swap! cwd #(resolve-path % path)))
 
 (defn- convert-permissions [subj]
   (->> subj
@@ -54,17 +64,48 @@
 (defn file [path]
   (file-by-path (make-path path)))
 
-(defn- list-by-path [path]
+(defn- files-by-path [path]
   (->> path
        Files/list
        .iterator
        iterator-seq))
 
-(defn list [path]
+(defn files [path]
   (map file-by-path
-       (list-by-path (make-path path))))
+       (files-by-path (make-path path))))
 
-(defn ls [path]
-  (with-meta (list path)
-    {:rackushka/hint [:table :rackushka.fs/file
-                      [:size :modified :permissions :name-ex]]}))
+(defn name-key [subj]
+  (s/lower-case (:name subj)))
+
+(defn old-fashioned-sort-key [subj]
+  (str (if (:directory? subj) 0 1)
+       (name-key subj)))
+
+(defn hidden? [subj]
+  (s/starts-with? (:name subj) "."))
+
+(defn expand-flags [subj flags]
+  (->> (sort-by flags subj)
+       (mapcat #(get flags % [%]))))
+
+(defn ls [& args]
+  (let [flags {:m [:cols [:size :modified :name-ex]]
+               :l [:cols [:permissions :user :group :size :modified :name-ex]]
+               :t [:sort :modified]
+               :T [:sort [:modified :rev]]
+               :s [:sort :size]
+               :S [:sort [:size :rev]]
+               :n [:sort name-key]
+               :N [:sort [name-key :rev]]
+               :h [:filter (constantly true)]}
+        [path & {:keys [cols sort filter] :or
+                 {cols [:name]
+                  filter (complement hidden?)
+                  sort old-fashioned-sort-key}}] (expand-flags args flags)
+        [keyfn cmp] (if (vector? sort)
+                      [(first sort) #(- (compare %1 %2))]
+                      [sort compare])]
+    (with-meta (->> (files (resolve-path @cwd path))
+                    (clojure.core/filter filter)
+                    (sort-by keyfn cmp))
+      {:rackushka/hint [:table :rackushka.fs/file cols]})))

@@ -230,7 +230,7 @@
           (:value result))
     (focus-next-cell id)))
 
-(defn eval-expr [id]
+(defn eval-cell-expr [id]
   (let [expr (.-value (gdom/getElement (str "expr-" id)))]
     (nrepl-eval expr #(apply-result id %))))
 
@@ -241,7 +241,7 @@
             cell (create-cell id ns)
             keydown (fn [e]
                       (when (= e.code "Enter")
-                        (eval-expr id)))]
+                        (eval-cell-expr id)))]
         (gdom/appendChild (get-app-element) cell)
         (let [expr-input (gdom/getElement (str "expr-" id))]
           (.focus expr-input)
