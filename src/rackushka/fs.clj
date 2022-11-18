@@ -84,6 +84,26 @@
 (defn hidden? [subj]
   (s/starts-with? (:name subj) "."))
 
+(defn regex? [subj] (instance? java.util.regex.Pattern subj))
+
+(defn pattern? [subj]
+  (or (regex? subj)
+      (and (string? subj)
+           (or (s/includes? subj "*")
+               (s/includes? subj "?")))))
+
+(defn mk-pattern [subj]
+  (if (regex? subj)
+    subj
+    (re-pattern (-> subj
+                    (s/replace "*" ".*")
+                    (s/replace "?" ".")))))
+
+(defn filename-matches? [pattern subj]
+  (if pattern
+    (re-matches pattern (:name subj))
+    true))
+
 (defn expand-flags [subj flags]
   (->> (sort-by flags subj)
        (mapcat #(get flags % [%]))))
@@ -98,14 +118,22 @@
                :n [:sort name-key]
                :N [:sort [name-key :rev]]
                :h [:filter (constantly true)]}
-        [path & {:keys [cols sort filter] :or
+        [arg & {:keys [cols sort filter] :or
                  {cols [:name]
                   filter (complement hidden?)
                   sort old-fashioned-sort-key}}] (expand-flags args flags)
+        [f pattern] (if (pattern? arg)
+                      ["." (mk-pattern arg)]
+                        [arg nil])
+        path (resolve-path @cwd f)
         [keyfn cmp] (if (vector? sort)
                       [(first sort) #(- (compare %1 %2))]
                       [sort compare])]
-    (with-meta (->> (files (resolve-path @cwd path))
-                    (clojure.core/filter filter)
-                    (sort-by keyfn cmp))
+    (with-meta (if (or pattern
+                       (:directory? (file path)))
+                 (->> (files path)
+                      (clojure.core/filter filter)
+                      (clojure.core/filter #(filename-matches? pattern %))
+                      (sort-by keyfn cmp))
+                 [(file path)])
       {:rackushka/hint [:table :rackushka.fs/file cols]})))
