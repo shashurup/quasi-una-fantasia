@@ -16,14 +16,20 @@
 
 (def no-opts (into-array LinkOption []))
 
-(defn- make-path [subj]
-  (Paths/get subj (into-array java.lang.String [])))
+(defn path? [subj]
+  (instance? java.nio.file.Path subj))
+
+(defn as-path [subj]
+  (if (path? subj)
+    subj
+    (Paths/get (str subj)
+               (into-array java.lang.String []))))
 
 (defonce cwd (atom "/"))
 
 (defn- resolve-path [base path]
-  (str (.normalize (.resolve (make-path base)
-                             (make-path path)))))
+  (str (.normalize (.resolve (as-path base)
+                             (as-path path)))))
 
 (defn cd [path]
   (swap! cwd #(resolve-path % path)))
@@ -51,28 +57,34 @@
    }
   )
 
-(defn- file-by-path [path]
-  (let [attrs (Files/readAttributes path
+(defn attrs [path]
+  (let [path (as-path path)
+        attrs (Files/readAttributes path
                                     "posix:*"
                                     (into-array [LinkOption/NOFOLLOW_LINKS]))]
     (merge (convert-attrs attrs)
-           {:path (.toString path)
+           {:path (str path)
             :name (.toString (.getFileName path))}
            (when (symlink? attrs)
              {:link-target (.toString (Files/readSymbolicLink path))}))))
 
-(defn file [path]
-  (file-by-path (make-path path)))
-
-(defn- files-by-path [path]
+(defn- children [path]
   (->> path
        Files/list
        .iterator
        iterator-seq))
 
-(defn files [path]
-  (map file-by-path
-       (files-by-path (make-path path))))
+(defn files
+  ([path] (files path nil))
+  ([path pred]
+   (apply concat 
+          (for [p (children (as-path path))]
+            (let [file (attrs p)]
+              (if (and (:directory? file)
+                       pred
+                       (pred file))
+                (cons file (files p pred))
+                [file]))))))
 
 (defn name-key [subj]
   (s/lower-case (:name subj)))
@@ -83,6 +95,8 @@
 
 (defn hidden? [subj]
   (s/starts-with? (:name subj) "."))
+
+(def not-hidden? (comp hidden?))
 
 (defn regex? [subj] (instance? java.util.regex.Pattern subj))
 
@@ -108,6 +122,12 @@
   (->> (sort-by flags subj)
        (mapcat #(get flags % [%]))))
 
+(defn default-arg [arg rest]
+  (if (or (empty? rest)
+          (keyword? (first rest)))
+    (cons arg rest)
+    rest))
+
 (defn ls [& args]
   (let [flags {:m [:cols [:size :modified :name-ex]]
                :l [:cols [:permissions :user :group :size :modified :name-ex]]
@@ -120,8 +140,8 @@
                :h [:filter (constantly true)]}
         [arg & {:keys [cols sort filter] :or
                  {cols [:name]
-                  filter (complement hidden?)
-                  sort old-fashioned-sort-key}}] (expand-flags args flags)
+                  filter not-hidden?
+                  sort old-fashioned-sort-key}}] (default-arg "." (expand-flags args flags))
         [f pattern] (if (pattern? arg)
                       ["." (mk-pattern arg)]
                         [arg nil])
@@ -130,10 +150,10 @@
                       [(first sort) #(- (compare %1 %2))]
                       [sort compare])]
     (with-meta (if (or pattern
-                       (:directory? (file path)))
+                       (:directory? (attrs path)))
                  (->> (files path)
                       (clojure.core/filter filter)
                       (clojure.core/filter #(filename-matches? pattern %))
                       (sort-by keyfn cmp))
-                 [(file path)])
+                 [(attrs path)])
       {:rackushka/hint [:table :rackushka.fs/file cols]})))
