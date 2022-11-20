@@ -31,6 +31,10 @@
   (str (.normalize (.resolve (as-path base)
                              (as-path path)))))
 
+(defn relative-path [path other]
+  (str (.normalize (.relativize (as-path path)
+                                (as-path other)))))
+
 (defn cd [path]
   (swap! cwd #(resolve-path % path)))
 
@@ -110,6 +114,7 @@
   (if (regex? subj)
     subj
     (re-pattern (-> subj
+                    (s/replace "." "\\.")
                     (s/replace "*" ".*")
                     (s/replace "?" ".")))))
 
@@ -117,6 +122,14 @@
   (if pattern
     (re-matches pattern (:name subj))
     true))
+
+(defn mk-matcher [subj]
+  (cond
+    (fn? subj) subj
+    (regex? subj) (fn [file] (filename-matches? subj file))
+    (string? subj) (let [pattern (mk-pattern subj)]
+                     (fn [file] (filename-matches? pattern file)))
+    :else (constantly true)))
 
 (defn expand-flags [subj flags]
   (->> (sort-by flags subj)
@@ -157,3 +170,25 @@
                       (sort-by keyfn cmp))
                  [(attrs path)])
       {:rackushka/hint [:table :rackushka.fs/file cols]})))
+
+(defn find [& args]
+  (let [arg1 (first args)
+        args (if (and (string? arg1)
+                      (not (pattern? arg1)))
+               args
+               (cons "." args))
+        [path & rest-args] args
+        abs-path (resolve-path @cwd path)
+        exprs (take-while #(not (keyword? %)) rest-args)
+        [& {skip :skip}] (drop-while #(not (keyword? %)) rest-args)
+        skip-fn (if skip
+                  (complement (mk-matcher skip))
+                  (constantly true))
+        filters (cons skip-fn
+                      (map mk-matcher exprs))
+        ]
+    (with-meta 
+      (->> (files abs-path skip-fn)
+           (filter (apply every-pred filters))
+           (map #(assoc % :name (relative-path abs-path (:path %)))))
+      {:rackushka/hint [:table :rackushka.fs/file [:name]]})))
