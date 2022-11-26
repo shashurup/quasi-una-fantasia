@@ -68,7 +68,7 @@
                                     (into-array [LinkOption/NOFOLLOW_LINKS]))]
     (merge (convert-attrs attrs)
            {:path (str path)
-            :name (.toString (.getFileName path))}
+            :name (str (.getFileName path))}
            (when (symlink? attrs)
              {:link-target (.toString (Files/readSymbolicLink path))}))))
 
@@ -100,7 +100,7 @@
 (defn hidden? [subj]
   (s/starts-with? (:name subj) "."))
 
-(def not-hidden? (comp hidden?))
+(def not-hidden? (complement hidden?))
 
 (defn regex? [subj] (instance? java.util.regex.Pattern subj))
 
