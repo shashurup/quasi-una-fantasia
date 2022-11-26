@@ -1,7 +1,8 @@
 (ns rackushka.fs
   (:import [java.nio.file Files Paths LinkOption]
            [java.nio.file.attribute PosixFilePermission])
-  (:require [clojure.string :as s]))
+  (:require [clojure.string :as s]
+            [rackushka.data :as data]))
 
 (def permission-map
   {PosixFilePermission/OWNER_READ :owner-read
@@ -192,3 +193,40 @@
            (filter (apply every-pred filters))
            (map #(assoc % :name (relative-path abs-path (:path %)))))
       {:rackushka/hint [:table :rackushka.fs/file [:name]]})))
+
+(defmulti view-text-file :subtype)
+
+(defmethod view-text-file :default [{url :url}]
+  (with-meta (data/read-lines url) {:rackushka/hint :text}))
+
+(defmethod view-text-file :xml [{url :url}]
+  (data/read-xml url))
+
+(defmethod view-text-file :csv [{url :url}]
+  (data/read-csv url))
+
+(defmulti view-app-file :subtype)
+
+(defmethod view-app-file :json [{url :url}]
+  (data/read-json url))
+
+(defmulti view-file :type)
+
+(defmethod view-file :text [subj]
+  (view-text-file subj))
+
+(defmethod view-file :application [subj]
+  (view-app-file subj))
+
+(defmethod view-file :image [{url :url}]
+  (with-meta
+    [:img {:src url}]
+    {:rackushka/hint :html}))
+
+(defn probe [url]
+  (when-let [ct (Files/probeContentType (as-path url))]
+    (map keyword (s/split ct #"/" 2))))
+
+(defn v [url]
+  (when-let [[type subtype] (probe url)]
+    (view-file {:url url :type type :subtype subtype})))
