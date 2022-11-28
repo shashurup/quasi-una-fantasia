@@ -5,7 +5,7 @@
    [rackushka.desc :as desc]
    [goog.dom :as gdom]
    [goog.events :as gevents]
-   [cljs.reader :refer [read-string]]
+   [cljs.tools.reader :refer [read-string]]
    [crate.core :as crate]
    [clojure.string :as s]
    [cljs.pprint :as pp]))
@@ -38,9 +38,12 @@
                                  (.-responseText req))))
     (.send req msg)))
 
+(defn- mark-tag [tag arg] (with-meta [tag arg] {:rackushka/hint :tag}))
+
 (defn read-value [subj]
   (try
-    (read-string subj)
+    (binding [cljs.tools.reader/*default-data-reader-fn* mark-tag]
+      (read-string subj))
     (catch js/Object _
       ^{:rackushka/hint :rackushka/text} [subj])))
 
@@ -161,6 +164,9 @@
   [:pre (s/join "\n" subj)])
 
 (defmethod render :html [subj] subj)
+
+(defmethod render :tag [[tag arg]]
+ [:span {:class "ra-tag"} (str "#" tag arg)])
 
 ;; Table
 
