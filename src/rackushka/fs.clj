@@ -79,6 +79,7 @@
        .iterator
        iterator-seq))
 
+; TODO check out tree-seq function
 (defn files
   ([path] (files path nil))
   ([path pred]

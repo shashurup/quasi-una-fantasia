@@ -3,6 +3,7 @@
    [crate.def-macros :only [defpartial]])
   (:require
    [rackushka.desc :as desc]
+   [rackushka.input :as input]
    [goog.dom :as gdom]
    [goog.events :as gevents]
    [cljs.tools.reader :refer [read-string]]
