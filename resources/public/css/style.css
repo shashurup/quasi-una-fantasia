@@ -74,6 +74,13 @@ input {
     font-family: monospace;
 }
 
+div.ra-input {
+    display: inline-block;
+    font-family: monospace;
+    padding: 0.2em;
+    width: 80ch;
+}
+
 table.ra {
     border-collapse: collapse;
     border-spacing: 0px;

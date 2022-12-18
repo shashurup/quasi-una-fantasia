@@ -89,10 +89,10 @@
 
 ;; Tree
 
-(defn create-cell [id ns]
+(defn create-cell [id ns on-eval]
   (crate/html [:div {:id (str "cell-" id)}
                [:span.ra-prompt (str ns "=> ")]
-               [:input {:id (str "expr-" id) :type "text" :size 80}]
+               (input/create id on-eval)
                [:div {:id (str "out-" id)}]
                [:div.ra-result {:id (str "result-" id)}]]))
 
@@ -237,22 +237,17 @@
           (:value result))
     (focus-next-cell id)))
 
-(defn eval-cell-expr [id]
-  (let [expr (.-value (gdom/getElement (str "expr-" id)))]
-    (nrepl-eval expr #(apply-result id %))))
+(defn eval-cell-expr [id expr]
+  (nrepl-eval expr #(apply-result id %)))
 
 (defn add-new-cell []
   (let [ns (:ns @app-state)]
     (if ns
       (let [id (new-cell-id)
-            cell (create-cell id ns)
-            keydown (fn [e]
-                      (when (= e.code "Enter")
-                        (eval-cell-expr id)))]
+            cell (create-cell id ns #(eval-cell-expr id %))]
         (gdom/appendChild (get-app-element) cell)
         (let [expr-input (gdom/getElement (str "expr-" id))]
-          (.focus expr-input)
-          (.addEventListener expr-input "keydown" keydown)))
+          (.focus expr-input)))
       (nrepl-eval "*ns*" #(add-new-cell)))))
 
 (gevents/listen js/window

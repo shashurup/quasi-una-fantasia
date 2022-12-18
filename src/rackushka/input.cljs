@@ -126,13 +126,12 @@
 
 (defn set-cursor-position [el child-num offset]
   (when child-num
-    (let [range (.createRange js/document)
-          selection (js/getSelection)
-          node (nth (text-node-seq el) child-num)]
-      (.setStart range node offset)
-      (.collapse range true)
-      (.removeAllRanges selection)
-      (.addRange selection range))))
+    (let [node (nth (text-node-seq el) child-num)]
+      (doto (js/getSelection)
+        (.removeAllRanges)
+        (.addRange (doto (.createRange js/document)
+                     (.setStart node offset)
+                     (.collapse true)))))))
 
 (defn figure-placement [layout pos]
   (if-let [[num offset _]
@@ -149,9 +148,6 @@
     (when-let [[start _ _] (last layout)]
       [(dec (count layout)) (- pos start)])))
 
-(defn create [id]
-  (crate/html [:div {:id (str "expr-" id) :contenteditable true}]))
-
 (defn input-changed [e]
   (let [el (.-target e)
         text (.-textContent el)
@@ -159,12 +155,22 @@
     (when (not= (existing-markup el) layout)
       (let [pos (get-cursor-position el)
             [el-num offset] (figure-placement layout pos)]
-        (.log js/console "different!! " pos text)
+        ; (.log js/console "different!! " pos text)
         (replace-content el (map #(layout->html text %) layout))
         (set-cursor-position el el-num offset)))))
 
-(defn append-input [parent id]
-  (let [div (crate/html [:div {:id (str "expr-" id)
+(defn get-expr [subj]
+  (s/replace (.-textContent subj) \u00a0 " "))
+
+(defn create [id on-eval]
+  (let [keydown (fn [e]
+                  (when (= e.code "Enter")
+                    (on-eval (get-expr e.target))
+                    false))
+        div (crate/html [:div {:id (str "expr-" id)
+                               :class "ra-input"
+                               :spellcheck "false"
                                :contenteditable "true"}])]
-    (.addEventListener div "input" input-changed)
-    (gdom/appendChild parent div)))
+    (doto div
+      (.addEventListener "input" input-changed)
+      (.addEventListener "keydown" keydown))))
