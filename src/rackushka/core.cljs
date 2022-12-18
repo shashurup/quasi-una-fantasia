@@ -238,6 +238,8 @@
     (focus-next-cell id)))
 
 (defn eval-cell-expr [id expr]
+  (doto (gdom/getElement (str "result-" id))
+    (gdom/appendChild (crate/html [:progress])))
   (nrepl-eval expr #(apply-result id %)))
 
 (defn add-new-cell []
