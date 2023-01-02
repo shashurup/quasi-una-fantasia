@@ -6,12 +6,14 @@
 
   :min-lein-version "2.7.1"
 
-  :dependencies [[org.clojure/clojure "1.10.0"]
-                 [org.clojure/clojurescript "1.10.773"]
+  :dependencies [[org.clojure/clojure "1.11.1"]
+                 [org.clojure/clojurescript "1.11.60"]
                  [compojure "1.6.2"]
                  [nrepl/drawbridge "0.2.1"]
                  [cheshire "5.11.0"]
                  [org.clojure/data.csv "1.0.1"]
+                 [org.clojure/java.jdbc "0.7.12"]
+                 [org.postgresql/postgresql "42.5.1"]
                  [crate "0.2.4"]]
 
   :source-paths ["src"]
@@ -21,7 +23,7 @@
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
             "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "rackushka.test-runner"]}
 
-  :profiles {:dev {:dependencies [[com.bhauman/figwheel-main "0.2.15"]
+  :profiles {:dev {:dependencies [[com.bhauman/figwheel-main "0.2.18"]
                                   [com.bhauman/rebel-readline-cljs "0.1.4"]]
                    
                    :resource-paths ["target"]

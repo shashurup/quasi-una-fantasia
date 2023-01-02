@@ -148,9 +148,8 @@
     (when-let [[start _ _] (last layout)]
       [(dec (count layout)) (- pos start)])))
 
-(defn input-changed [e]
-  (let [el (.-target e)
-        text (.-textContent el)
+(defn highlight [el]
+  (let [text (.-textContent el)
         layout (demarkate text)]
     (when (not= (existing-markup el) layout)
       (let [pos (get-cursor-position el)
@@ -158,6 +157,14 @@
         ; (.log js/console "different!! " pos text)
         (replace-content el (map #(layout->html text %) layout))
         (set-cursor-position el el-num offset)))))
+
+(defn schedule-completions [el]
+  (when-let [cur-timer (.-completionsTimer el)]
+    (js/clearTimeout cur-timer))
+  ; (set! (.- el completionsTimer)
+  ;       (js/setTimeout (fn [el]
+  ;                        (.log js/console "timeout")) 1000))
+  )
 
 (defn get-expr [subj]
   (s/replace (.-textContent subj) \u00a0 " "))
@@ -167,6 +174,10 @@
                   (when (= e.code "Enter")
                     (on-eval (get-expr e.target))
                     false))
+        input-changed (fn [e]
+                        (let [el (.-target e)]
+                          (schedule-completions el)
+                          (highlight el)))
         div (crate/html [:div {:id (str "expr-" id)
                                :class "ra-input"
                                :spellcheck "false"

@@ -39,11 +39,14 @@
                                  (.-responseText req))))
     (.send req msg)))
 
-(defn- mark-tag [tag arg] (with-meta [tag arg] {:rackushka/hint :tag}))
+(defn- handle-tag [tag arg]
+  (condp = tag
+    'inst (js/Date. arg)
+    (with-meta [tag arg] {:rackushka/hint :tag})))
 
 (defn read-value [subj]
   (try
-    (binding [cljs.tools.reader/*default-data-reader-fn* mark-tag]
+    (binding [cljs.tools.reader/*default-data-reader-fn* handle-tag]
       (read-string subj))
     (catch js/Object _
       ^{:rackushka/hint :rackushka/text} [subj])))
@@ -167,7 +170,7 @@
 (defmethod render :html [subj] subj)
 
 (defmethod render :tag [[tag arg]]
- [:span {:class "ra-tag"} (str "#" tag arg)])
+  [:span {:class "ra-tag"} (str "#" tag " " arg)])
 
 ;; Table
 
@@ -175,7 +178,10 @@
 
 (defmethod render-cell :default [value]
   [:td.ra (if (coll? value)
-            (render value)
+            (if (and (= :tag (:rackushka/hint (meta value)))
+                     (= 'object (first value)) )
+              (last (second value))
+              (render value))
             (pr-str value))])
 
 (defmethod render-cell nil [_] [:td.ra])
@@ -186,6 +192,10 @@
 (defmethod render-cell js/Number [value]
   [:td {:class (str "ra " "ra-number-cell")}
    (.format (js/Intl.NumberFormat.) value)])
+
+(defmethod render-cell js/Date [value]
+  [:td {:class (str "ra " "ra-date-cell")}
+   (.toISOString value)])
 
 (defn guess-columns [data]
   (let [row (first data)]

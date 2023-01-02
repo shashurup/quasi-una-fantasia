@@ -98,6 +98,7 @@ td.ra {
     border-bottom-style: none;
     border-top-style: none;
     border-right-style: none;
+    white-space: pre;
 }
 
 th.ra {
@@ -113,10 +114,6 @@ td.ra:nth-child(1) {
 
 th.ra:nth-child(1) {
     border-left-style: none;
-}
-
-td.ra-string-cell {
-    white-space: pre;
 }
 
 td.ra-number-cell {
