@@ -1,7 +1,9 @@
 (ns rackushka.db
   (:require
    [clojure.string :as s]
-   [clojure.java.jdbc :as jdbc]))
+   [clojure.java.jdbc :as jdbc]
+   [monger.core :as mg]
+   [monger.collection :as mc]))
 
 (def ^:dynamic *current*)
 
@@ -19,13 +21,23 @@
                                 :type (keyword "rackushka.db"
                                                (s/lower-case col-type))})))]}))
 
-(defn q [& args]
-  (let [[conn args] (if (map? (first args))
-                      [(first args) (rest args)]
-                      [*current* args])
-        handle (fn [rset]
+(defn- jdbc-query [conn args]
+  (let [handle (fn [rset]
                  (let [meta (make-meta rset)]
                    (with-meta 
                      (jdbc/metadata-result rset)
                      meta)))]
     (jdbc/db-query-with-resultset conn args handle)))
+
+(defn- mongo-query [desc args]
+  (let [c (mg/connect desc)
+        d (mg/get-db c (:dbname desc))]
+    (apply mc/find-maps d args)))
+
+(defn q [& args]
+  (let [[conn args] (if (map? (first args))
+                      [(first args) (rest args)]
+                      [*current* args])]
+    (if (= (:dbtype conn) "mongodb")
+      (mongo-query conn args)
+      (jdbc-query conn args))))

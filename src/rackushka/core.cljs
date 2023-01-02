@@ -110,7 +110,7 @@
                      (type subj))))
 
 (defmethod render :default [subj]
-  [:pre (pr-str subj)])
+  [:span.ra (pr-str subj)])
 
 (defmethod render nil [subj]
   (make-scalar "ra-nil" subj))

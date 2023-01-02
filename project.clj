@@ -14,6 +14,7 @@
                  [org.clojure/data.csv "1.0.1"]
                  [org.clojure/java.jdbc "0.7.12"]
                  [org.postgresql/postgresql "42.5.1"]
+                 [com.novemberain/monger "3.6.0"]
                  [crate "0.2.4"]]
 
   :source-paths ["src"]
