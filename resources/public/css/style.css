@@ -15,6 +15,7 @@ p.ra-ex {
 
 body {
     font-family: monospace;
+    background-color: beige;
 }
 
 .ra-composite-wrapper {
@@ -31,7 +32,7 @@ span.ra-closing-paren {
 }
 
 .ra-string {
-    color: green;
+    color: teal;
 }
 
 .ra-keyword {
@@ -39,11 +40,11 @@ span.ra-closing-paren {
 }
 
 .ra-number {
-    color: brown;
+    color: slateblue;
 }
 
 .ra-symbol {
-    color: darkblue;
+    color: maroon;
 }
 
 .ra-bool {
@@ -78,7 +79,9 @@ div.ra-input {
     display: inline-block;
     font-family: monospace;
     padding: 0.2em;
-    width: 80ch;
+    min-width: 80ch;
+    max-width: 100%;
+    white-space: break-spaces;
 }
 
 table.ra {
