@@ -173,7 +173,7 @@
   (let [keydown (fn [e]
                   (when (= e.code "Enter")
                     (on-eval (get-expr e.target))
-                    false))
+                    (.preventDefault e)))
         input-changed (fn [e]
                         (let [el (.-target e)]
                           (schedule-completions el)
