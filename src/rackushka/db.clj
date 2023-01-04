@@ -8,7 +8,10 @@
 (def ^:dynamic *current*)
 
 (defn use [subj]
-  (def *current* subj))
+  (let [new-val (if (string? subj)
+                  {:connection-uri subj}
+                  subj)]
+    (def ^:dynamic *current* new-val)))
 
 (defn make-meta [rset]
   (let [rset-meta (.getMetaData rset)]
@@ -30,14 +33,20 @@
     (jdbc/db-query-with-resultset conn args handle)))
 
 (defn- mongo-query [desc args]
-  (let [c (mg/connect desc)
-        d (mg/get-db c (:dbname desc))]
-    (apply mc/find-maps d args)))
+  (let [db (if-let [uri (:connection-uri desc)]
+             (:db (mg/connect-via-uri uri))
+             (let [c (mg/connect desc)]
+               (mg/get-db c (:dbname desc))))]
+    (apply mc/find-maps db args)))
+
+(defn- mongo? [subj]
+  (or (= (:dbtype subj) "mongodb")
+      (s/starts-with? (:connection-uri subj "") "mongodb:")))
 
 (defn q [& args]
   (let [[conn args] (if (map? (first args))
                       [(first args) (rest args)]
                       [*current* args])]
-    (if (= (:dbtype conn) "mongodb")
+    (if (mongo? conn)
       (mongo-query conn args)
       (jdbc-query conn args))))
