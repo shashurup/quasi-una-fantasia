@@ -1,4 +1,4 @@
-(ns rackushka.input
+(ns rackushka.highlight
   (:require
    [clojure.string :as s]
    [crate.core :as crate]
@@ -166,22 +166,7 @@
   ;                        (.log js/console "timeout")) 1000))
   )
 
-(defn get-expr [subj]
-  (s/replace (.-textContent subj) \u00a0 " "))
-
-(defn create [id on-eval]
-  (let [keydown (fn [e]
-                  (when (= e.code "Enter")
-                    (on-eval (get-expr e.target))
-                    (.preventDefault e)))
-        input-changed (fn [e]
-                        (let [el (.-target e)]
-                          (schedule-completions el)
-                          (highlight el)))
-        div (crate/html [:div {:id (str "expr-" id)
-                               :class "ra-input"
-                               :spellcheck "false"
-                               :contenteditable "true"}])]
-    (doto div
-      (.addEventListener "input" input-changed)
-      (.addEventListener "keydown" keydown))))
+(defn plug [input]
+  (.addEventListener input
+                     "input"
+                     #(highlight (.-target %))))

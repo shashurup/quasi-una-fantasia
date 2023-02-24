@@ -3,7 +3,7 @@
    [crate.def-macros :only [defpartial]])
   (:require
    [rackushka.desc :as desc]
-   [rackushka.input :as input]
+   [rackushka.highlight :as highlight]
    [goog.dom :as gdom]
    [goog.events :as gevents]
    [cljs.tools.reader :refer [read-string]]
@@ -92,10 +92,13 @@
 
 ;; Tree
 
-(defn create-cell [id ns on-eval]
+(defn create-cell [id ns]
   (crate/html [:div {:id (str "cell-" id)}
                [:span.ra-prompt (str ns "=> ")]
-               (input/create id on-eval)
+               [:div {:id (str "expr-" id)
+                      :class "ra-input"
+                      :spellcheck "false"
+                      :contenteditable "true"}]
                [:div {:id (str "out-" id)}]
                [:div.ra-result {:id (str "result-" id)}]]))
 
@@ -252,14 +255,24 @@
     (gdom/appendChild (crate/html [:progress])))
   (nrepl-eval expr #(apply-result id %)))
 
+(defn get-expr [subj]
+  (s/replace (.-textContent subj) \u00a0 " "))
+
 (defn add-new-cell []
   (let [ns (:ns @app-state)]
     (if ns
       (let [id (new-cell-id)
-            cell (create-cell id ns #(eval-cell-expr id %))]
+            cell (create-cell id ns)
+            keydown (fn [e]
+                      (when (= e.code "Enter")
+                        (eval-cell-expr id (get-expr e.target))
+                        (.preventDefault e)))]
         (gdom/appendChild (get-app-element) cell)
         (let [expr-input (gdom/getElement (str "expr-" id))]
-          (.focus expr-input)))
+          (doto expr-input
+            (highlight/plug)
+            (.addEventListener "keydown" keydown)
+            (.focus))))
       (nrepl-eval "*ns*" #(add-new-cell)))))
 
 (gevents/listen js/window
