@@ -93,7 +93,7 @@
 ;; Tree
 
 (defn create-cell [id ns]
-  (crate/html [:div {:id (str "cell-" id)}
+  (crate/html [:div.ra-cell {:id (str "cell-" id)}
                [:span.ra-prompt (str ns "=> ")]
                [:div {:id (str "expr-" id)
                       :class "ra-input"
@@ -278,9 +278,16 @@
     (gdom/removeNode (gdom/getElement (str "cell-" id)))
     (.focus (or next-input (last-input)))))
 
+(defn delete-all []
+  (doall (->> (gdom/getElementsByClass "ra-cell")
+              array-seq
+              (map gdom/removeNode)))
+  (add-new-cell))
+
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
-                   "C-Delete" delete-cell})
+                   "C-Delete" delete-cell
+                   "C-l" delete-all})
 
 (defn key-event->str [e]
   (str (when (.-altKey e) "A-")
