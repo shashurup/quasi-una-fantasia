@@ -229,12 +229,22 @@
 
 (declare add-new-cell)
 
+(defn find-next-input [id]
+  (->> (gdom/getElementsByClass "ra-input")
+       array-seq
+       (drop-while #(not= (.-id %)
+                          (str "expr-" id)))
+       second))
+
+(defn last-input []
+  (last (array-seq (gdom/getElementsByClass "ra-input"))))
+
 (defn focus-next-cell [id]
-  (if-let [el (gdom/getElement (str "expr-" (inc id)))]
+  (if-let [el (find-next-input id)]
     (.focus el)
     (add-new-cell)))
 
-(defn apply-result [id result]
+(defn apply-result [id result go-next]
   (let [valdiv (gdom/getElement (str "result-" id))
         outdiv (gdom/getElement (str "out-" id))]
     (gdom/removeChildren outdiv)
@@ -248,15 +258,35 @@
                 crate/html
                 render)
           (:value result))
-    (focus-next-cell id)))
+    (when go-next
+      (focus-next-cell id))))
 
-(defn eval-cell-expr [id expr]
-  (doto (gdom/getElement (str "result-" id))
-    (gdom/appendChild (crate/html [:progress])))
-  (nrepl-eval expr #(apply-result id %)))
+(defn eval-cell
+  ([id] (eval-cell id true))
+  ([id go-next]
+   (doto (gdom/getElement (str "result-" id))
+     (gdom/appendChild (crate/html [:progress])))
+   (let [expr (-> (gdom/getElement (str "expr-" id))
+                  .-textContent
+                  (s/replace \u00a0 " "))]
+     (nrepl-eval expr #(apply-result id % go-next)))))
 
-(defn get-expr [subj]
-  (s/replace (.-textContent subj) \u00a0 " "))
+(defn eval-cell-and-stay [id] (eval-cell id false))
+
+(defn delete-cell [id]
+  (let [next-input (find-next-input id)]
+    (gdom/removeNode (gdom/getElement (str "cell-" id)))
+    (.focus (or next-input (last-input)))))
+
+(def cell-key-map {"Enter" eval-cell
+                   "C-Enter" eval-cell-and-stay
+                   "C-Delete" delete-cell})
+
+(defn key-event->str [e]
+  (str (when (.-altKey e) "A-")
+       (when (.-ctrlKey e) "C-")
+       (when (.-shiftKey e) "S-")
+       (.-key e)))
 
 (defn add-new-cell []
   (let [ns (:ns @app-state)]
@@ -264,8 +294,8 @@
       (let [id (new-cell-id)
             cell (create-cell id ns)
             keydown (fn [e]
-                      (when (= e.code "Enter")
-                        (eval-cell-expr id (get-expr e.target))
+                      (when-let [f (get cell-key-map (key-event->str e))]
+                        (f id)
                         (.preventDefault e)))]
         (gdom/appendChild (get-app-element) cell)
         (let [expr-input (gdom/getElement (str "expr-" id))]
