@@ -1,7 +1,16 @@
 /* some style */
 
 div.ra-result {
-    padding: 1ch;
+    margin: 1em;
+}
+
+div.ra-candidates {
+    margin: 1em;
+}
+
+.ra-selected {
+    border: 2px solid;
+    border-radius: 4px;
 }
 
 p.ra-err {

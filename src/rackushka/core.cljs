@@ -4,6 +4,7 @@
   (:require
    [rackushka.desc :as desc]
    [rackushka.highlight :as highlight]
+   [rackushka.completions :as completions]
    [goog.dom :as gdom]
    [goog.events :as gevents]
    [cljs.tools.reader :refer [read-string]]
@@ -99,6 +100,7 @@
                       :class "ra-input"
                       :spellcheck "false"
                       :contenteditable "true"}]
+               [:div.ra-candidates {:id (str "cand-" id)}]
                [:div {:id (str "out-" id)}]
                [:div.ra-result {:id (str "result-" id)}]]))
 
@@ -289,11 +291,25 @@
                    "C-Delete" delete-cell
                    "C-l" delete-all})
 
+(def completions-key-map {"Enter" completions/use-candidate
+                          "Escape" completions/clear-candidates
+                          "C-j" completions/select-next-candidate
+                          "C-k" completions/select-prev-candidate})
+
+(defn get-key-map [id]
+  (merge cell-key-map
+         (when (completions/active id)
+           completions-key-map)))
+
 (defn key-event->str [e]
   (str (when (.-altKey e) "A-")
        (when (.-ctrlKey e) "C-")
        (when (.-shiftKey e) "S-")
        (.-key e)))
+
+(defn get-completions [text callback]
+  (nrepl-op {:op "completions" :prefix text}
+            #(callback (:completions (first %)))))
 
 (defn add-new-cell []
   (let [ns (:ns @app-state)]
@@ -301,13 +317,14 @@
       (let [id (new-cell-id)
             cell (create-cell id ns)
             keydown (fn [e]
-                      (when-let [f (get cell-key-map (key-event->str e))]
+                      (when-let [f (get (get-key-map id) (key-event->str e))]
                         (f id)
                         (.preventDefault e)))]
         (gdom/appendChild (get-app-element) cell)
         (let [expr-input (gdom/getElement (str "expr-" id))]
           (doto expr-input
             (highlight/plug)
+            (completions/plug id get-completions)
             (.addEventListener "keydown" keydown)
             (.focus))))
       (nrepl-eval "*ns*" #(add-new-cell)))))

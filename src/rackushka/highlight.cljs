@@ -158,14 +158,6 @@
         (replace-content el (map #(layout->html text %) layout))
         (set-cursor-position el el-num offset)))))
 
-(defn schedule-completions [el]
-  (when-let [cur-timer (.-completionsTimer el)]
-    (js/clearTimeout cur-timer))
-  ; (set! (.- el completionsTimer)
-  ;       (js/setTimeout (fn [el]
-  ;                        (.log js/console "timeout")) 1000))
-  )
-
 (defn plug [input]
   (.addEventListener input
                      "input"
