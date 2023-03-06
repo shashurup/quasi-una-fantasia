@@ -72,5 +72,7 @@
                   (send-eval expr callback))))))
 
 (defn send-completions [text callback]
-  (send-op {:op "completions" :prefix text}
-            #(callback (:completions (first %)))))
+  (send-op {:op "completions"
+            :prefix text
+            :session (:session @state)}
+           #(callback (:completions (first %)))))
