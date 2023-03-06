@@ -1,5 +1,6 @@
 (ns rackushka.completions
   (:require
+   [rackushka.nrepl :as nrepl]
    [crate.core :as crate]
    [goog.dom :as gdom]
    [goog.dom.classes :as gcls]))
@@ -71,22 +72,25 @@
 
 (def max-completions 16)
 
-(defn schedule-completions [id compl-fn]
-  (let [text (text-at-cursor)
-        f (fn [candidates]
-            (let [tail (if (> (count candidates) max-completions) "..." "")
-                  target (get-root-element id)]
-              (gdom/removeChildren target)
-              (when (not-empty candidates)
-                (doseq [c (take max-completions candidates)]
-                  (.append target (make-candidate c))
-                  (.append target " "))
-                (.append target tail)
-                (select-candidate (gdom/getFirstElementChild target)))))]
-    (when (not-empty text)
-      (schedule #(compl-fn text f) 1000))))
+(defn show [id candidates]
+ (let [tail (if (> (count candidates) max-completions) "..." "")
+       target (get-root-element id)]
+   (gdom/removeChildren target)
+   (when (not-empty candidates)
+     (doseq [c (take max-completions candidates)]
+       (.append target (make-candidate c))
+       (.append target " "))
+     (.append target tail)
+     (select-candidate (gdom/getFirstElementChild target)))))
 
-(defn plug [input id compl-fn]
+(defn initiate [id]
+  (nrepl/send-completions (text-at-cursor)
+                          #(show id %)))
+
+(defn schedule-completions [id]
+  (schedule #(initiate id) 1000))
+
+(defn plug [input id]
   (.addEventListener input
                      "input"
-                     #(schedule-completions id compl-fn)))
+                     #(schedule-completions id)))

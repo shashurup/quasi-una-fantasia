@@ -1,8 +1,7 @@
 (ns rackushka.nrepl
   (:require
    [goog.events :as gevents]
-   [cljs.tools.reader :refer [read-string]]
-   ))
+   [cljs.tools.reader :refer [read-string]]))
 
 (defonce state (atom {}))
 

@@ -224,11 +224,12 @@
 
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
+                   "Tab" completions/initiate ;; doesn't work
                    "C-Delete" delete-cell
                    "C-l" delete-all})
 
 (def completions-key-map {"Enter" completions/use-candidate
-                          "Escape" completions/clear-candidates
+                          "Escape" completions/clear-candidates ;; doesn't work
                           "C-j" completions/select-next-candidate
                           "C-k" completions/select-prev-candidate})
 
@@ -256,7 +257,7 @@
         (let [expr-input (gdom/getElement (str "expr-" id))]
           (doto expr-input
             (highlight/plug)
-            (completions/plug id nrepl/send-completions)
+            (completions/plug id)
             (.addEventListener "keydown" keydown)
             (.focus))))
       (nrepl/send-eval "*ns*" #(add-new-cell)))))
