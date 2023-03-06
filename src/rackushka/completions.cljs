@@ -69,16 +69,22 @@
   (crate/html [:span {:class (candidate-class (:type subj))}
                (:candidate subj)]))
 
+(def max-completions 16)
+
 (defn schedule-completions [id compl-fn]
   (let [text (text-at-cursor)
         f (fn [candidates]
-            (let [target (get-root-element id)]
+            (let [tail (if (> (count candidates) max-completions) "..." "")
+                  target (get-root-element id)]
               (gdom/removeChildren target)
-              (doseq [c candidates]
-                (.append target (make-candidate c))
-                (.append target " "))
-              (select-candidate (gdom/getFirstElementChild target))))]
-    (schedule #(compl-fn text f) 1000)))
+              (when (not-empty candidates)
+                (doseq [c (take max-completions candidates)]
+                  (.append target (make-candidate c))
+                  (.append target " "))
+                (.append target tail)
+                (select-candidate (gdom/getFirstElementChild target)))))]
+    (when (not-empty text)
+      (schedule #(compl-fn text f) 1000))))
 
 (defn plug [input id compl-fn]
   (.addEventListener input

@@ -2,12 +2,12 @@
   (:use-macros
    [crate.def-macros :only [defpartial]])
   (:require
+   [rackushka.completions :as completions]
    [rackushka.desc :as desc]
    [rackushka.highlight :as highlight]
-   [rackushka.completions :as completions]
+   [rackushka.nrepl :as nrepl]
    [goog.dom :as gdom]
    [goog.events :as gevents]
-   [cljs.tools.reader :refer [read-string]]
    [crate.core :as crate]
    [clojure.string :as s]
    [cljs.pprint :as pp]))
@@ -26,70 +26,6 @@
 
 (defn get-app-element []
   (gdom/getElement "app"))
-
-
-(defn nrepl-op [op callback]
-  (let [msg (pr-str op)
-        req (js/XMLHttpRequest.)]
-    (.open req "POST" "repl")
-    (.setRequestHeader req "Content-Type" "application/octet-stream")
-    (gevents/listen req
-                    "loadend"
-                    #(callback (if (= 200 (.-status req))
-                                 (read-string (.-responseText req))
-                                 (.-responseText req))))
-    (.send req msg)))
-
-(defn- handle-tag [tag arg]
-  (condp = tag
-    'inst (js/Date. arg)
-    (with-meta [tag arg] {:rackushka/hint :tag})))
-
-(defn read-value [subj]
-  (try
-    (binding [cljs.tools.reader/*default-data-reader-fn* handle-tag]
-      (read-string subj))
-    (catch js/Object _
-      ^{:rackushka/hint :rackushka/text} [subj])))
-
-(defn merge-eval-result [subj]
-  (if (string? subj)
-    {:err subj}
-    {:id (:id (first subj))
-     :out (->> subj
-               (map #(select-keys % [:out :err :ex :root-ex]))
-               (remove empty?))
-     :value (->> subj
-                 (map :value)
-                 (remove nil?)
-                 (map read-value))}))
-
-(defn update-ns [resp]
-  (when-let [ns (some :ns resp)]
-    (swap! app-state assoc :ns ns)))
-
-(defn history-append [expr]
-  (when-not (empty? expr)
-    (swap! app-state update :history #(conj % expr))))
-
-(defn update-session [resp]
-  (swap! app-state assoc :session (:new-session (first resp))))
-
-(defn nrepl-eval [expr callback]
-  (let [session (:session @app-state)]
-    (if session
-      (nrepl-op {:op "eval"
-                 :code expr
-                 :session session
-                 :nrepl.middleware.print/print "rackushka.srv/pr-with-meta"}
-                (fn [resp]
-                  (history-append expr)
-                  (update-ns resp)
-                  (callback (merge-eval-result resp))))
-      (nrepl-op {:op "clone"}
-                (fn [resp]
-                  (update-session resp)
-                  (nrepl-eval expr callback))))))
 
 ;; Tree
 
@@ -271,7 +207,7 @@
    (let [expr (-> (gdom/getElement (str "expr-" id))
                   .-textContent
                   (s/replace \u00a0 " "))]
-     (nrepl-eval expr #(apply-result id % go-next)))))
+     (nrepl/send-eval expr #(apply-result id % go-next)))))
 
 (defn eval-cell-and-stay [id] (eval-cell id false))
 
@@ -307,12 +243,8 @@
        (when (.-shiftKey e) "S-")
        (.-key e)))
 
-(defn get-completions [text callback]
-  (nrepl-op {:op "completions" :prefix text}
-            #(callback (:completions (first %)))))
-
 (defn add-new-cell []
-  (let [ns (:ns @app-state)]
+  (let [ns (nrepl/get-ns)]
     (if ns
       (let [id (new-cell-id)
             cell (create-cell id ns)
@@ -324,10 +256,10 @@
         (let [expr-input (gdom/getElement (str "expr-" id))]
           (doto expr-input
             (highlight/plug)
-            (completions/plug id get-completions)
+            (completions/plug id nrepl/send-completions)
             (.addEventListener "keydown" keydown)
             (.focus))))
-      (nrepl-eval "*ns*" #(add-new-cell)))))
+      (nrepl/send-eval "*ns*" #(add-new-cell)))))
 
 (gevents/listen js/window
                 "load"
