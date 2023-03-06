@@ -13,6 +13,10 @@
   (let [timer-id (js/setTimeout f delay)]
     (reset! completions-timer timer-id)))
 
+(defn cancel []
+  (when-let [timer-id @completions-timer]
+    (js/clearTimeout timer-id)))
+
 (defn get-root-element [id]
   (gdom/getElement (str "cand-" id)))
 
@@ -91,6 +95,5 @@
   (schedule #(initiate id) 1000))
 
 (defn plug [input id]
-  (.addEventListener input
-                     "input"
-                     #(schedule-completions id)))
+  (.addEventListener input "focusout" cancel)
+  (.addEventListener input "input" #(schedule-completions id)))
