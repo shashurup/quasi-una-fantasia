@@ -191,11 +191,13 @@
            (for [line (:out result)]
              (crate/html [:p {:class (out-class line)}
                           (s/join ", " (vals line))])))
+    (.scrollIntoView outdiv)
     (gdom/removeChildren valdiv)
     (mapv (comp #(gdom/appendChild valdiv %)
                 crate/html
                 render)
           (:value result))
+    (.scrollIntoView valdiv)
     (when go-next
       (focus-next-cell id))))
 
