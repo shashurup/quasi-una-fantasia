@@ -13,6 +13,7 @@
                  [cheshire "5.11.0"]
                  [org.clojure/data.csv "1.0.1"]
                  [org.clojure/java.jdbc "0.7.12"]
+                 [de.swiesend/secret-service "1.8.1-jdk17"]
                  [org.postgresql/postgresql "42.5.1"]
                  [com.novemberain/monger "3.6.0"]
                  [crate "0.2.4"]]

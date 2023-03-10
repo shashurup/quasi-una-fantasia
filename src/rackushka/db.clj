@@ -3,15 +3,15 @@
    [clojure.string :as s]
    [clojure.java.jdbc :as jdbc]
    [monger.core :as mg]
-   [monger.collection :as mc]))
+   [monger.collection :as mc]
+   [rackushka.secrets :as secrets]))
 
 (def ^:dynamic *current*)
 
+(def ^:dynamic *book* {})
+
 (defn use [subj]
-  (let [new-val (if (string? subj)
-                  {:connection-uri subj}
-                  subj)]
-    (def ^:dynamic *current* new-val)))
+  (def ^:dynamic *current* subj))
 
 (defn make-meta [rset]
   (let [rset-meta (.getMetaData rset)]
@@ -24,29 +24,68 @@
                                 :type (keyword "rackushka.db"
                                                (s/lower-case col-type))})))]}))
 
-(defn- jdbc-query [conn args]
+(defn- resolve-creds [db]
+  (let [pwd (:password db)]
+    (if (map? pwd)
+      (assoc db :password (secrets/find pwd))
+      db)))
+
+(defn- parse-pg-uri [subj]
+  (let [uri (java.net.URI. subj)
+        user-info (.getUserInfo uri)
+        parts [[:dbtype "postgresql"]
+               [:host (.getHost uri)]
+               [:port (let [p (.getPort uri)]
+                        (when (> p 0) p))]
+               [:dbname (let [p (.getPath uri)]
+                          (when (not-empty p)
+                            (s/replace p #"^/" "")))]
+               [:user (when (not-empty user-info)
+                        (first (s/split user-info #":")))]
+               [:password (when (not-empty user-info)
+                            (second (s/split user-info #":")))]]]
+    (->> parts
+         (filter second)
+         (into {}))))
+
+(defmulti query-by-map {:private true} (fn [db &_] (:dbtype db)))
+
+(defmulti query-by-uri {:private true} (fn [uri &_] (.getScheme (java.net.URI. uri))))
+
+(defmulti query (fn [db &_] (class db)))
+
+(defmethod query-by-uri "mongodb" [uri & args]
+  (apply mc/find-maps (:db (mg/connect-via-uri uri)) args))
+
+(defmethod query-by-uri "postgresql" [uri & args]
+  (apply query-by-map (parse-pg-uri uri) args))
+
+(defmethod query-by-map "mongodb" [db & args]
+  (let [c (mg/connect (resolve-creds db))]
+    (apply mc/find-maps (mg/get-db c (:dbname db)) args)))
+
+(defmethod query-by-map :default [db & args]
   (let [handle (fn [rset]
                  (let [meta (make-meta rset)]
                    (with-meta 
                      (jdbc/metadata-result rset)
                      meta)))]
-    (jdbc/db-query-with-resultset conn args handle)))
+    (jdbc/db-query-with-resultset (resolve-creds db) args handle)))
 
-(defn- mongo-query [desc args]
-  (let [db (if-let [uri (:connection-uri desc)]
-             (:db (mg/connect-via-uri uri))
-             (let [c (mg/connect desc)]
-               (mg/get-db c (:dbname desc))))]
-    (apply mc/find-maps db args)))
+(defmethod query-by-uri :default [uri & args]
+  (apply query {:connection-uri uri} args))
 
-(defn- mongo? [subj]
-  (or (= (:dbtype subj) "mongodb")
-      (s/starts-with? (:connection-uri subj "") "mongodb:")))
+(defmethod query String [db & args]
+  (apply query-by-uri db args))
+
+(defmethod query clojure.lang.IPersistentMap [db & args]
+  (apply query-by-map db args))
+
+(defmethod query :default [db & args]
+  (throw (Exception. "db must be either string or map")))
 
 (defn q [& args]
-  (let [[conn args] (if (map? (first args))
-                      [(first args) (rest args)]
-                      [*current* args])]
-    (if (mongo? conn)
-      (mongo-query conn args)
-      (jdbc-query conn args))))
+  (let [[db args] (if (keyword? (first args))
+                    [(get *book* (first args)) (rest args)]
+                    [*current* args])]
+    (apply query db args)))
