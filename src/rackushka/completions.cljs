@@ -1,5 +1,6 @@
 (ns rackushka.completions
   (:require
+   [clojure.string :as s]
    [rackushka.nrepl :as nrepl]
    [crate.core :as crate]
    [goog.dom :as gdom]
@@ -8,8 +9,6 @@
 (defonce completions-timer (atom nil))
 
 (defn schedule [f delay]
-  (when-let [timer-id @completions-timer]
-    (js/clearTimeout timer-id))
   (let [timer-id (js/setTimeout f delay)]
     (reset! completions-timer timer-id)))
 
@@ -65,6 +64,11 @@
                      (count text))
           (gdom/removeChildren parent))))))
 
+(defn find-first-matching-candidate [parent substring]
+  (->> (gdom/getElementsByTagName "span" parent)
+       (filter #(s/includes? (gdom/getTextContent %) substring))
+       first))
+
 (defn candidate-class [type]
   (if (= type :keyword)
     "ra-keyword"
@@ -92,9 +96,17 @@
   (nrepl/send-completions (text-at-cursor)
                           #(show id %)))
 
-(defn schedule-completions [id]
-  (schedule #(initiate id) 1000))
+(defn on-input-change [id]
+  (cancel)
+  (if-let [old-selected (active id)]
+    (do
+      (deselect-candidate old-selected)
+      (if-let [new-selected (find-first-matching-candidate (get-root-element id)
+                                                           (text-at-cursor))]
+        (select-candidate new-selected)
+        (initiate id)))
+    (schedule #(initiate id) 1000)))
 
 (defn plug [input id]
   (.addEventListener input "focusout" cancel)
-  (.addEventListener input "input" #(schedule-completions id)))
+  (.addEventListener input "input" #(on-input-change id)))
