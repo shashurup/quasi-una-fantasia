@@ -71,33 +71,39 @@
 (defmethod render Symbol [subj]
   (make-scalar "ra-symbol" subj))
 
-(defn make-composite [subj prefix suffix render-fn]
-  (let [check-id (new-check-id)]
+(def paren-map {:map    ["{" "}"]
+                :vector ["[" "]"]
+                :list   ["(" ")"]
+                :set    ["#{" "}"]})
+
+(defn make-composite [subj cont-type render-fn]
+  (let [check-id (new-check-id)
+        [prefix suffix] (get paren-map cont-type)]
     [:div.ra-composite-wrapper
      [:label {:for check-id} prefix]
      [:input {:id check-id
               :type "checkbox"
               :style "display: none"}]
-     [:div
-      (for [node subj]
-        [:div.ra-composite-entry (render-fn node)])]
+     [:div {:class (str "ra-composite-body-"
+                        (subs (str cont-type) 1))}
+      (for [node subj] (render-fn node))]
      [:label.ra-ellipsis {:for check-id} "..."]
      [:span.ra-closing-paren suffix]]))
 
 (defmethod render PersistentVector [subj]
-  (make-composite subj "[" "]" render))
+  (make-composite subj :vector render))
 
 (defmethod render List [subj]
-  (make-composite subj "(" ")" render))
+  (make-composite subj :list render))
 
 (defmethod render PersistentHashSet [subj]
-  (make-composite subj "#{" "}" render))
+  (make-composite subj :set render))
 
 (defn render-map-entry [[k v]]
-  (list (render k) (render v)))
+  [:div.ra-map-entry (render k) (render v)])
 
 (defn make-map [subj]
-  (make-composite subj "{" "}" render-map-entry))
+  (make-composite subj :map render-map-entry))
 
 (defmethod render PersistentArrayMap [subj]
   (make-map subj))

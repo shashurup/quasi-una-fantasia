@@ -31,7 +31,13 @@ body {
     display: flex;
 }
 
-.ra-composite-entry {
+.ra-composite-body-vector, .ra-composite-body-list, .ra-composite-body-set {
+    display: flex;
+    column-gap: 1ch;
+    flex-wrap: wrap;
+}
+
+.ra-map-entry {
     display: flex;
     column-gap: 1ch;
 }
