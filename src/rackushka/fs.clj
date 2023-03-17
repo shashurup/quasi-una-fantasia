@@ -1,6 +1,7 @@
 (ns rackushka.fs
   (:import [java.nio.file Files Paths LinkOption]
-           [java.nio.file.attribute PosixFilePermission])
+           [java.nio.file.attribute PosixFilePermission]
+           [org.apache.tika Tika])
   (:require [clojure.string :as s]
             [rackushka.data :as data]))
 
@@ -211,6 +212,9 @@
 (defmethod view-app-file :json [{url :url}]
   (data/read-json url))
 
+(defmethod view-app-file :xml [{url :url}]
+  (data/read-xml url))
+
 (defmulti view-file :type)
 
 (defmethod view-file :text [subj]
@@ -224,10 +228,25 @@
     [:img {:src url}]
     {:rackushka/hint :html}))
 
+(defn- add-trailing-slash [subj]
+  (if (= (last subj) \/)
+    subj
+    (str subj "/")))
+
+(defn- absolute-url [subj]
+  (str 
+   (java.net.URL.
+    (java.net.URL. (str "file://" (add-trailing-slash @cwd)))
+    subj)))
+
 (defn probe [url]
-  (when-let [ct (Files/probeContentType (as-path url))]
-    (map keyword (s/split ct #"/" 2))))
+  (when-let [ct (.detect (Tika.) url)]
+    (map keyword (-> ct
+                     (s/split #";")
+                     first
+                     (s/split #"/" 2)))))
 
 (defn v [url]
-  (when-let [[type subtype] (probe url)]
-    (view-file {:url url :type type :subtype subtype})))
+  (let [url (absolute-url url)]
+    (when-let [[type subtype] (probe (java.net.URL. url))]
+      (view-file {:url url :type type :subtype subtype}))))

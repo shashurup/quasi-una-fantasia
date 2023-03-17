@@ -16,6 +16,8 @@
                  [de.swiesend/secret-service "1.8.1-jdk17"]
                  [org.postgresql/postgresql "42.5.1"]
                  [com.novemberain/monger "3.6.0"]
+                 [org.apache.tika/tika-core "2.7.0"]
+                 [org.apache.tika/tika-parsers-standard-package "2.7.0"]
                  [crate "0.2.4"]]
 
   :source-paths ["src"]
