@@ -18,7 +18,8 @@
                  [com.novemberain/monger "3.6.0"]
                  [org.apache.tika/tika-core "2.7.0"]
                  [org.apache.tika/tika-parsers-standard-package "2.7.0"]
-                 [crate "0.2.4"]]
+                 [crate "0.2.4"]
+                 [cljsjs/openlayers "7.2.2-0"]]
 
   :source-paths ["src"]
 

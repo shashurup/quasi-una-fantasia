@@ -188,6 +188,12 @@
     (.focus el)
     (add-new-cell)))
 
+(defn render-result [val target]
+  (let [r (render val)]
+    (if (fn? r)
+      (r target)
+      (gdom/appendChild target (crate/html r)))))
+
 (defn apply-result [id result go-next]
   (let [valdiv (gdom/getElement (str "result-" id))
         outdiv (gdom/getElement (str "out-" id))]
@@ -199,10 +205,7 @@
                           (s/join ", " (vals line))])))
     (.scrollIntoView outdiv)
     (gdom/removeChildren valdiv)
-    (mapv (comp #(gdom/appendChild valdiv %)
-                crate/html
-                render)
-          (:value result))
+    (mapv #(render-result % valdiv) (:value result))
     (.scrollIntoView valdiv)
     (when go-next
       (focus-next-cell id))))
