@@ -1,6 +1,7 @@
 (ns rackushka.db
   (:require
    [clojure.string :as s]
+   [clojure.set :as set]
    [clojure.java.jdbc :as jdbc]
    [monger.core :as mg]
    [monger.collection :as mc]
@@ -10,10 +11,15 @@
 
 (def ^:dynamic *book* {})
 
-(defn use [subj]
-  (def ^:dynamic *current* subj))
+(defn c [subj]
+  (def ^:dynamic *current* (if (keyword? subj)
+                             (get *book* subj)
+                             subj)))
 
-(defn make-meta [rset]
+(defn set-book! [subj]
+  (def ^:dynamic *book* subj))
+
+(defn- make-meta [rset]
   (let [rset-meta (.getMetaData rset)]
     {:rackushka/hint [:table
                       (vec (for [idx (range 1 (inc (.getColumnCount rset-meta)))]
@@ -84,8 +90,69 @@
 (defmethod query :default [db & args]
   (throw (Exception. "db must be either string or map")))
 
+(defn- preprocess [args]
+  (if (keyword? (first args))
+    [(get *book* (first args)) (rest args)]
+    [*current* args]))
+
 (defn q [& args]
-  (let [[db args] (if (keyword? (first args))
-                    [(get *book* (first args)) (rest args)]
-                    [*current* args])]
+  (let [[db args] (preprocess args)]
     (apply query db args)))
+
+(defn- transform [subj renames]
+  (map #(set/rename-keys (select-keys % (keys renames))
+                         renames) subj))
+
+(defn dn [& args]
+  (let [[db _] (preprocess args)]
+    (with-meta
+      (transform 
+       (jdbc/with-db-metadata [m db]
+         (jdbc/metadata-query (.getSchemas m)))
+       {:table_schem :schema})
+      {:rackushka/hint :table})))
+
+(defn df [& args]
+  (let [[db args] (preprocess args)
+        [schema fun] (if (> (count args) 1)
+                         args
+                         [nil (first args)])]
+    (with-meta
+      (transform 
+       (jdbc/with-db-metadata [m db]
+         (jdbc/metadata-query (.getFunctions m nil schema fun)))
+       {:function_schem :schema
+        :function_name :function
+        :remarks :remarks})
+      {:rackushka/hint :table})))
+
+(defn dt [& args]
+  (let [[db args] (preprocess args)
+        [schema table] (if (> (count args) 1)
+                         args
+                         [nil (first args)])]
+    (with-meta
+      (transform 
+       (jdbc/with-db-metadata [m db]
+         (jdbc/metadata-query (.getTables m nil schema table nil)))
+       {:table_type :type
+        :table_schem :schema
+        :table_name :table})
+      {:rackushka/hint :table})))
+
+(defn d [& args]
+  (let [[db args] (preprocess args)
+        [schema table] (if (> (count args) 1)
+                         args
+                         [nil (first args)])]
+    (with-meta
+      (transform 
+       (jdbc/with-db-metadata [m db]
+         (jdbc/metadata-query (.getColumns m nil schema table nil)))
+       {:table_schem :schema
+        :table_name :table
+        :column_name :column
+        :type_name :type
+        :column_size :size
+        :is_nullable :null})
+      {:rackushka/hint :table})))
