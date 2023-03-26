@@ -172,21 +172,27 @@
     (:ex line)  "ra-ex"))
 
 (declare add-new-cell)
+(declare insert-new-cell)
 
 (defn find-next-input [id]
-  (->> (gdom/getElementsByClass "ra-input")
-       array-seq
-       (drop-while #(not= (.-id %)
-                          (str "expr-" id)))
-       second))
+  (when-let [this (gdom/getElement (str "cell-" id))]
+    (when-let [next (gdom/getNextElementSibling this)]
+      (gdom/getElementByClass "ra-input" next))))
 
-(defn last-input []
-  (last (array-seq (gdom/getElementsByClass "ra-input"))))
+(defn find-prev-input [id]
+  (when-let [this (gdom/getElement (str "cell-" id))]
+    (when-let [next (gdom/getPreviousElementSibling this)]
+      (gdom/getElementByClass "ra-input" next))))
 
 (defn focus-next-cell [id]
   (if-let [el (find-next-input id)]
     (.focus el)
     (add-new-cell)))
+
+(defn focus-prev-cell [id]
+  (if-let [el (find-prev-input id)]
+    (.focus el)
+    (insert-new-cell id)))
 
 (defn render-result [val target]
   (let [r (render val)]
@@ -223,9 +229,13 @@
 (defn eval-cell-and-stay [id] (eval-cell id false))
 
 (defn delete-cell [id]
-  (let [next-input (find-next-input id)]
+  (let [next-input (find-next-input id)
+        prev-input (find-prev-input id)]
     (gdom/removeNode (gdom/getElement (str "cell-" id)))
-    (.focus (or next-input (last-input)))))
+    (cond
+      next-input (.focus next-input)
+      prev-input (.focus prev-input)
+      :else (add-new-cell))))
 
 (defn delete-all []
   (doall (->> (gdom/getElementsByClass "ra-cell")
@@ -237,7 +247,11 @@
                    "C-Enter" eval-cell-and-stay
                    "Tab" completions/initiate ;; doesn't work
                    "C-Delete" delete-cell
-                   "C-l" delete-all})
+                   "C-u" delete-cell
+                   "C-i" insert-new-cell
+                   "C-l" delete-all
+                   "C-j" focus-next-cell
+                   "C-k" focus-prev-cell})
 
 (def completions-key-map {"Enter" completions/use-candidate
                           "Escape" completions/clear-candidates ;; doesn't work
@@ -255,16 +269,19 @@
        (when (.-shiftKey e) "S-")
        (.-key e)))
 
-(defn add-new-cell []
+(defn insert-new-cell [before-id]
   (let [ns (nrepl/get-ns)]
     (if ns
       (let [id (new-cell-id)
             cell (create-cell id ns)
             keydown (fn [e]
+                      ;; (.log js/console "key " e)
                       (when-let [f (get (get-key-map id) (key-event->str e))]
                         (f id)
                         (.preventDefault e)))]
-        (gdom/appendChild (get-app-element) cell)
+        (if before-id
+          (gdom/insertSiblingBefore cell (gdom/getElement (str "cell-" before-id)))
+          (gdom/appendChild (get-app-element) cell))
         (let [expr-input (gdom/getElement (str "expr-" id))]
           (doto expr-input
             (highlight/plug)
@@ -272,6 +289,8 @@
             (.addEventListener "keydown" keydown)
             (.focus))))
       (nrepl/send-eval "*ns*" #(add-new-cell)))))
+
+(defn add-new-cell [] (insert-new-cell nil))
 
 (gevents/listen js/window
                 "load"
