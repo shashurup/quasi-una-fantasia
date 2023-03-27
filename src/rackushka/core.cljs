@@ -246,7 +246,7 @@
 
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
-                   "Tab" completions/initiate ;; doesn't work
+                   "Tab" completions/initiate
                    "C-Delete" delete-cell
                    "C-u" delete-cell
                    "C-i" insert-new-cell
@@ -255,7 +255,8 @@
                    "C-k" focus-prev-cell})
 
 (def completions-key-map {"Enter" completions/use-candidate
-                          "Escape" completions/clear-candidates ;; doesn't work
+                          "Escape" completions/clear-candidates
+                          "Tab" completions/select-next-candidate
                           "C-j" completions/select-next-candidate
                           "C-k" completions/select-prev-candidate})
 
