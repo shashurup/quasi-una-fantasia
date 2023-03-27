@@ -54,11 +54,11 @@
          (filter second)
          (into {}))))
 
-(defmulti query-by-map {:private true} (fn [db &_] (:dbtype db)))
+(defmulti query-by-map {:private true} (fn [db & _] (:dbtype db)))
 
-(defmulti query-by-uri {:private true} (fn [uri &_] (.getScheme (java.net.URI. uri))))
+(defmulti query-by-uri {:private true} (fn [uri & _] (.getScheme (java.net.URI. uri))))
 
-(defmulti query (fn [db &_] (class db)))
+(defmulti query (fn [db & _] (class db)))
 
 (defmethod query-by-uri "mongodb" [uri & args]
   (apply mc/find-maps (:db (mg/connect-via-uri uri)) args))
