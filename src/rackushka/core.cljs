@@ -202,7 +202,8 @@
 
 (defn apply-result [id result go-next]
   (let [valdiv (gdom/getElement (str "result-" id))
-        outdiv (gdom/getElement (str "out-" id))]
+        outdiv (gdom/getElement (str "out-" id))
+        success (not-any? :ex (:out result))]
     (gdom/removeChildren outdiv)
     (apply gdom/append
            outdiv
@@ -213,7 +214,7 @@
     (gdom/removeChildren valdiv)
     (mapv #(render-result % valdiv) (:value result))
     (.scrollIntoView valdiv)
-    (when go-next
+    (when (and success go-next)
       (focus-next-cell id))))
 
 (defn eval-cell
