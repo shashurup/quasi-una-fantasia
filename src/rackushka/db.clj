@@ -68,7 +68,8 @@
   (apply query-by-map (parse-pg-uri uri) args))
 
 (defmethod query-by-map "mongodb" [db & args]
-  (let [{user :user
+  (let [{auth-src :auth-source
+         user :user
          pwd :password
          dbname :dbname
          host :host
@@ -76,7 +77,9 @@
         sa (mg/server-address host (or port 27017))
         opts (mg/mongo-options db)
         c (if user
-            (mg/connect sa opts (mcreds/create user dbname pwd))
+            (mg/connect sa opts (mcreds/create user
+                                               (or auth-src dbname)
+                                               pwd))
             (mg/connect sa opts))]
     (apply mc/find-maps (mg/get-db c dbname) args)))
 
