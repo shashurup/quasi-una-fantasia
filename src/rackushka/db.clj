@@ -5,11 +5,12 @@
    [clojure.java.jdbc :as jdbc]
    [monger.core :as mg]
    [monger.collection :as mc]
+   [monger.credentials :as mcreds]
    [rackushka.secrets :as secrets]))
 
 (def ^:dynamic *current*)
 
-(def ^:dynamic *book* {})
+(def ^:dynamic *book*)
 
 (defn c [subj]
   (def ^:dynamic *current* (if (keyword? subj)
@@ -67,8 +68,17 @@
   (apply query-by-map (parse-pg-uri uri) args))
 
 (defmethod query-by-map "mongodb" [db & args]
-  (let [c (mg/connect (resolve-creds db))]
-    (apply mc/find-maps (mg/get-db c (:dbname db)) args)))
+  (let [{user :user
+         pwd :password
+         dbname :dbname
+         host :host
+         port :port} (resolve-creds db)
+        sa (mg/server-address host (or port 27017))
+        opts (mg/mongo-options db)
+        c (if user
+            (mg/connect sa opts (mcreds/create user dbname pwd))
+            (mg/connect sa opts))]
+    (apply mc/find-maps (mg/get-db c dbname) args)))
 
 (defmethod query-by-map :default [db & args]
   (let [handle (fn [rset]
