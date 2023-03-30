@@ -34,6 +34,6 @@
 
 (defmethod c/render :geodata [subj]
   (fn [target]
-    (let [c (gdom/createDom "div" #js {:style "width: 100%; height: 40vh"})]
+    (let [c (gdom/createDom "div" #js {:style "width: 80%; height: 40vh"})]
       (gdom/appendChild target c)
       (create-map-control c subj))))
