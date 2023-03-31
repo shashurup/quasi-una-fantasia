@@ -3,6 +3,11 @@
             [goog.dom :as gdom]
             [cljsjs.openlayers]))
 
+(def colors ["#009" "#900" "#090" "#099" "#909" "#990"
+             "#00f" "#f00" "#0f0" "#0ff" "#f0f" "#ff0" "#f80" "#f08"])
+
+(def black-color "#000")
+
 (defn read-wkb [subj proj]
   (.readFeature (js/ol.format.WKB.) subj #js {:featureProjection proj}))
 
@@ -10,10 +15,10 @@
   (.setProperties subj (clj->js props))
   subj)
 
-(defn make-style [feature]
+(defn make-style [feature color-map]
   (js/ol.style.Style.
-   #js {:fill (js/ol.style.Fill. #js {:color "rgba(255,255,255,0.6)"})
-        :stroke (js/ol.style.Stroke. #js {:color "#00f"})
+   #js {:fill (js/ol.style.Fill. #js {:color "rgba(255, 255, 255, 0.4)"})
+        :stroke (js/ol.style.Stroke. #js {:color (get color-map (.get feature "tag"))})
         :text (js/ol.style.Text. #js {:text (.get feature "label")})}))
 
 (defn make-source [subj proj]
@@ -23,10 +28,13 @@
                                (dissoc % :geometry)) subj)})))
 
 (defn create-map-control [target geodata]
-  (let [view (js/ol.View. (clj->js {:padding [32 32 32 32]}))
+  (let [color-map (zipmap (distinct (map :tag geodata))
+                          (concat colors (repeat black-color)))
+        view (js/ol.View. (clj->js {:padding [32 32 32 32]}))
         osm-tiles (js/ol.layer.Tile. (clj->js {:source (js/ol.source.OSM.)}))
         src (make-source geodata (.getProjection view))
-        subj-layer (js/ol.layer.Vector. (clj->js {:source src :style make-style}))]
+        subj-layer (js/ol.layer.Vector. (clj->js {:source src
+                                                  :style #(make-style % color-map)}))]
     (js/ol.Map. (clj->js {:layers [osm-tiles subj-layer]
                           :target target
                           :view view}))
