@@ -178,18 +178,18 @@
                  {cols [:name]
                   filter not-hidden?
                   sort old-fashioned-sort-key}}] (default-arg "." (expand-flags args flags))
-        [f pattern] (if (pattern? arg)
-                      ["." (mk-pattern arg)]
-                        [arg nil])
+        [f filter2] (if (or (fn? arg) (pattern? arg))
+                      ["." (mk-matcher arg)]
+                      [arg (constantly true)])
         path (resolve-path @cwd f)
         [keyfn cmp] (if (vector? sort)
                       [(first sort) #(- (compare %1 %2))]
                       [sort compare])]
-    (with-meta (if (or pattern
+    (with-meta (if (or filter2
                        (:directory? (attrs path)))
                  (->> (files path)
                       (clojure.core/filter filter)
-                      (clojure.core/filter #(filename-matches? pattern %))
+                      (clojure.core/filter filter2)
                       (sort-by keyfn cmp))
                  [(attrs path)])
       {:rackushka/hint [:table :rackushka.fs/file cols]})))
@@ -273,6 +273,14 @@
                      first
                      (s/split #"/" 2)))))
 
+(defn v
+  "View file content."
+  [url]
+  (let [url (absolute-url url)]
+    (when-let [[type subtype] (mime-type (java.net.URL. url))]
+      (view-file {:url url :type type :subtype subtype}))))
+
+
 (defn t
   "Detect file mime type"
   [subj]
@@ -281,9 +289,6 @@
                    (str subj))]
     (mime-type (java.net.URL. (absolute-url url)))))
 
-(defn v
-  "View file content."
-  [url]
-  (let [url (absolute-url url)]
-    (when-let [[type subtype] (mime-type (java.net.URL. url))]
-      (view-file {:url url :type type :subtype subtype}))))
+(defn match-mime-type
+  ([tp] (fn [subj] (= (first (t subj)) tp)))
+  ([tp stp] (fn [subj] (= (t subj) [tp stp]))))
