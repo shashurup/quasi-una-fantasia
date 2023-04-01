@@ -76,24 +76,26 @@
            (when (symlink? attrs)
              {:link-target (.toString (Files/readSymbolicLink path))}))))
 
-(defn- children [path]
-  (->> path
-       Files/list
-       .iterator
-       iterator-seq))
+(defn files [dir]
+  (let [dir (if (map? dir)
+               (:path dir)
+               dir)]
+    (->> dir
+         as-path
+         Files/list
+         .iterator
+         iterator-seq
+         (map attrs))))
 
-; TODO check out tree-seq function
-(defn files
-  ([path] (files path nil))
-  ([path pred]
-   (apply concat 
-          (for [p (children (as-path path))]
-            (let [file (attrs p)]
-              (if (and (:directory? file)
-                       pred
-                       (pred file))
-                (cons file (files p pred))
-                [file]))))))
+(defn tree [root pred]
+  (let [root (if (string? root)
+               (attrs root)
+               root)]
+    (tree-seq #(and (:directory? %)
+                    pred
+                    (pred %))
+              ls
+              root)))
 
 (defn name-key [subj]
   (s/lower-case (:name subj)))
@@ -214,10 +216,9 @@
                   (complement (mk-matcher skip))
                   (constantly true))
         filters (cons skip-fn
-                      (map mk-matcher exprs))
-        ]
+                      (map mk-matcher exprs))]
     (with-meta 
-      (->> (files abs-path skip-fn)
+      (->> (rest (tree abs-path skip-fn))
            (filter (apply every-pred filters))
            (map #(assoc % :name (relative-path abs-path (:path %)))))
       {:rackushka/hint [:table :rackushka.fs/file [:name]]})))
