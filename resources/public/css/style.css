@@ -13,8 +13,13 @@ div.ra-candidates {
     border-radius: 4px;
 }
 
+p.ra-out {
+    white-space: pre-wrap;
+}
+
 p.ra-err {
     color: red;
+    white-space: pre-wrap;
 }
 
 p.ra-ex {

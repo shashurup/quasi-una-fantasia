@@ -18,10 +18,10 @@
 
 (def no-opts (into-array LinkOption []))
 
-(defn path? [subj]
+(defn- path? [subj]
   (instance? java.nio.file.Path subj))
 
-(defn as-path [subj]
+(defn- as-path [subj]
   (if (path? subj)
     subj
     (Paths/get (str subj)
@@ -37,7 +37,9 @@
   (str (.normalize (.relativize (as-path path)
                                 (as-path other)))))
 
-(defn cd [path]
+(defn c
+  "Change current directory."
+  [path]
   (swap! cwd #(resolve-path % path)))
 
 (defn- convert-permissions [subj]
@@ -96,7 +98,7 @@
 (defn name-key [subj]
   (s/lower-case (:name subj)))
 
-(defn old-fashioned-sort-key [subj]
+(defn- old-fashioned-sort-key [subj]
   (str (if (:directory? subj) 0 1)
        (name-key subj)))
 
@@ -105,15 +107,15 @@
 
 (def not-hidden? (complement hidden?))
 
-(defn regex? [subj] (instance? java.util.regex.Pattern subj))
+(defn- regex? [subj] (instance? java.util.regex.Pattern subj))
 
-(defn pattern? [subj]
+(defn- pattern? [subj]
   (or (regex? subj)
       (and (string? subj)
            (or (s/includes? subj "*")
                (s/includes? subj "?")))))
 
-(defn mk-pattern [subj]
+(defn- mk-pattern [subj]
   (if (regex? subj)
     subj
     (re-pattern (-> subj
@@ -121,12 +123,12 @@
                     (s/replace "*" ".*")
                     (s/replace "?" ".")))))
 
-(defn filename-matches? [pattern subj]
+(defn- filename-matches? [pattern subj]
   (if pattern
     (re-matches pattern (:name subj))
     true))
 
-(defn mk-matcher [subj]
+(defn- mk-matcher [subj]
   (cond
     (fn? subj) subj
     (regex? subj) (fn [file] (filename-matches? subj file))
@@ -134,17 +136,33 @@
                      (fn [file] (filename-matches? pattern file)))
     :else (constantly true)))
 
-(defn expand-flags [subj flags]
+(defn- expand-flags [subj flags]
   (->> (sort-by flags subj)
        (mapcat #(get flags % [%]))))
 
-(defn default-arg [arg rest]
+(defn- default-arg [arg rest]
   (if (or (empty? rest)
           (keyword? (first rest)))
     (cons arg rest)
     rest))
 
-(defn ls [& args]
+(defn l
+  "Lists files in a directory, args can be:
+  string - in this case it is treated as a directory to list files in (with cwd as a base directory),
+  regex - used to filter files,
+  pattern - a string with wildcards * or ? used to filter files,
+  flags - one of:
+   :m - to show name, size and modification timestamp,
+   :l - long format to show permissions, user, group, size, timestamp and a name,
+   :t - to sort by modification timestamp ascending,
+   :T - to sort by modification timestamp descending,
+   :s - to sort by size ascending,
+   :S - to sort by size descending,
+   :n - to sort by name ascending,
+   :N - to sort by name descending,
+   :h - to show hidden files
+  "
+  [& args]
   (let [flags {:m [:cols [:size :modified :name-ex]]
                :l [:cols [:permissions :user :group :size :modified :name-ex]]
                :t [:sort :modified]
@@ -174,7 +192,15 @@
                  [(attrs path)])
       {:rackushka/hint [:table :rackushka.fs/file cols]})))
 
-(defn find [& args]
+(defn f
+  "Find files, args can be:
+  string - a directory to search files in,
+  regex - a regular expression to filter files,
+  pattern - a string with wildcards * or ? used to filter files,
+  function - a function to filter files
+  :skip regex|pattern|function - a condition to exclude files
+  "
+  [& args]
   (let [arg1 (first args)
         args (if (and (string? arg1)
                       (not (pattern? arg1)))
@@ -196,7 +222,7 @@
            (map #(assoc % :name (relative-path abs-path (:path %)))))
       {:rackushka/hint [:table :rackushka.fs/file [:name]]})))
 
-(defmulti view-text-file :subtype)
+(defmulti view-text-file {:private true} :subtype)
 
 (defmethod view-text-file :default [{url :url}]
   (with-meta (data/read-lines url) {:rackushka/hint :text}))
@@ -207,7 +233,7 @@
 (defmethod view-text-file :csv [{url :url}]
   (data/read-csv url))
 
-(defmulti view-app-file :subtype)
+(defmulti view-app-file {:private true} :subtype)
 
 (defmethod view-app-file :json [{url :url}]
   (data/read-json url))
@@ -239,14 +265,24 @@
     (java.net.URL. (str "file://" (add-trailing-slash @cwd)))
     subj)))
 
-(defn probe [url]
+(defn- mime-type [url]
   (when-let [ct (.detect (Tika.) url)]
     (map keyword (-> ct
                      (s/split #";")
                      first
                      (s/split #"/" 2)))))
 
-(defn v [url]
+(defn t
+  "Detect file mime type"
+  [subj]
+  (let [url (if (map? subj)
+                   (:path subj)
+                   (str subj))]
+    (mime-type (java.net.URL. (absolute-url url)))))
+
+(defn v
+  "View file content."
+  [url]
   (let [url (absolute-url url)]
-    (when-let [[type subtype] (probe (java.net.URL. url))]
+    (when-let [[type subtype] (mime-type (java.net.URL. url))]
       (view-file {:url url :type type :subtype subtype}))))
