@@ -89,7 +89,7 @@
        (.append target (make-candidate c))
        (.append target " "))
      (.append target tail)
-     (.scrollIntoView target)
+     (.scrollIntoView (gdom/getElement (str "cell-" id)))
      (select-candidate (gdom/getFirstElementChild target)))))
 
 (defn initiate [id]
