@@ -26,7 +26,7 @@
                       (vec (for [idx (range 1 (inc (.getColumnCount rset-meta)))]
                              (let [col-label (.getColumnLabel rset-meta idx)
                                    col-type (.getColumnTypeName rset-meta idx)]
-                               {:key (keyword (s/lower-case col-label))
+                               {:key (dec idx)
                                 :title col-label
                                 :type (keyword "rackushka.db"
                                                (s/lower-case col-type))})))]}))
@@ -87,7 +87,8 @@
   (let [handle (fn [rset]
                  (let [meta (make-meta rset)]
                    (with-meta 
-                     (jdbc/metadata-result rset)
+                     (subvec
+                      (jdbc/metadata-result rset {:as-arrays? true}) 1)
                      meta)))]
     (jdbc/db-query-with-resultset (resolve-creds db) args handle)))
 
