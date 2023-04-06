@@ -94,7 +94,7 @@
     (tree-seq #(and (:directory? %)
                     pred
                     (pred %))
-              ls
+              files
               root)))
 
 (defn name-key [subj]

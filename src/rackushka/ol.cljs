@@ -15,6 +15,12 @@
   (.setProperties subj (clj->js props))
   subj)
 
+(defn make-feature [subj proj]
+  (let [wkb (:geometry subj)]
+    (when (not-empty wkb)
+      (set-props (read-wkb wkb proj)
+                 (dissoc subj :geometry)))))
+
 (defn make-style [feature color-map]
   (js/ol.style.Style.
    #js {:fill (js/ol.style.Fill. #js {:color "rgba(255, 255, 255, 0.4)"})
@@ -23,9 +29,10 @@
 
 (defn make-source [subj proj]
   (js/ol.source.Vector.
-   (clj->js {:features
-             (mapv #(set-props (read-wkb (:geometry %) proj)
-                               (dissoc % :geometry)) subj)})))
+   (clj->js {:features (->> subj
+                            (map #(make-feature % proj))
+                            (remove nil?)
+                            (into []))})))
 
 (defn create-map-control [target geodata]
   (let [color-map (zipmap (distinct (map :tag geodata))
