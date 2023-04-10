@@ -59,17 +59,17 @@
   (let [session (:session @state)]
     (if session
       (send-op {:op "eval"
-                 :code expr
-                 :session session
-                 :nrepl.middleware.print/print "rackushka.srv/pr-with-meta"}
-                (fn [resp]
-                  (history-append expr)
-                  (update-ns resp)
-                  (callback (merge-eval-result resp))))
+                :code expr
+                :session session
+                :nrepl.middleware.print/print "rackushka.srv/pr-with-meta"}
+               (fn [resp]
+                 (history-append expr)
+                 (update-ns resp)
+                 (callback (merge-eval-result resp))))
       (send-op {:op "clone"}
-                (fn [resp]
-                  (update-session resp)
-                  (send-eval expr callback))))))
+               (fn [resp]
+                 (update-session resp)
+                 (send-eval expr callback))))))
 
 (defn send-completions [text callback]
   (send-op {:op "completions"

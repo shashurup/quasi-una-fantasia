@@ -1,5 +1,7 @@
 (ns rackushka.srv
-  (:require [compojure.core :refer :all]
+  (:require [rackushka.config :as cfg]
+            [rackushka.history :as hist]
+            [compojure.core :refer :all]
             [compojure.route :as route]
             [ring.middleware.defaults :as d]
             [ring.adapter.jetty :as j]
@@ -17,12 +19,14 @@
 
 (defn create-web-session []
   (let [tr (t/piped-transports)]
-    {:server (future (srv/handle (srv/default-handler)
+    {:server (future (srv/handle (srv/default-handler #'hist/wrap-history)
                                  (second tr)))
      :client (nrepl/client (first tr) 5000)}))
 
 (defn handle-nrepl-request [op client]
-  (nrepl/message client op))
+  (let [result (nrepl/message client op)]
+    (hist/log op result)
+    result))
 
 (defroutes app
 
