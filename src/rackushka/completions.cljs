@@ -1,6 +1,8 @@
 (ns rackushka.completions
   (:require
    [clojure.string :as s]
+   [rackushka.naive-parser :as np]
+   [rackushka.highlight :as hl]
    [rackushka.nrepl :as nrepl]
    [crate.core :as crate]
    [goog.dom :as gdom]
@@ -69,14 +71,10 @@
        (filter #(s/includes? (gdom/getTextContent %) substring))
        first))
 
-(defn candidate-class [type]
-  (if (= type :keyword)
-    "ra-keyword"
-    "ra-symbol"))
-
 (defn make-candidate [subj]
-  (crate/html [:span {:class (candidate-class (:type subj))}
-               (:candidate subj)]))
+  (crate/html [:span
+               (map hl/layout->html
+                    (np/demarkate subj))]))
 
 (def max-completions 16)
 
@@ -86,7 +84,7 @@
    (gdom/removeChildren target)
    (when (not-empty candidates)
      (doseq [c (take max-completions candidates)]
-       (.append target (make-candidate c))
+       (.append target (make-candidate (:candidate c)))
        (.append target " "))
      (.append target tail)
      (.scrollIntoView (gdom/getElement (str "cell-" id)))
