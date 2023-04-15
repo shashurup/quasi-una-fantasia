@@ -90,7 +90,7 @@
     (when (not= (existing-markup el) layout)
       (let [pos (get-cursor-position el)
             [el-num offset] (figure-placement layout pos)]
-        (.log js/console "different!! " pos text)
+        ;; (.log js/console "different!! " pos text)
         (replace-content el (map layout->html layout))
         (set-cursor-position el el-num offset)))))
 

@@ -245,13 +245,14 @@
 
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
-                   "Tab" completions/initiate
+                   "Tab" completions/initiate-at-point
                    "C-Delete" delete-cell
                    "C-u" delete-cell
                    "C-i" insert-new-cell
                    "C-l" delete-all
                    "C-j" focus-next-cell
-                   "C-k" focus-prev-cell})
+                   "C-k" focus-prev-cell
+                   "C-r" completions/initiate-history})
 
 (def completions-key-map {"Enter" completions/use-candidate
                           "Escape" completions/clear-candidates

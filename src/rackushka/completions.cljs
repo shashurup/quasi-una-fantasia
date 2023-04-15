@@ -27,6 +27,10 @@
 (defn text-at-cursor []
   (.-textContent (container-at-cursor)))
 
+(defn words-at-cell-input [id]
+  (let [text (.-textContent (gdom/getElement (str "expr-" id)))]
+    (filter not-empty (s/split text #"\s"))))
+
 (defn select-candidate [candidate]
   (gcls/add candidate "ra-selected"))
 
@@ -53,57 +57,107 @@
   (move-selection id gdom/getPreviousElementSibling))
 
 (defn clear-candidates [id]
-  (gdom/removeChildren (get-root-element id)))
+  (let [parent (get-root-element id)]
+    (gcls/set parent "ra-candidates")
+    (gdom/removeChildren parent)))
+
+(defn move-cursor-to-the-end-of [target]
+  (.setStart (.getRangeAt (js/getSelection) 0)
+             target
+             (gdom/getNodeTextLength target)))
+
+(defmulti apply-candidate #(some #{"ra-at-point" "ra-history"}
+                                 (gcls/get %2)))
+
+(defmethod apply-candidate "ra-at-point" [id candidate]
+  (when-let [target (container-at-cursor)]
+    (let [text (gdom/getTextContent candidate)]
+      (gdom/setTextContent target text)
+      (move-cursor-to-the-end-of target))))
+
+(defmethod apply-candidate "ra-history" [id candidate]
+  (when-let [input (gdom/getElement (str "expr-" id))]
+    (gdom/copyContents input candidate)
+    (move-cursor-to-the-end-of (.-lastChild input))))
 
 (defn use-candidate [id]
   (when-let [parent (get-root-element id)]
     (when-let [selected (find-selected-candidate parent)]
-      (when-let [target (container-at-cursor)]
-        (let [text (gdom/getTextContent selected)]
-          (gdom/setTextContent target text)
-          (.setStart (.getRangeAt (js/getSelection) 0)
-                     target
-                     (count text))
-          (gdom/removeChildren parent))))))
+      (apply-candidate id selected)
+      (gcls/set parent "ra-candidates")
+      (gdom/removeChildren parent))))
 
 (defn find-first-matching-candidate [parent substring]
   (->> (gdom/getElementsByTagName "span" parent)
        (filter #(s/includes? (gdom/getTextContent %) substring))
        first))
 
-(defn make-candidate [subj]
-  (crate/html [:span
+(defmulti render-candidate #(when (map? %1) (:type %)))
+
+(defmethod render-candidate :default [subj class]
+  (crate/html [:span {:class class}
                (map hl/layout->html
                     (np/demarkate subj))]))
 
+(defmethod render-candidate :function [subj class] (render-candidate (:candidate subj) class))
+
+(defmethod render-candidate :keyword [subj class] (render-candidate (:candidate subj) class))
+
+(defmethod render-candidate :macro [subj class] (render-candidate (:candidate subj) class))
+
+(defmethod render-candidate :namespace [subj class] (render-candidate (:candidate subj) class))
+
+(defmethod render-candidate :var [subj class] (render-candidate (:candidate subj) class))
+
+(defmethod render-candidate :special-form [subj class] (render-candidate (:candidate subj) class))
+
 (def max-completions 16)
 
-(defn show [id candidates]
+(defn show [id candidates class]
  (let [tail (if (> (count candidates) max-completions) "..." "")
        target (get-root-element id)]
    (gdom/removeChildren target)
+   (gcls/set target "ra-candidates")
    (when (not-empty candidates)
+     (gcls/add target class)
      (doseq [c (take max-completions candidates)]
-       (.append target (make-candidate (:candidate c)))
+       (.append target (render-candidate c class))
        (.append target " "))
      (.append target tail)
      (.scrollIntoView (gdom/getElement (str "cell-" id)))
      (select-candidate (gdom/getFirstElementChild target)))))
 
-(defn initiate [id]
-  (nrepl/send-completions (text-at-cursor)
-                          #(show id %)))
+(defn initiate-at-point [id]
+  (cancel)
+  (nrepl/send-completions (text-at-cursor) #(show id % "ra-at-point")))
+
+(defn initiate-history [id]
+  (cancel)
+  (nrepl/send-history (words-at-cell-input id)
+                      (inc max-completions)
+                      #(show id % "ra-history")))
+
+(defmulti handle-input-change #(some #{"ra-history" "ra-at-point"}
+                                     (gcls/get (get-root-element %))))
+
+(defmethod handle-input-change :default [id]
+  (schedule #(initiate-at-point id) 1000))
+
+(defmethod handle-input-change "ra-at-point" [id]
+  (let [old-selected (active id)]
+    (if-let [new-selected (find-first-matching-candidate (get-root-element id)
+                                                         (text-at-cursor))]
+      (do 
+        (deselect-candidate old-selected)
+        (select-candidate new-selected))
+      (initiate-at-point id))))
+
+(defmethod handle-input-change "ra-history" [id]
+  (initiate-history id))
 
 (defn on-input-change [id]
   (cancel)
-  (if-let [old-selected (active id)]
-    (do
-      (deselect-candidate old-selected)
-      (if-let [new-selected (find-first-matching-candidate (get-root-element id)
-                                                           (text-at-cursor))]
-        (select-candidate new-selected)
-        (initiate id)))
-    (schedule #(initiate id) 1000)))
+  (handle-input-change id))
 
 (defn plug [input id]
   (.addEventListener input "focusout" cancel)

@@ -74,5 +74,13 @@
 (defn send-completions [text callback]
   (send-op {:op "completions"
             :prefix text
-            :session (:session @state)}
+            :session (:session @state)
+            :options {:extra-metadata [:arglists]}}
            #(callback (:completions (first %)))))
+
+(defn send-history [terms limit callback]
+  (send-op {:op "history"
+            :terms terms
+            :limit limit
+            :session (:session @state)}
+           #(callback (:matches (first %)))))
