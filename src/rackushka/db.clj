@@ -34,7 +34,7 @@
 (defn- resolve-creds [db]
   (let [pwd (:password db)]
     (if (map? pwd)
-      (assoc db :password (secrets/find pwd))
+      (assoc db :password (secrets/lookup pwd))
       db)))
 
 (defn- parse-pg-uri [subj]
