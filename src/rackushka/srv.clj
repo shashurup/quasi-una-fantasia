@@ -18,10 +18,9 @@
     (pr subj)))
 
 (defn create-web-session []
-  (let [tr (t/piped-transports)]
-    {:server (future (srv/handle (srv/default-handler #'hist/wrap-history)
-                                 (second tr)))
-     :client (nrepl/client (first tr) 5000)}))
+  (let [[client-side server-side] (t/piped-transports)]
+    {:server (future (srv/handle (srv/default-handler #'hist/wrap-history) server-side))
+     :client (nrepl/client client-side (* 24 60 60 1000))}))
 
 (defn handle-nrepl-request [op client]
   (let [result (nrepl/message client op)]
