@@ -142,3 +142,13 @@ th.ra:nth-child(1) {
 td.ra-number-cell {
     text-align: right;
 }
+
+.ra-scalable-obj {
+    object-fit: contain;
+    max-height: 50vh;
+}
+
+.ra-composite-wrapper .ra-scalable-obj {
+    max-width: 27vw;
+    margin: 1em;
+}

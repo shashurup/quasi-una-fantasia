@@ -264,7 +264,21 @@
 
 (defmethod view-file :image [{url :url}]
   (with-meta
-    [:img {:src (redirect-local-files url)}]
+    [:img.ra-scalable-obj {:src (redirect-local-files url)}]
+    {:rackushka/hint :html}))
+
+(defmethod view-file :video [{url :url}]
+  (with-meta
+    [:video.ra-scalable-obj {:controls true
+                             :autoplay true}
+     [:source {:src (redirect-local-files url)}]]
+    {:rackushka/hint :html}))
+
+(defmethod view-file :audio [{url :url}]
+  (with-meta
+    [:audio {:controls true
+             :autoplay true
+             :src (redirect-local-files url)}]
     {:rackushka/hint :html}))
 
 (defn- add-trailing-slash [subj]
@@ -287,8 +301,10 @@
 
 (defn v
   "View file content."
-  [url]
-  (let [url (absolute-url url)]
+  [subj]
+  (let [url (absolute-url (if (map? subj)
+                            (:path subj)
+                            subj))]
     (when-let [[type subtype] (mime-type (java.net.URL. url))]
       (view-file {:url url :type type :subtype subtype}))))
 
@@ -297,8 +313,8 @@
   "Detect file mime type"
   [subj]
   (let [url (if (map? subj)
-                   (:path subj)
-                   (str subj))]
+              (:path subj)
+              (str subj))]
     (mime-type (java.net.URL. (absolute-url url)))))
 
 (defn match-mime-type
