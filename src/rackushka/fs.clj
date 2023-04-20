@@ -27,8 +27,6 @@
     (Paths/get (str subj)
                (into-array java.lang.String []))))
 
-(defonce cwd (atom "/"))
-
 (defn- resolve-path [base path]
   (str (.normalize (.resolve (as-path base)
                              (as-path path)))))
@@ -37,10 +35,12 @@
   (str (.normalize (.relativize (as-path path)
                                 (as-path other)))))
 
+(def ^:dynamic *cwd*)
+
 (defn c
   "Change current directory."
   [path]
-  (swap! cwd #(resolve-path % path)))
+  (def ^:dynamic *cwd* (resolve-path *cwd* path)))
 
 (defn- convert-permissions [subj]
   (->> subj
@@ -181,7 +181,7 @@
         [f filter2] (if (or (fn? arg) (pattern? arg))
                       ["." (mk-matcher arg)]
                       [arg (constantly true)])
-        path (resolve-path @cwd f)
+        path (resolve-path *cwd* f)
         [keyfn cmp] (if (vector? sort)
                       [(first sort) #(- (compare %1 %2))]
                       [sort compare])]
@@ -209,7 +209,7 @@
                args
                (cons "." args))
         [path & rest-args] args
-        abs-path (resolve-path @cwd path)
+        abs-path (resolve-path *cwd* path)
         exprs (take-while #(not (keyword? %)) rest-args)
         [& {skip :skip}] (drop-while #(not (keyword? %)) rest-args)
         skip-fn (if skip
@@ -263,7 +263,7 @@
 (defn- absolute-url [subj]
   (str 
    (java.net.URL.
-    (java.net.URL. (str "file://" (add-trailing-slash @cwd)))
+    (java.net.URL. (str "file://" (add-trailing-slash *cwd*)))
     subj)))
 
 (defn- mime-type [url]
