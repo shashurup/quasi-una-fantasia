@@ -27,9 +27,14 @@
     (Paths/get (str subj)
                (into-array java.lang.String []))))
 
+(defn- expand-tilde [subj]
+  (if (s/starts-with? subj "~")
+    (str (System/getenv "HOME") (subs subj 1))
+    subj))
+
 (defn- resolve-path [base path]
   (str (.normalize (.resolve (as-path base)
-                             (as-path path)))))
+                             (as-path (expand-tilde path))))))
 
 (defn relative-path [path other]
   (str (.normalize (.relativize (as-path path)
@@ -40,7 +45,8 @@
 (defn c
   "Change current directory."
   [path]
-  (def ^:dynamic *cwd* (resolve-path *cwd* path)))
+  (def ^:dynamic *cwd* (resolve-path *cwd* path))
+  *cwd*)
 
 (defn- convert-permissions [subj]
   (->> subj
@@ -264,7 +270,7 @@
   (str 
    (java.net.URL.
     (java.net.URL. (str "file://" (add-trailing-slash *cwd*)))
-    subj)))
+    (expand-tilde subj))))
 
 (defn- mime-type [url]
   (when-let [ct (.detect (Tika.) url)]
