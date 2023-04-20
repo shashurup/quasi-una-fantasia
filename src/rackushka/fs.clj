@@ -256,9 +256,15 @@
 (defmethod view-file :application [subj]
   (view-app-file subj))
 
+(defn- redirect-local-files [url-str]
+  (let [url (java.net.URL. url-str)]
+    (if (= (.getProtocol url) "file")
+      (str "fs" (.getPath url))
+      url-str)))
+
 (defmethod view-file :image [{url :url}]
   (with-meta
-    [:img {:src url}]
+    [:img {:src (redirect-local-files url)}]
     {:rackushka/hint :html}))
 
 (defn- add-trailing-slash [subj]

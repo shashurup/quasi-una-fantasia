@@ -43,6 +43,9 @@
               u/response
               (assoc :session session))))
 
+  (GET "/fs/*" {{path :*} :params}
+       (u/file-response (str "/" path)))
+
   (route/not-found "<h1>Page not found</h1>"))
 
 (defn start-server [join?]
