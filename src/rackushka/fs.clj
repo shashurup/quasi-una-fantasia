@@ -234,6 +234,11 @@
 (defmethod view-text-file :default [{url :url}]
   (with-meta (data/read-lines url) {:rackushka/hint :text}))
 
+(defmethod view-text-file :html [{url :url}]
+  (with-meta 
+    [:iframe.ra-medium-sized {:src url}]
+    {:rackushka/hint :html}))
+
 (defmethod view-text-file :xml [{url :url}]
   (data/read-xml url))
 
@@ -264,12 +269,12 @@
 
 (defmethod view-file :image [{url :url}]
   (with-meta
-    [:img.ra-scalable-obj {:src (redirect-local-files url)}]
+    [:img.ra-intrinsically-sized {:src (redirect-local-files url)}]
     {:rackushka/hint :html}))
 
 (defmethod view-file :video [{url :url}]
   (with-meta
-    [:video.ra-scalable-obj {:controls true
+    [:video.ra-intrinsically-sized {:controls true
                              :autoplay true}
      [:source {:src (redirect-local-files url)}]]
     {:rackushka/hint :html}))

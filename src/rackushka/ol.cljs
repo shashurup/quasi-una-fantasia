@@ -1,5 +1,6 @@
 (ns rackushka.ol
   (:require [rackushka.core :as c] ; todo mover render to a separate ns
+            [crate.core :as crate]
             [goog.dom :as gdom]
             [cljsjs.openlayers]))
 
@@ -49,6 +50,6 @@
 
 (defmethod c/render :geodata [subj]
   (fn [target]
-    (let [c (gdom/createDom "div" #js {:style "width: 80%; height: 40vh"})]
+    (let [c (crate/html [:div.ra-medium-sized])]
       (gdom/appendChild target c)
       (create-map-control c subj))))
