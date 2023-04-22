@@ -95,6 +95,7 @@
         (set-cursor-position el el-num offset)))))
 
 (defn plug [input]
+  (highlight input)
   (.addEventListener input
                      "input"
                      #(highlight (.-target %))))

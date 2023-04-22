@@ -27,6 +27,13 @@
 (defn get-app-element []
   (gdom/getElement "app"))
 
+(defn get-cell-element [id]
+  (gdom/getElement (str "cell-" id)))
+
+(defn get-input-element [id]
+  (gdom/getElement (str "expr-" id)))
+
+
 ;; Tree
 
 (defn create-cell [id ns]
@@ -165,40 +172,102 @@
                          [:tr (for [rndr rndrs]
                                 (render-cell (rndr row)))])]]))
 
-(defn out-class [line]
-  (cond
-    (:out line) "ra-out"
-    (:err line) "ra-err"
-    (:ex line)  "ra-ex"))
+(defn render-result [val target]
+  (let [r (render val)]
+    (if (fn? r)
+      (r target)
+      (gdom/appendChild target (crate/html r)))))
 
-(declare add-new-cell)
-(declare insert-new-cell)
+(defn key-event->str [e]
+  (str (when (.-altKey e) "A-")
+       (when (.-ctrlKey e) "C-")
+       (when (.-shiftKey e) "S-")
+       (.-key e)))
+
+(declare get-key-map)
+(declare append-cell)
+
+(defn insert-cell [dir el expr-text]
+  (let [ns (nrepl/get-ns)]
+    (if ns
+      (let [id (new-cell-id)
+            cell (create-cell id ns)
+            keydown (fn [e]
+                      (.log js/console "key " (key-event->str e))
+                      (when-let [f (get (get-key-map id) (key-event->str e))]
+                        (.log js/console "keymap match " (key-event->str e))
+                        (f id)
+                        (.preventDefault e)))]
+        (condp = dir
+          :before (gdom/insertSiblingBefore cell el)
+          :after (gdom/insertSiblingAfter cell el)
+          (gdom/appendChild (get-app-element) cell))
+        (let [expr-input (get-input-element id)]
+          (when (not-empty expr-text)
+            (gdom/setTextContent expr-input expr-text))
+          (doto expr-input
+            (highlight/plug)
+            (completions/plug id)
+            (.addEventListener "keydown" keydown)
+            (.focus))))
+      (nrepl/send-eval "*ns*" #(append-cell)))))
+
+(defn append-cell [] (insert-cell nil nil nil))
+
+(defn insert-cell-before [before-id]
+  (insert-cell :before (get-cell-element before-id) nil))
+
+(defn insert-cell-after [after-id]
+  (insert-cell :after (get-cell-element after-id) nil))
+
+(defn copy-cell-with-expr [cell-id]
+  (insert-cell :after
+               (get-cell-element cell-id)
+               (gdom/getTextContent (get-input-element cell-id))))
+
+(defn append-cell-with-expr [cell-id]
+  (insert-cell nil nil (gdom/getTextContent (get-input-element cell-id))))
 
 (defn find-next-input [id]
-  (when-let [this (gdom/getElement (str "cell-" id))]
+  (when-let [this (get-cell-element id)]
     (when-let [next (gdom/getNextElementSibling this)]
       (gdom/getElementByClass "ra-input" next))))
 
 (defn find-prev-input [id]
-  (when-let [this (gdom/getElement (str "cell-" id))]
+  (when-let [this (get-cell-element id)]
     (when-let [next (gdom/getPreviousElementSibling this)]
       (gdom/getElementByClass "ra-input" next))))
 
 (defn focus-next-cell [id]
   (if-let [el (find-next-input id)]
     (.focus el)
-    (add-new-cell)))
+    (append-cell)))
 
 (defn focus-prev-cell [id]
   (if-let [el (find-prev-input id)]
     (.focus el)
-    (insert-new-cell id)))
+    (insert-cell-before id)))
 
-(defn render-result [val target]
-  (let [r (render val)]
-    (if (fn? r)
-      (r target)
-      (gdom/appendChild target (crate/html r)))))
+(defn delete-cell [id]
+  (let [next-input (find-next-input id)
+        prev-input (find-prev-input id)]
+    (gdom/removeNode (get-cell-element id))
+    (cond
+      next-input (.focus next-input)
+      prev-input (.focus prev-input)
+      :else (append-cell))))
+
+(defn delete-all []
+  (doall (->> (gdom/getElementsByClass "ra-cell")
+              array-seq
+              (map gdom/removeNode)))
+  (append-cell))
+
+(defn out-class [line]
+  (cond
+    (:out line) "ra-out"
+    (:err line) "ra-err"
+    (:ex line)  "ra-ex"))
 
 (defn apply-result [id result go-next]
   (let [valdiv (gdom/getElement (str "result-" id))
@@ -212,7 +281,7 @@
                           (s/join ", " (vals line))])))
     (gdom/removeChildren valdiv)
     (mapv #(render-result % valdiv) (:value result))
-    (.scrollIntoView (gdom/getElement (str "cell-" id)))
+    (.scrollIntoView (get-cell-element id))
     (when (and success go-next)
       (focus-next-cell id))))
 
@@ -221,34 +290,22 @@
   ([id go-next]
    (doto (gdom/getElement (str "result-" id))
      (gdom/appendChild (crate/html [:progress])))
-   (let [expr (-> (gdom/getElement (str "expr-" id))
+   (let [expr (-> (get-input-element id)
                   .-textContent
                   (s/replace \u00a0 " "))]
      (nrepl/send-eval expr #(apply-result id % go-next)))))
 
 (defn eval-cell-and-stay [id] (eval-cell id false))
 
-(defn delete-cell [id]
-  (let [next-input (find-next-input id)
-        prev-input (find-prev-input id)]
-    (gdom/removeNode (gdom/getElement (str "cell-" id)))
-    (cond
-      next-input (.focus next-input)
-      prev-input (.focus prev-input)
-      :else (add-new-cell))))
-
-(defn delete-all []
-  (doall (->> (gdom/getElementsByClass "ra-cell")
-              array-seq
-              (map gdom/removeNode)))
-  (add-new-cell))
-
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
                    "Tab" completions/initiate-at-point
                    "C-Delete" delete-cell
                    "C-u" delete-cell
-                   "C-i" insert-new-cell
+                   "C-i" insert-cell-before
+                   "C-o" insert-cell-after
+                   "C-y" copy-cell-with-expr
+                   "C-S-Y" append-cell-with-expr
                    "C-l" delete-all
                    "C-j" focus-next-cell
                    "C-k" focus-prev-cell
@@ -265,38 +322,9 @@
          (when (completions/active id)
            completions-key-map)))
 
-(defn key-event->str [e]
-  (str (when (.-altKey e) "A-")
-       (when (.-ctrlKey e) "C-")
-       (when (.-shiftKey e) "S-")
-       (.-key e)))
-
-(defn insert-new-cell [before-id]
-  (let [ns (nrepl/get-ns)]
-    (if ns
-      (let [id (new-cell-id)
-            cell (create-cell id ns)
-            keydown (fn [e]
-                      ;; (.log js/console "key " e)
-                      (when-let [f (get (get-key-map id) (key-event->str e))]
-                        (f id)
-                        (.preventDefault e)))]
-        (if before-id
-          (gdom/insertSiblingBefore cell (gdom/getElement (str "cell-" before-id)))
-          (gdom/appendChild (get-app-element) cell))
-        (let [expr-input (gdom/getElement (str "expr-" id))]
-          (doto expr-input
-            (highlight/plug)
-            (completions/plug id)
-            (.addEventListener "keydown" keydown)
-            (.focus))))
-      (nrepl/send-eval "*ns*" #(add-new-cell)))))
-
-(defn add-new-cell [] (insert-new-cell nil))
-
 (gevents/listen js/window
                 "load"
-                (fn [_] (add-new-cell)))
+                (fn [_] (append-cell)))
 
 ;; specify reload hook with ^:after-load metadata
 (defn ^:after-load on-reload []
