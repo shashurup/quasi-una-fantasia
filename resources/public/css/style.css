@@ -165,3 +165,14 @@ td.ra-number-cell {
     height: auto;
     margin: 1em;
 }
+
+.ra-tall {
+    height: 75vh;
+    width: 80%
+}
+
+.ra-composite-wrapper .ra-tall {
+    width: 27vw;
+    height: 16vw;
+    margin: 1em;
+}

@@ -259,6 +259,12 @@
 (defmethod view-app-file :xml [{url :url}]
   (data/read-xml url))
 
+(defmethod view-app-file :pdf [{url :url}]
+  (with-meta
+    [:object.ra-tall {:type "application/pdf"
+                      :data (redirect-local-files url)}]
+    {:rackushka/hint :html}))
+
 (defmulti view-file :type)
 
 (defmethod view-file :text [subj]
