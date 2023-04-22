@@ -78,7 +78,8 @@
                                     (into-array [LinkOption/NOFOLLOW_LINKS]))]
     (merge (convert-attrs attrs)
            {:path (str path)
-            :name (str (.getFileName path))}
+            :name (str (.getFileName path))
+            :mime-type (Files/probeContentType path)}
            (when (symlink? attrs)
              {:link-target (.toString (Files/readSymbolicLink path))}))))
 
@@ -229,6 +230,11 @@
            (map #(assoc % :name (relative-path abs-path (:path %)))))
       {:rackushka/hint [:table :rackushka.fs/file [:name]]})))
 
+(defn m-mtype [pattern]
+  (fn [{mt :mime-type}]
+    (when mt
+      (re-matches pattern mt))))
+
 (defmulti view-text-file {:private true} :subtype)
 
 (defmethod view-text-file :default [{url :url}]
@@ -321,7 +327,3 @@
               (:path subj)
               (str subj))]
     (mime-type (java.net.URL. (absolute-url url)))))
-
-(defn match-mime-type
-  ([tp] (fn [subj] (= (first (t subj)) tp)))
-  ([tp stp] (fn [subj] (= (t subj) [tp stp]))))
