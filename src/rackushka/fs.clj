@@ -330,26 +330,32 @@
     (str subj "/")))
 
 (defn- absolute-url [subj]
-  (str 
-   (java.net.URL.
-    (java.net.URL. (str "file://" (add-trailing-slash *cwd*)))
-    (expand-tilde subj))))
+  (java.net.URL.
+   (java.net.URL. (str "file://" (add-trailing-slash *cwd*)))
+   (expand-tilde subj)))
 
-(defn- mime-type [url]
-  (when-let [ct (.detect (Tika.) url)]
-    (map keyword (-> ct
-                     (s/split #";")
-                     first
-                     (s/split #"/" 2)))))
+(defn- split-mime-type [subj]
+  (map keyword (-> subj
+                   (s/split #";")
+                   first
+                   (s/split #"/" 2))) )
+
+(defn- naive-mime-type [url]
+  (Files/probeContentType (as-path (.getPath url))))
+
+(defn- deep-mime-type [url]
+  (.detect (Tika.) url))
 
 (defn v
   "View file content."
   [subj]
   (let [url (absolute-url (if (map? subj)
                             (:path subj)
-                            subj))]
-    (when-let [[type subtype] (mime-type (java.net.URL. url))]
-      (view-file {:url url :type type :subtype subtype}))))
+                            subj))
+        [type subtype] (split-mime-type (or (when (map? subj) (:mime-type subj))
+                                      (naive-mime-type url)
+                                      (deep-mime-type url)))]
+    (view-file {:url (str url) :type type :subtype subtype})))
 
 
 (defn t
@@ -358,4 +364,4 @@
   (let [url (if (map? subj)
               (:path subj)
               (str subj))]
-    (mime-type (java.net.URL. (absolute-url url)))))
+    (deep-mime-type (absolute-url url))))
