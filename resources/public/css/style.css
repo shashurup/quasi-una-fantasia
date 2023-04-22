@@ -2,6 +2,8 @@
 
 div.ra-result {
     margin: 1em;
+    max-height: 80vh;
+    overflow: scroll;
 }
 
 div.ra-candidates {
