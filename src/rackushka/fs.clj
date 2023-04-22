@@ -1,6 +1,8 @@
 (ns rackushka.fs
   (:import [java.nio.file Files Paths LinkOption]
            [java.nio.file.attribute PosixFilePermission]
+           [java.time Instant]
+           [java.time.temporal ChronoUnit]
            [org.apache.tika Tika])
   (:require [clojure.string :as s]
             [rackushka.data :as data]))
@@ -234,6 +236,30 @@
   (fn [{mt :mime-type}]
     (when mt
       (re-matches pattern mt))))
+
+(def time-units {:second 1000
+                 :minute (* 60 1000)
+                 :hour (* 60 60 1000)
+                 :day (* 24 60 60 1000)
+                 :week (* 7 24 60 60 1000)
+                 :month (* 30 24 60 60 1000)
+                 :year (* 365 24 60 60 1000)
+                 :today ChronoUnit/DAYS
+                 ;; this doesn't work :(
+                 ;; :this-week ChronoUnit/WEEKS
+                 ;; :this-month ChronoUnit/MONTHS
+                 ;; :this-year ChronoUnit/YEARS
+                 })
+
+(defn m-modified-in
+  ([term]
+   (fn [{mod :modified}]
+     (> mod (.toEpochMilli (.truncatedTo (Instant/now)
+                                         (get time-units term ChronoUnit/DAYS))))))
+  ([amount unit]
+   (fn [{mod :modified}]
+     (> mod (- (System/currentTimeMillis)
+               (* amount (get time-units unit :day)))))))
 
 (defmulti view-text-file {:private true} :subtype)
 
