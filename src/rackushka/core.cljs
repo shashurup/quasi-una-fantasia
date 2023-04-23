@@ -297,6 +297,30 @@
 
 (defn eval-cell-and-stay [id] (eval-cell id false))
 
+(defn get-first-text-node [node]
+  (when node
+    (if (= (.-nodeType node) 1)
+      (get-first-text-node (.-firstChild node))
+      node)))
+
+(defn move-cursor-at-start [id]
+  (let [input (get-input-element id)
+        cursor-el (or (get-first-text-node (.-firstChild input)) input)]
+    (doto (js/getSelection)
+      (.removeAllRanges)
+      (.addRange (doto (.createRange js/document)
+                   (.setStart cursor-el 0)
+                   (.collapse true))))))
+
+(defn move-cursor-at-end [id]
+  (let [input (get-input-element id)
+        cursor-el (or (get-first-text-node (.-lastChild input)) input)]
+    (doto (js/getSelection)
+      (.removeAllRanges)
+      (.addRange (doto (.createRange js/document)
+                   (.setStart cursor-el (count (.-textContent cursor-el)))
+                   (.collapse true))))))
+
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
                    "Tab" completions/initiate-at-point
@@ -309,7 +333,9 @@
                    "C-l" delete-all
                    "C-j" focus-next-cell
                    "C-k" focus-prev-cell
-                   "C-r" completions/initiate-history})
+                   "C-r" completions/initiate-history
+                   "C-a" move-cursor-at-start
+                   "C-e" move-cursor-at-end})
 
 (def completions-key-map {"Enter" completions/use-candidate
                           "Escape" completions/clear-candidates
