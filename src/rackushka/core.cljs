@@ -2,6 +2,7 @@
   (:use-macros
    [crate.def-macros :only [defpartial]])
   (:require
+   [rackushka.editor :as editor]
    [rackushka.completions :as completions]
    [rackushka.desc :as desc]
    [rackushka.highlight :as highlight]
@@ -206,6 +207,7 @@
           (when (not-empty expr-text)
             (gdom/setTextContent expr-input expr-text))
           (doto expr-input
+            (editor/plug)
             (highlight/plug)
             (completions/plug id)
             (.addEventListener "keydown" keydown)
