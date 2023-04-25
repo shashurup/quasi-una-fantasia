@@ -261,6 +261,12 @@
      (> mod (- (System/currentTimeMillis)
                (* amount (get time-units unit :day)))))))
 
+(defn- redirect-local-files [url-str]
+  (let [url (java.net.URL. url-str)]
+    (if (= (.getProtocol url) "file")
+      (str "fs" (.getPath url))
+      url-str)))
+
 (defmulti view-text-file {:private true} :subtype)
 
 (defmethod view-text-file :default [{url :url}]
@@ -298,12 +304,6 @@
 
 (defmethod view-file :application [subj]
   (view-app-file subj))
-
-(defn- redirect-local-files [url-str]
-  (let [url (java.net.URL. url-str)]
-    (if (= (.getProtocol url) "file")
-      (str "fs" (.getPath url))
-      url-str)))
 
 (defmethod view-file :image [{url :url}]
   (with-meta
