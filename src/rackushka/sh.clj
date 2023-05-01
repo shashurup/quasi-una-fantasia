@@ -55,8 +55,8 @@
                         input)]
             (with-open [in' in]
               (io/copy input in')))))
-      (let [output (vec (line-seq out))
-            error (future (slurp err))
+      (let [error (future (slurp err))
+            output (vec (line-seq out))
             exit (wait)]
         (when (not-empty @error)
           (print @error))
