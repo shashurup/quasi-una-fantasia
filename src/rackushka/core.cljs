@@ -287,15 +287,24 @@
     (when (and success go-next)
       (focus-next-cell id))))
 
+(defn create-progress-bar [id]
+  (let [handler-call (str "rackushka.core.interrupt_eval(" id ")")]
+    (crate/html [:div [:progress]
+                 " "
+                 [:input {:type "button"
+                          :value "Cancel"
+                          :onclick handler-call}]])))
+
 (defn eval-cell
   ([id] (eval-cell id true))
   ([id go-next]
    (doto (gdom/getElement (str "result-" id))
-     (gdom/appendChild (crate/html [:progress])))
+     (gdom/appendChild (create-progress-bar id)))
    (let [expr (-> (get-input-element id)
                   .-textContent
                   (s/replace \u00a0 " "))]
-     (nrepl/send-eval expr #(apply-result id % go-next)))))
+     (let [req-id (nrepl/send-eval expr #(apply-result id % go-next))]
+       (swap! app-state assoc-in [:requests (str id)] req-id)))))
 
 (defn eval-cell-and-stay [id] (eval-cell id false))
 
@@ -322,6 +331,9 @@
       (.addRange (doto (.createRange js/document)
                    (.setStart cursor-el (count (.-textContent cursor-el)))
                    (.collapse true))))))
+
+(defn interrupt-eval [id]
+  (nrepl/send-interrupt (get-in @app-state [:requests (str id)])))
 
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
