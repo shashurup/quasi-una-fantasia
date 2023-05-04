@@ -44,7 +44,9 @@
                       :class "ra-input"
                       :spellcheck "false"
                       :contenteditable "true"}]
-               [:div.ra-candidates {:id (str "cand-" id)}]
+               [:div.ra-assistant
+                [:div.ra-candidates {:id (str "cand-" id)}]
+                [:div.ra-doc {:id (str "doc-" id)}]]
                [:div {:id (str "out-" id)}]
                [:div.ra-result {:id (str "result-" id)}]]))
 
@@ -348,6 +350,7 @@
                    "C-j" focus-next-cell
                    "C-k" focus-prev-cell
                    "C-r" completions/initiate-history
+                   "C-h" completions/toggle-doc
                    "C-a" move-cursor-at-start
                    "C-e" move-cursor-at-end})
 

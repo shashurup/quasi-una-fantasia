@@ -21,6 +21,9 @@
 (defn get-root-element [id]
   (gdom/getElement (str "cand-" id)))
 
+(defn get-doc-root [id]
+  (gdom/getElement (str "doc-" id)))
+
 (defn container-at-cursor []
   (.-startContainer (.getRangeAt (js/getSelection) 0)))
 
@@ -57,9 +60,11 @@
   (move-selection id gdom/getPreviousElementSibling))
 
 (defn clear-candidates [id]
-  (let [parent (get-root-element id)]
+  (let [parent (get-root-element id)
+        doc-root (get-doc-root id)]
     (gcls/set parent "ra-candidates")
-    (gdom/removeChildren parent)))
+    (gdom/removeChildren parent)
+    (gdom/removeChildren doc-root)))
 
 (defn move-cursor-to-the-end-of [target]
   (.setStart (.getRangeAt (js/getSelection) 0)
@@ -117,6 +122,7 @@
  (let [tail (if (> (count candidates) max-completions) "..." "")
        target (get-root-element id)]
    (gdom/removeChildren target)
+   (gdom/removeChildren (get-doc-root id))
    (gcls/set target "ra-candidates")
    (when (not-empty candidates)
      (gcls/add target class)
@@ -136,6 +142,26 @@
   (nrepl/send-history (words-at-cell-input id)
                       (inc max-completions)
                       #(show id % "ra-history")))
+
+(defn show-doc [id doc]
+  (let [root (get-doc-root id)
+        doc (->> (:out doc)
+                 (map :out)
+                 rest
+                 s/join)]
+    (gdom/setTextContent root doc)
+    (.scrollIntoView root)))
+
+(defn toggle-doc [id]
+  (let [root (get-doc-root id)
+        selected (find-selected-candidate (get-root-element id))
+        subj (if selected
+               (gdom/getTextContent selected)
+               (text-at-cursor))]
+    (if (or selected (empty? (gdom/getTextContent root)))
+      (nrepl/send-eval (str "(clojure.repl/doc " subj ")")
+                       #(show-doc id %))
+      (gdom/removeChildren root))))
 
 (defmulti handle-input-change #(some #{"ra-history" "ra-at-point"}
                                      (gcls/get (get-root-element %))))
