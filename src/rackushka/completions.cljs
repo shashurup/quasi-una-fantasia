@@ -74,11 +74,13 @@
 (defmulti apply-candidate #(some #{"ra-at-point" "ra-history"}
                                  (gcls/get %2)))
 
-(defmethod apply-candidate "ra-at-point" [id candidate]
+(defn replace-current-container-text [new-text]
   (when-let [target (container-at-cursor)]
-    (let [text (gdom/getTextContent candidate)]
-      (gdom/setTextContent target text)
-      (move-cursor-to-the-end-of target))))
+    (gdom/setTextContent target new-text)
+    (move-cursor-to-the-end-of target)))
+
+(defmethod apply-candidate "ra-at-point" [id candidate]
+  (replace-current-container-text (gdom/getTextContent candidate)))
 
 (defmethod apply-candidate "ra-history" [id candidate]
   (when-let [input (gdom/getElement (str "expr-" id))]
@@ -133,9 +135,28 @@
      (.scrollIntoView (gdom/getElement (str "cell-" id)))
      (select-candidate (gdom/getFirstElementChild target)))))
 
+(defn common-prefix [a b]
+  (->> (range (inc (count a)))
+       (map #(subs a 0 %))
+       (filter #(s/includes? b %))
+       last))
+
+(defn longest-prefix [coll]
+  (reduce common-prefix coll))
+
+(defn complete-and-show [id candidates class]
+  (let [completion (longest-prefix (map :candidate candidates))]
+    (replace-current-container-text completion))
+  (show id candidates class))
+
 (defn initiate-at-point [id]
   (cancel)
   (nrepl/send-completions (text-at-cursor) #(show id % "ra-at-point")))
+
+(defn attempt-complete [id]
+  (cancel)
+  (nrepl/send-completions (text-at-cursor)
+                          #(complete-and-show id % "ra-at-point")))
 
 (defn initiate-history [id]
   (cancel)

@@ -339,7 +339,7 @@
 
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
-                   "Tab" completions/initiate-at-point
+                   "Tab" completions/attempt-complete
                    "C-Delete" delete-cell
                    "C-u" delete-cell
                    "C-i" insert-cell-before
