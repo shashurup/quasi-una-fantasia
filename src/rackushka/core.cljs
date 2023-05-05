@@ -44,9 +44,8 @@
                       :class "ra-input"
                       :spellcheck "false"
                       :contenteditable "true"}]
-               [:div.ra-assistant
-                [:div.ra-candidates {:id (str "cand-" id)}]
-                [:div.ra-doc {:id (str "doc-" id)}]]
+               [:div.ra-candidates {:id (str "cand-" id)}]
+               [:div.ra-doc {:id (str "doc-" id)}]
                [:div {:id (str "out-" id)}]
                [:div.ra-result {:id (str "result-" id)}]]))
 
