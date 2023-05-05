@@ -32,7 +32,7 @@
 
 (defn words-at-cell-input [id]
   (let [text (.-textContent (gdom/getElement (str "expr-" id)))]
-    (filter not-empty (s/split text #"\s"))))
+    (filter not-empty (s/split text #"[\s()]"))))
 
 (defn select-candidate [candidate]
   (gcls/add candidate "ra-selected"))
