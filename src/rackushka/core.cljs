@@ -3,7 +3,7 @@
    [crate.def-macros :only [defpartial]])
   (:require
    [rackushka.editor :as editor]
-   [rackushka.completions :as completions]
+   [rackushka.assistant :as assistant]
    [rackushka.desc :as desc]
    [rackushka.highlight :as highlight]
    [rackushka.nrepl :as nrepl]
@@ -211,7 +211,7 @@
           (doto expr-input
             (editor/plug)
             (highlight/plug)
-            (completions/plug id)
+            (assistant/plug id)
             (.addEventListener "keydown" keydown)
             (.focus))))
       (nrepl/send-eval "*ns*" #(append-cell)))))
@@ -339,7 +339,7 @@
 
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
-                   "Tab" completions/attempt-complete
+                   "Tab" assistant/attempt-complete
                    "C-Delete" delete-cell
                    "C-u" delete-cell
                    "C-i" insert-cell-before
@@ -349,20 +349,20 @@
                    "C-l" delete-all
                    "C-j" focus-next-cell
                    "C-k" focus-prev-cell
-                   "C-r" completions/initiate-history
-                   "C-h" completions/toggle-doc
+                   "C-r" assistant/initiate-history
+                   "C-h" assistant/toggle-doc
                    "C-a" move-cursor-at-start
                    "C-e" move-cursor-at-end})
 
-(def completions-key-map {"Enter" completions/use-candidate
-                          "Escape" completions/clear-candidates
-                          "Tab" completions/select-next-candidate
-                          "C-j" completions/select-next-candidate
-                          "C-k" completions/select-prev-candidate})
+(def completions-key-map {"Enter" assistant/use-candidate
+                          "Escape" assistant/clear-candidates
+                          "Tab" assistant/select-next-candidate
+                          "C-j" assistant/select-next-candidate
+                          "C-k" assistant/select-prev-candidate})
 
 (defn get-key-map [id]
   (merge cell-key-map
-         (when (completions/active id)
+         (when (assistant/active id)
            completions-key-map)))
 
 (gevents/listen js/window

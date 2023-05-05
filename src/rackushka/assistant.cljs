@@ -1,4 +1,4 @@
-(ns rackushka.completions
+(ns rackushka.assistant
   (:require
    [clojure.string :as s]
    [rackushka.naive-parser :as np]
