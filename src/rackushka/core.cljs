@@ -9,8 +9,10 @@
    [rackushka.nrepl :as nrepl]
    [goog.dom :as gdom]
    [goog.events :as gevents]
+   [goog.dom.classes :as gcls]
    [crate.core :as crate]
    [clojure.string :as s]
+   [clojure.set :as set]
    [cljs.pprint :as pp]))
 
 (defonce app-state (atom {}))
@@ -33,6 +35,12 @@
 
 (defn get-input-element [id]
   (gdom/getElement (str "expr-" id)))
+
+(defn get-result-element [id]
+  (gdom/getElement (str "result-" id)))
+
+(defn get-out-element [id]
+  (gdom/getElement (str "out-" id)))
 
 
 ;; Tree
@@ -273,8 +281,8 @@
     (:ex line)  "ra-ex"))
 
 (defn apply-result [id result go-next]
-  (let [valdiv (gdom/getElement (str "result-" id))
-        outdiv (gdom/getElement (str "out-" id))
+  (let [valdiv (get-result-element id)
+        outdiv (get-out-element id)
         success (not-any? :ex (:out result))]
     (gdom/removeChildren outdiv)
     (apply gdom/append
@@ -299,7 +307,7 @@
 (defn eval-cell
   ([id] (eval-cell id true))
   ([id go-next]
-   (doto (gdom/getElement (str "result-" id))
+   (doto (get-result-element id)
      (gdom/appendChild (create-progress-bar id)))
    (let [expr (-> (get-input-element id)
                   .-textContent
@@ -336,6 +344,16 @@
 (defn interrupt-eval [id]
   (nrepl/send-interrupt (get-in @app-state [:requests (str id)])))
 
+(def height-cycle {"" "ra-tall"
+                   "ra-tall" "ra-height-collapsed"
+                   "ra-height-collapsed" ""})
+
+(defn toggle-height [id]
+  (let [target (get-result-element id)
+        class (or (first (set/intersection (set (keys height-cycle))
+                                           (set (gcls/get target)))) "")]
+    (gcls/addRemove target class (height-cycle class))))
+
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
                    "Tab" assistant/attempt-complete
@@ -351,7 +369,8 @@
                    "C-r" assistant/initiate-history
                    "C-h" assistant/toggle-doc
                    "C-a" move-cursor-at-start
-                   "C-e" move-cursor-at-end})
+                   "C-e" move-cursor-at-end
+                   "C-s" toggle-height})
 
 (def completions-key-map {"Enter" assistant/use-candidate
                           "Escape" assistant/clear-candidates

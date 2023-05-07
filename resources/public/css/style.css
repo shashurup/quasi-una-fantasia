@@ -4,6 +4,20 @@ div.ra-result {
     margin: 1em;
 }
 
+div.ra-tall {
+    max-height: 80vh;
+    overflow: scroll;
+    padding: 1em;
+    border: 1px dashed grey;
+}
+
+div.ra-height-collapsed {
+    max-height: 10vh;
+    overflow: hidden;
+    padding: 1em;
+    border: 1px dashed grey;
+}
+
 div.ra-candidates {
     margin: 1em;
 }
