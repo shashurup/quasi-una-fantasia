@@ -1,5 +1,5 @@
 (ns rackushka.ol
-  (:require [rackushka.core :as c] ; todo mover render to a separate ns
+  (:require [rackushka.render :refer [render]]
             [crate.core :as crate]
             [goog.dom :as gdom]
             [cljsjs.openlayers]))
@@ -48,7 +48,7 @@
                           :view view}))
     (.fit view (.getExtent src))))
 
-(defmethod c/render :geodata [subj]
+(defmethod render :geodata [subj]
   (fn [target]
     (let [c (crate/html [:div.ra-medium-sized])]
       (gdom/appendChild target c)
