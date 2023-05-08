@@ -42,6 +42,16 @@
 (defn get-out-element [id]
   (gdom/getElement (str "out-" id)))
 
+(defn cycle-style [el style-map]
+  (let [class (or (first (set/intersection (set (keys style-map))
+                                           (set (gcls/get el)))) "")]
+    (gcls/addRemove el class (style-map class))))
+
+(defn parent-elements [subj]
+  (iterate #(.-parentElement %) subj))
+
+(defn find-parent-tag [subj tag]
+  (first (filter #(= (.-tagName %) tag) (parent-elements subj))))
 
 ;; Tree
 
@@ -167,6 +177,31 @@
       (keys row)
       (range (count row)))))
 
+(def col-width-cycle {"" "ra-wide"
+                      "ra-wide" "ra-width-collapsed"
+                      "ra-width-collapsed" ""})
+
+(defn cycle-col-width [table col-idx]
+  (let [tbody (first (gdom/getElementsByTagName "tbody" table))
+        rows (gdom/getElementsByTagName "tr" tbody)]
+    (doall (for [row rows]
+             (cycle-style (nth (seq (gdom/getElementsByTagName "td" row)) col-idx)
+                          col-width-cycle)))))
+
+(defn header-click [e]
+  (let [header (.-target e)
+        table (find-parent-tag header "TABLE")
+        col-idx (->> (gdom/getElementsByTagName "th" (.-parentElement header))
+                     (map-indexed #(vector %1 (= %2 header)))
+                     (filter second)
+                     ffirst)]
+    (cycle-col-width table col-idx)))
+
+(defn render-header [name]
+  (let [header (crate/html [:th.ra name])]
+    (.addEventListener header "click" header-click)
+    header))
+
 (defmethod render :table [data]
   (let [hint (:rackushka/hint (meta data))
         [names rndrs] (if (keyword? hint)
@@ -177,7 +212,7 @@
                               (desc/table-desc sec (nth hint 2))
                               (desc/table-desc sec)))))]
     [:table.ra [:thead [:tr (for [name names]
-                              [:th.ra name])]]
+                              (render-header name))]]
                [:tbody (for [row data]
                          [:tr (for [rndr rndrs]
                                 (render-cell (rndr row)))])]]))
@@ -344,15 +379,12 @@
 (defn interrupt-eval [id]
   (nrepl/send-interrupt (get-in @app-state [:requests (str id)])))
 
-(def height-cycle {"" "ra-tall"
-                   "ra-tall" "ra-height-collapsed"
-                   "ra-height-collapsed" ""})
+(def result-height-cycle {"" "ra-tall"
+                          "ra-tall" "ra-height-collapsed"
+                          "ra-height-collapsed" ""})
 
-(defn toggle-height [id]
-  (let [target (get-result-element id)
-        class (or (first (set/intersection (set (keys height-cycle))
-                                           (set (gcls/get target)))) "")]
-    (gcls/addRemove target class (height-cycle class))))
+(defn cycle-result-height [id]
+  (cycle-style (get-result-element id) result-height-cycle))
 
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
@@ -370,7 +402,7 @@
                    "C-h" assistant/toggle-doc
                    "C-a" move-cursor-at-start
                    "C-e" move-cursor-at-end
-                   "C-s" toggle-height})
+                   "C-s" cycle-result-height})
 
 (def completions-key-map {"Enter" assistant/use-candidate
                           "Escape" assistant/clear-candidates

@@ -8,6 +8,7 @@ div.ra-tall {
     max-height: 80vh;
     overflow: scroll;
     padding: 1em;
+    margin: 0;
     border: 1px dashed grey;
 }
 
@@ -15,7 +16,16 @@ div.ra-height-collapsed {
     max-height: 10vh;
     overflow: hidden;
     padding: 1em;
+    margin: 0;
     border: 1px dashed grey;
+}
+
+.ra-wide {
+    max-width: 80vw;
+}
+
+.ra-width-collapsed {
+    max-width: 1ch;
 }
 
 div.ra-candidates {
@@ -133,6 +143,8 @@ th.ra, td.ra {
     padding: 0 1ch;
     border: solid 1px;
     border-color: grey;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 td.ra {
