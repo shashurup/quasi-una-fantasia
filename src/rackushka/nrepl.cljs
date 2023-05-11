@@ -42,7 +42,11 @@
      :value (->> subj
                  (map :value)
                  (remove nil?)
-                 (map read-value))}))
+                 (map read-value))
+     :event-queue-size (->> subj
+                            (map :event-queue-size)
+                            (remove nil?)
+                            first)}))
 
 (defn update-ns [resp]
   (when-let [ns (some :ns resp)]
