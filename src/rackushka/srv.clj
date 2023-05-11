@@ -1,5 +1,6 @@
 (ns rackushka.srv
   (:require [rackushka.config :as cfg]
+            [rackushka.events :as ev]
             [rackushka.history :as hist]
             [compojure.core :refer :all]
             [compojure.route :as route]
@@ -19,7 +20,9 @@
 
 (defn create-web-session []
   (let [[client-side server-side] (t/piped-transports)]
-    {:server (future (srv/handle (srv/default-handler #'hist/wrap-history) server-side))
+    {:server (future (srv/handle (srv/default-handler #'hist/wrap-history
+                                                      #'ev/wrap-events)
+                                 server-side))
      :client (nrepl/client client-side (* 24 60 60 1000))}))
 
 (defn handle-nrepl-request [op client]
