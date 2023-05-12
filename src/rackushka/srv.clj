@@ -1,6 +1,6 @@
 (ns rackushka.srv
   (:require [rackushka.config :as cfg]
-            [rackushka.events :as ev]
+            [rackushka.events :as events]
             [rackushka.history :as hist]
             [compojure.core :refer :all]
             [compojure.route :as route]
@@ -21,14 +21,17 @@
 (defn create-web-session []
   (let [[client-side server-side] (t/piped-transports)]
     {:server (future (srv/handle (srv/default-handler #'hist/wrap-history
-                                                      #'ev/wrap-events)
+                                                      #'events/wrap-events)
                                  server-side))
      :client (nrepl/client client-side (* 24 60 60 1000))}))
 
 (defn handle-nrepl-request [op client]
   (let [result (nrepl/message client op)]
+    ;; TODO move this into the middleware
+    ;; eval result can be accessed wrapping transport
+    ;; pretty printing middleware does this
     (hist/log op result)
-    result))
+    (events/augment-response op result)))
 
 (defroutes app
 

@@ -140,6 +140,30 @@
               (map gdom/removeNode)))
   (append-cell))
 
+(defmulti apply-event :type)
+
+(defmethod apply-event :default [_])
+
+; (defmethod apply-event :require [{:keys [arg]}]
+;  (require arg))
+
+(defn process-events [result]
+  (let [processed-event-count (or (:processed-event-count @app-state) 0)
+        event-queue-size (:event-queue-size result)
+        apply-events (fn [response]
+                       (let [events (:events (first response))]
+                         (.log js/console events)
+                         (swap! app-state
+                                update
+                                :processed-event-count
+                                (+ processed-event-count (count events)))
+                         ;(doall (map apply-event events))
+                         ))]
+    (when (> event-queue-size processed-event-count)
+      (nrepl/send-op {:op "events"
+                      :from processed-event-count}
+                     apply-events))))
+
 (defn out-class [line]
   (cond
     (:out line) "ra-out"
@@ -150,6 +174,7 @@
   (let [valdiv (get-result-element id)
         outdiv (get-out-element id)
         success (not-any? :ex (:out result))]
+    (process-events result)
     (gdom/removeChildren outdiv)
     (apply gdom/append
            outdiv
