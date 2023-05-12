@@ -144,20 +144,19 @@
 
 (defmethod apply-event :default [_])
 
-; (defmethod apply-event :require [{:keys [arg]}]
-;  (require arg))
+(defmethod apply-event :require [{:keys [ns]}]
+  (goog/require ns))
 
 (defn process-events [result]
   (let [processed-event-count (or (:processed-event-count @app-state) 0)
         event-queue-size (:event-queue-size result)
         apply-events (fn [response]
                        (let [events (:events (first response))]
-                         (.log js/console events)
                          (swap! app-state
-                                update
+                                assoc
                                 :processed-event-count
                                 (+ processed-event-count (count events)))
-                         ;(doall (map apply-event events))
+                         (doall (map apply-event events))
                          ))]
     (when (> event-queue-size processed-event-count)
       (nrepl/send-op {:op "events"
