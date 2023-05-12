@@ -5,7 +5,8 @@
            [java.time.temporal ChronoUnit]
            [org.apache.tika Tika])
   (:require [clojure.string :as s]
-            [rackushka.data :as data]))
+            [rackushka.data :as data]
+            [rackushka.events :as events]))
 
 (def permission-map
   {PosixFilePermission/OWNER_READ :owner-read
@@ -365,3 +366,5 @@
               (:path subj)
               (str subj))]
     (deep-mime-type (absolute-url url))))
+
+(events/push {:type :require :ns "rackushka.fs"})

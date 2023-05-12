@@ -1,5 +1,6 @@
 (ns rackushka.geo
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [rackushka.events :as events]))
 
 (defn normalize-data [data]
   (cond
@@ -21,3 +22,5 @@
   (with-meta
     (normalize-data subj)
     {:rackushka/hint :geodata}))
+
+(events/push {:type :require :ns "rackushka.ol"})

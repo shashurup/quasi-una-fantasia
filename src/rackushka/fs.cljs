@@ -1,5 +1,6 @@
 (ns rackushka.fs
-  (:require [rackushka.desc :as desc]))
+  (:require [rackushka.desc :as desc]
+            [rackushka.utils :as u]))
 
 (defn- local-class [subj]
   (str "rackushka-fs-" subj))
@@ -44,3 +45,5 @@
                      :permissions convert-permissions}})
 
 (swap! desc/object-types assoc ::file file)
+
+(u/add-style-ref "css/fs.css")
