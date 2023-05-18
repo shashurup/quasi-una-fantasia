@@ -10,6 +10,7 @@
    [rackushka.utils :as u]
    [goog.dom :as gdom]
    [goog.events :as gevents]
+   [goog.style :as gst]
    [crate.core :as crate]
    [clojure.string :as s]
    [cljs.pprint :as pp]))
@@ -82,11 +83,11 @@
           (when (not-empty expr-text)
             (gdom/setTextContent expr-input expr-text))
           (doto expr-input
+            (.focus)
             (editor/plug)
             (highlight/plug)
             (assistant/plug id)
-            (.addEventListener "keydown" keydown)
-            (.focus))))
+            (.addEventListener "keydown" keydown))))
       (nrepl/send-eval "*ns*" #(append-cell)))))
 
 (defn append-cell [] (insert-cell nil nil nil))
@@ -163,6 +164,14 @@
                       :from processed-event-count}
                      apply-events))))
 
+(defn process-tab []
+  (when-let [name (:name @app-state)]
+    (nrepl/send-op {:op "store-config"
+                    :name (str "tabs/" name)
+                    :config (map gdom/getTextContent
+                                 (gdom/getElementsByClass "ra-input"))}
+                   identity)))
+
 (defn out-class [line]
   (cond
     (:out line) "ra-out"
@@ -174,6 +183,7 @@
         outdiv (get-out-element id)
         success (not-any? :ex (:out result))]
     (process-events result)
+    (process-tab)
     (gdom/removeChildren outdiv)
     (apply gdom/append
            outdiv
@@ -241,6 +251,54 @@
 (defn cycle-result-height [id]
   (u/cycle-style (get-result-element id) result-height-cycle))
 
+(defn hide-tabname []
+  (gst/setStyle
+   (gdom/getElement "ra-tabname-modal")
+   "display"
+   "none"))
+
+(defn fill-tablist [resp]
+  (let [datalist (gdom/getElement "ra-tablist")]
+    (gdom/removeChildren datalist)
+    (doall (for [name (:names (first resp))]
+             (gdom/appendChild datalist
+                               (crate/html [:option name]))))))
+
+(defn show-tabname []
+  (nrepl/send-op {:op "ls-config" :name "tabs"} fill-tablist)
+  (gst/setStyle
+   (gdom/getElement "ra-tabname-modal")
+   "display"
+   "block")
+  (.focus (gdom/getElement "ra-tabname")))
+
+(defn load-cells [resp]
+  (when-let [cells (:config (first resp))]
+    (doall (for [expr cells]
+             (insert-cell nil nil expr)))))
+
+(defn set-tabname []
+  (let [name (.-value (gdom/getElement "ra-tabname"))]
+    (when (not-empty name)
+      (nrepl/send-op {:op "load-config" :name (str "tabs/" name)}
+                     load-cells)
+      (swap! app-state assoc :name name)
+      (gdom/setTextContent (first (gdom/getElementsByTagName "title"))
+                           (str name " - Rackushka"))))
+  (hide-tabname))
+
+(def tabname-key-map {"Enter" set-tabname
+                      "Escape" hide-tabname})
+
+(defn on-tabname-key [e]
+  (when-let [f (tabname-key-map (key-event->str e))]
+    (f)
+    (.preventDefault e)))
+
+(.addEventListener (gdom/getElement "ra-tabname")
+                   "keydown"
+                   on-tabname-key)
+
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
                    "Tab" assistant/attempt-complete
@@ -257,7 +315,8 @@
                    "C-h" assistant/toggle-doc
                    "C-a" move-cursor-at-start
                    "C-e" move-cursor-at-end
-                   "C-s" cycle-result-height})
+                   "C-s" cycle-result-height
+                   "C-=" show-tabname})
 
 (def completions-key-map {"Enter" assistant/use-candidate
                           "Escape" assistant/clear-candidates

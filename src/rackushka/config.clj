@@ -26,7 +26,8 @@
 
 (defn ls [name]
   (let [path (absolute-path name)]
-    (map #(fs/relative-path path (:path %)) (fs/files path))))
+    (when (.exists (io/as-file path))
+      (map #(fs/relative-path path (:path %)) (fs/files path)))))
 
 (defn wrap-config [h]
   (fn [{:keys [op transport name] :as msg}]

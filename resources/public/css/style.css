@@ -205,3 +205,23 @@ td.ra-number-cell {
     height: 16vw;
     margin: 1em;
 }
+
+.modal-back {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    padding-top: 30%;
+    background-color: rgba(0,0,0,0.3);
+}
+
+.modal-box {
+    padding: 2em;
+    border: solid;
+    margin: auto;
+    width: 50%;
+    background-color: beige;
+}
