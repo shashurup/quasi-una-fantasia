@@ -21,7 +21,8 @@
 (defn create-web-session []
   (let [[client-side server-side] (t/piped-transports)]
     {:server (future (srv/handle (srv/default-handler #'hist/wrap-history
-                                                      #'events/wrap-events)
+                                                      #'events/wrap-events
+                                                      #'cfg/wrap-config)
                                  server-side))
      :client (nrepl/client client-side (* 24 60 60 1000))}))
 
