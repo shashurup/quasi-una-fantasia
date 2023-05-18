@@ -299,6 +299,9 @@
                    "keydown"
                    on-tabname-key)
 
+(defn new-tab []
+  (.open js/window (.-location js/window)))
+
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
                    "Tab" assistant/attempt-complete
@@ -316,7 +319,8 @@
                    "C-a" move-cursor-at-start
                    "C-e" move-cursor-at-end
                    "C-s" cycle-result-height
-                   "C-=" show-tabname})
+                   "C-=" show-tabname
+                   "C-t" new-tab})
 
 (def completions-key-map {"Enter" assistant/use-candidate
                           "Escape" assistant/clear-candidates
