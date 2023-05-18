@@ -34,5 +34,12 @@
 (defn- handle-input-change [e]
   (handle-pairs e))
 
+;; paste text without formatting
+(defn- handle-paste [e]
+  (.preventDefault e)
+  (let [text (.getData (.-clipboardData e) "text/plain")]
+    (.execCommand js/document "insertText" false text)))
+
 (defn plug [input]
-  (.addEventListener input "input" handle-input-change))
+  (.addEventListener input "input" handle-input-change)
+  (.addEventListener input "paste" handle-paste))

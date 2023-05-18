@@ -16,7 +16,7 @@
 * DONE При наличии единственного кандидата Tab должен его дополнять
 * TODO Привести в порядок модули editor, completions и т.д.
 * DONE Поиск по истории должен игнорить скобки
-* TODO Вставляем только голый текст, без форматирования
+* DONE Вставляем только голый текст, без форматирования
   https://stackoverflow.com/questions/58980235/stop-pasting-html-style-in-a-contenteditable-div-only-paste-the-plain-text
 * Сценарии
 ** Отображение в виде таблицы
