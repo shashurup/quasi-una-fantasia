@@ -111,7 +111,9 @@
 
 (defn q
   "Query a database, args are:
-   database query param1, param2, ....
+   database query param1 param2 ....
+   (q \"postgresql://localhost/sales\" \"select * from order\")
+   (q :sales-db \"select * from order where id = ?\" 123)
    database - could be:
               a map with :dbtype, :dbname, :host, :port, :user, :password
               a connection string, database specific
