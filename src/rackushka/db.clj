@@ -109,7 +109,21 @@
     [(get *book* (first args)) (rest args)]
     [*current* args]))
 
-(defn q [& args]
+(defn q
+  "Query a database, args are:
+   database query param1, param2, ....
+   database - could be:
+              a map with :dbtype, :dbname, :host, :port, :user, :password
+              a connection string, database specific
+              a keyword to lookup a database in the *book*
+              missing - in this case *current* is used
+   query - for SQL databases it is a query string
+           parameter placeholder is ?
+           or db specific structure for other databases
+           for instance, for Mongo it could be something like:
+             \"coll\" {:field1 val} [:field2 :field3]
+  "
+  [& args]
   (let [[db args] (preprocess args)]
     (apply query db args)))
 
@@ -117,7 +131,9 @@
   (map #(set/rename-keys (select-keys % (keys renames))
                          renames) subj))
 
-(defn dn [& args]
+(defn dn
+  "Lists database schemas. Optional argument is a database to query."
+  [& args]
   (let [[db _] (preprocess args)]
     (with-meta
       (transform 
@@ -126,7 +142,14 @@
        {:table_schem :schema})
       {:rackushka/hint :table})))
 
-(defn df [& args]
+(defn df
+  "Lists database functions, args are:
+   database schema function
+   database - optional, database to connect to, see q for details
+   schema - optional schema name pattern
+   function - function name pattern
+   % is used as wildcard"
+  [& args]
   (let [[db args] (preprocess args)
         [schema fun] (if (> (count args) 1)
                          args
@@ -140,7 +163,14 @@
         :remarks :remarks})
       {:rackushka/hint :table})))
 
-(defn dt [& args]
+(defn dt
+  "Lists database tables, args are:
+   database schema function
+   database - optional, database to connect to, see q for details
+   schema - optional schema name pattern
+   table - table name pattern
+   % is used as wildcard"
+  [& args]
   (let [[db args] (preprocess args)
         [schema table] (if (> (count args) 1)
                          args
@@ -154,7 +184,14 @@
         :table_name :table})
       {:rackushka/hint :table})))
 
-(defn d [& args]
+(defn d
+  "Describe database table, args are:
+   database schema function
+   database - optional, database to connect to, see q for details
+   schema - optional schema name pattern
+   table - table name
+   % is used as wildcard"
+  [& args]
   (let [[db args] (preprocess args)
         [schema table] (if (> (count args) 1)
                          args
