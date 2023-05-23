@@ -59,7 +59,7 @@
      [:div {:class (str "ra-composite-body-"
                         (subs (str cont-type) 1))}
       (for [node subj] (render-fn node))]
-     [:label.ra-ellipsis {:for check-id} "..."]
+     [:label.ra-ellipsis {:for check-id} "\u2026"] ;; ellipsis
      [:span.ra-closing-paren suffix]]))
 
 (defmethod render PersistentVector [subj]
