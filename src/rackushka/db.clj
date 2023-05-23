@@ -12,7 +12,13 @@
 
 (def ^:dynamic *book*)
 
-(defn c [subj]
+(defn c
+  "Sets *current* database, used when it is absent in other functions.
+   subj - could be:
+          a map with :dbtype, :dbname, :host, :port, :user, :password
+          a connection string, database specific
+          a keyword to lookup a database in the *book*"
+  [subj]
   (def ^:dynamic *current* (if (keyword? subj)
                              (get *book* subj)
                              subj)))
@@ -112,13 +118,9 @@
 (defn q
   "Query a database, args are:
    database query param1 param2 ....
-   (q \"postgresql://localhost/sales\" \"select * from order\")
    (q :sales-db \"select * from order where id = ?\" 123)
-   database - could be:
-              a map with :dbtype, :dbname, :host, :port, :user, :password
-              a connection string, database specific
-              a keyword to lookup a database in the *book*
-              missing - in this case *current* is used
+   database - optional, a keyword to lookup in the *book*
+              *current* is used when ommited
    query - for SQL databases it is a query string
            parameter placeholder is ?
            or db specific structure for other databases
