@@ -18,7 +18,16 @@
                                                     :type :tag})
                                 :geometry str) data)))
 
-(defn v [subj]
+(defn v
+  "Show geometries on a map.
+   subj could be:
+        a string - geometry wkt
+        a collection maps where
+          :geometry, :g or :geom - wkt
+          :label or :name to put on each object
+          :tag or :type to automatically color objects
+        a collection of vectors with [geometry label tag]"
+  [subj]
   (with-meta
     (normalize-data subj)
     {:rackushka/hint :geodata}))
