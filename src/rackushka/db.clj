@@ -141,7 +141,7 @@
   (let [[db _] (preprocess args)]
     (with-meta
       (transform 
-       (jdbc/with-db-metadata [m db]
+       (jdbc/with-db-metadata [m (resolve-creds db)]
          (jdbc/metadata-query (.getSchemas m)))
        {:table_schem :schema})
       {:rackushka/hint :table})))
@@ -160,7 +160,7 @@
                          [nil (first args)])]
     (with-meta
       (transform 
-       (jdbc/with-db-metadata [m db]
+       (jdbc/with-db-metadata [m (resolve-creds db)]
          (jdbc/metadata-query (.getFunctions m nil schema fun)))
        {:function_schem :schema
         :function_name :function
@@ -181,7 +181,7 @@
                          [nil (first args)])]
     (with-meta
       (transform 
-       (jdbc/with-db-metadata [m db]
+       (jdbc/with-db-metadata [m (resolve-creds db)]
          (jdbc/metadata-query (.getTables m nil schema table nil)))
        {:table_type :type
         :table_schem :schema
@@ -202,7 +202,7 @@
                          [nil (first args)])]
     (with-meta
       (transform 
-       (jdbc/with-db-metadata [m db]
+       (jdbc/with-db-metadata [m (resolve-creds db)]
          (jdbc/metadata-query (.getColumns m nil schema table nil)))
        {:table_schem :schema
         :table_name :table
