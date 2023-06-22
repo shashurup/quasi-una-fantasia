@@ -1,7 +1,7 @@
-(ns rackushka.srv
-  (:require [rackushka.config :as cfg]
-            [rackushka.events :as events]
-            [rackushka.history :as hist]
+(ns shashurup.quf.srv
+  (:require [shashurup.quf.config :as cfg]
+            [shashurup.quf.events :as events]
+            [shashurup.quf.history :as hist]
             [compojure.core :refer :all]
             [compojure.route :as route]
             [ring.middleware.defaults :as d]

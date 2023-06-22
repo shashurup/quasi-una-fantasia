@@ -1,6 +1,6 @@
-(ns rackushka.geo
+(ns shashurup.quf.geo
   (:require [clojure.set :as set]
-            [rackushka.events :as events]))
+            [shashurup.quf.events :as events]))
 
 (defn normalize-data [data]
   (cond
@@ -30,6 +30,6 @@
   [subj]
   (with-meta
     (normalize-data subj)
-    {:rackushka/hint :geodata}))
+    {:shashurup.quf/hint :geodata}))
 
-(events/push {:type :require :ns "rackushka.ol"})
+(events/push {:type :require :ns "shashurup.quf.ol"})

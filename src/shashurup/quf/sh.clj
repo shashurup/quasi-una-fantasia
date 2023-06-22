@@ -1,7 +1,7 @@
-(ns rackushka.sh
+(ns shashurup.quf.sh
   (:require [clojure.java.io :as io]
             [clojure.string :as s]
-            [rackushka.fs :as fs])
+            [shashurup.quf.fs :as fs])
   (:import [java.lang ProcessBuilder ProcessBuilder$Redirect]))
 
 ;; clojure.java.shell/sh always create a pipe for stdin
@@ -61,5 +61,5 @@
         (when (not-empty @error)
           (print @error))
         (if (= exit 0)
-          (with-meta output {:rackushka/hint :text})
+          (with-meta output {:shashurup.quf/hint :text})
           (throw (Exception. (str "Exit code " exit))))))))

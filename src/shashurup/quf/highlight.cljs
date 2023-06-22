@@ -1,14 +1,14 @@
-(ns rackushka.highlight
+(ns shashurup.quf.highlight
   (:require
-   [rackushka.naive-parser :as np]
+   [shashurup.quf.naive-parser :as np]
    [clojure.string :as s]
    [crate.core :as crate]
    [goog.dom :as gdom]))
 
-(def class-map {:string "ra-string"
-                :number "ra-number"
-                :keyword "ra-keyword"
-                :symbol "ra-symbol"})
+(def class-map {:string "quf-string"
+                :number "quf-number"
+                :keyword "quf-keyword"
+                :symbol "quf-symbol"})
 
 (defn layout->html [[text in]]
   (let [class (class-map in)]

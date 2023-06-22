@@ -1,12 +1,12 @@
-(ns rackushka.fs
+(ns shashurup.quf.fs
   (:import [java.nio.file Files Paths LinkOption]
            [java.nio.file.attribute PosixFilePermission]
            [java.time Instant]
            [java.time.temporal ChronoUnit]
            [org.apache.tika Tika])
   (:require [clojure.string :as s]
-            [rackushka.data :as data]
-            [rackushka.events :as events]))
+            [shashurup.quf.data :as data]
+            [shashurup.quf.events :as events]))
 
 (def permission-map
   {PosixFilePermission/OWNER_READ :owner-read
@@ -202,7 +202,7 @@
                       (clojure.core/filter filter2)
                       (sort-by keyfn cmp))
                  [(attrs path)])
-      {:rackushka/hint [:table :rackushka.fs/file cols]})))
+      {:shashurup.quf/hint [:table :shashurup.quf.fs/file cols]})))
 
 (defn f
   "Find files, args can be:
@@ -231,7 +231,7 @@
       (->> (rest (tree abs-path skip-fn))
            (filter (apply every-pred filters))
            (map #(assoc % :name (relative-path abs-path (:path %)))))
-      {:rackushka/hint [:table :rackushka.fs/file [:name]]})))
+      {:shashurup.quf/hint [:table :shashurup.quf.fs/file [:name]]})))
 
 (defn m-mtype [pattern]
   (fn [{mt :mime-type}]
@@ -271,12 +271,12 @@
 (defmulti view-text-file {:private true} :subtype)
 
 (defmethod view-text-file :default [{url :url}]
-  (with-meta (data/read-lines url) {:rackushka/hint :text}))
+  (with-meta (data/read-lines url) {:shashurup.quf/hint :text}))
 
 (defmethod view-text-file :html [{url :url}]
   (with-meta 
-    [:iframe.ra-medium-sized {:src url}]
-    {:rackushka/hint :html}))
+    [:iframe.quf-medium-sized {:src url}]
+    {:shashurup.quf/hint :html}))
 
 (defmethod view-text-file :xml [{url :url}]
   (data/read-xml url))
@@ -294,9 +294,9 @@
 
 (defmethod view-app-file :pdf [{url :url}]
   (with-meta
-    [:object.ra-tall {:type "application/pdf"
+    [:object.quf-tall {:type "application/pdf"
                       :data (redirect-local-files url)}]
-    {:rackushka/hint :html}))
+    {:shashurup.quf/hint :html}))
 
 (defmulti view-file :type)
 
@@ -308,22 +308,22 @@
 
 (defmethod view-file :image [{url :url}]
   (with-meta
-    [:img.ra-intrinsically-sized {:src (redirect-local-files url)}]
-    {:rackushka/hint :html}))
+    [:img.quf-intrinsically-sized {:src (redirect-local-files url)}]
+    {:shashurup.quf/hint :html}))
 
 (defmethod view-file :video [{url :url}]
   (with-meta
-    [:video.ra-intrinsically-sized {:controls true
+    [:video.quf-intrinsically-sized {:controls true
                              :autoplay true}
      [:source {:src (redirect-local-files url)}]]
-    {:rackushka/hint :html}))
+    {:shashurup.quf/hint :html}))
 
 (defmethod view-file :audio [{url :url}]
   (with-meta
     [:audio {:controls true
              :autoplay true
              :src (redirect-local-files url)}]
-    {:rackushka/hint :html}))
+    {:shashurup.quf/hint :html}))
 
 (defn- add-trailing-slash [subj]
   (if (= (last subj) \/)
@@ -367,4 +367,4 @@
               (str subj))]
     (deep-mime-type (absolute-url url))))
 
-(events/push {:type :require :ns "rackushka.fs"})
+(events/push {:type :require :ns "shashurup.quf.fs"})

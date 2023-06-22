@@ -1,4 +1,4 @@
-(ns rackushka.db
+(ns shashurup.quf.db
   (:require
    [clojure.string :as s]
    [clojure.set :as set]
@@ -6,7 +6,7 @@
    [monger.core :as mg]
    [monger.collection :as mc]
    [monger.credentials :as mcreds]
-   [rackushka.secrets :as secrets]))
+   [shashurup.quf.secrets :as secrets]))
 
 (def ^:dynamic *current*)
 
@@ -28,13 +28,13 @@
 
 (defn- make-meta [rset]
   (let [rset-meta (.getMetaData rset)]
-    {:rackushka/hint [:table
+    {:shashurup.quf/hint [:table
                       (vec (for [idx (range 1 (inc (.getColumnCount rset-meta)))]
                              (let [col-label (.getColumnLabel rset-meta idx)
                                    col-type (.getColumnTypeName rset-meta idx)]
                                {:key (dec idx)
                                 :title col-label
-                                :type (keyword "rackushka.db"
+                                :type (keyword "shashurup.quf.db"
                                                (s/lower-case col-type))})))]}))
 
 (defn- resolve-creds [db]
@@ -144,7 +144,7 @@
        (jdbc/with-db-metadata [m (resolve-creds db)]
          (jdbc/metadata-query (.getSchemas m)))
        {:table_schem :schema})
-      {:rackushka/hint :table})))
+      {:shashurup.quf/hint :table})))
 
 (defn df
   "Lists database functions, args are:
@@ -165,7 +165,7 @@
        {:function_schem :schema
         :function_name :function
         :remarks :remarks})
-      {:rackushka/hint :table})))
+      {:shashurup.quf/hint :table})))
 
 (defn dt
   "Lists database tables, args are:
@@ -186,7 +186,7 @@
        {:table_type :type
         :table_schem :schema
         :table_name :table})
-      {:rackushka/hint :table})))
+      {:shashurup.quf/hint :table})))
 
 (defn d
   "Describe database table, args are:
@@ -210,4 +210,4 @@
         :type_name :type
         :column_size :size
         :is_nullable :null})
-      {:rackushka/hint :table})))
+      {:shashurup.quf/hint :table})))

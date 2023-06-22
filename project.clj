@@ -1,5 +1,5 @@
-(defproject rackushka "0.1.0-SNAPSHOT"
-  :description "FIXME: write this!"
+(defproject quasi-una-fantasia "0.12-SNAPSHOT"
+  :description "Quasi una fantasia is a graphical lisp shell prototype"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -26,7 +26,7 @@
   :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
             "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
-            "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "rackushka.test-runner"]}
+            "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "shashurup.quf.test-runner"]}
 
   :profiles {:dev {:dependencies [[com.bhauman/figwheel-main "0.2.18"]
                                   [com.bhauman/rebel-readline-cljs "0.1.4"]]

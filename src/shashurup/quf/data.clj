@@ -1,4 +1,4 @@
-(ns rackushka.data
+(ns shashurup.quf.data
   (:require [clojure.xml :as xml]
             [cheshire.core :as json]
             [clojure.data.csv :as csv]
@@ -21,10 +21,10 @@
   (with-meta
     (with-open [r (io/reader url)]
       (doall (line-seq r)))
-    {:rackushka/hint :text}))
+    {:shashurup.quf/hint :text}))
 
 (defn read-csv [url]
   (with-meta
     (with-open [r (io/reader url)]
       (doall (csv/read-csv r)))
-    {:rackushka/hint :table}))
+    {:shashurup.quf/hint :table}))

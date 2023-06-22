@@ -1,15 +1,15 @@
-(ns rackushka.config
+(ns shashurup.quf.config
   (:require [clojure.java.io :as io]
             [clojure.edn :as edn]
             [nrepl.middleware :as mwre]
             [nrepl.misc :as m]
             [nrepl.transport :as t]
-            [rackushka.fs :as fs]))
+            [shashurup.quf.fs :as fs]))
 
 (defn- absolute-path [name]
   (let [cfg-home (or (System/getenv "XDG_CONFIG_HOME")
                      (str (System/getenv "HOME") "/.config"))]
-    (str cfg-home "/rackushka/" name)))
+    (str cfg-home "/quasi-una-fantasia/" name)))
 
 (defn read [name]
   (let [path (absolute-path name)]

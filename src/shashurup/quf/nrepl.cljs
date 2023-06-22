@@ -1,4 +1,4 @@
-(ns rackushka.nrepl
+(ns shashurup.quf.nrepl
   (:require
    [goog.events :as gevents]
    [cljs.tools.reader :refer [read-string]]))
@@ -23,14 +23,14 @@
 (defn- handle-tag [tag arg]
   (condp = tag
     'inst (js/Date. arg)
-    (with-meta [tag arg] {:rackushka/hint :tag})))
+    (with-meta [tag arg] {:shashurup.quf/hint :tag})))
 
 (defn read-value [subj]
   (try
     (binding [cljs.tools.reader/*default-data-reader-fn* handle-tag]
       (read-string subj))
     (catch js/Object _
-      ^{:rackushka/hint :rackushka/text} [subj])))
+      ^{:shashurup.quf/hint :shashurup.quf/text} [subj])))
 
 (defn merge-eval-result [subj]
   (if (string? subj)
@@ -67,7 +67,7 @@
                   :code expr
                   :session session
                   :id id
-                  :nrepl.middleware.print/print "rackushka.srv/pr-with-meta"}
+                  :nrepl.middleware.print/print "shashurup.quf.srv/pr-with-meta"}
                  (fn [resp]
                    (history-append expr)
                    (update-ns resp)

@@ -1,11 +1,11 @@
-.rackushka-fs-directory {
+.quf-fs-directory {
     font-weight: bold;
 }
 
-.rackushka-fs-directory::after {
+.quf-fs-directory::after {
     content: "/";
 }
 
-.rackushka-fs-symlink {
+.quf-fs-symlink {
     font-style: italic;
 }

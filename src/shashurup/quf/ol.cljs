@@ -1,5 +1,5 @@
-(ns rackushka.ol
-  (:require [rackushka.render :refer [render]]
+(ns shashurup.quf.ol
+  (:require [shashurup.quf.render :refer [render]]
             [crate.core :as crate]
             [goog.dom :as gdom]
             [cljsjs.openlayers]))
@@ -50,6 +50,6 @@
 
 (defmethod render :geodata [subj]
   (fn [target]
-    (let [c (crate/html [:div.ra-medium-sized])]
+    (let [c (crate/html [:div.quf-medium-sized])]
       (gdom/appendChild target c)
       (create-map-control c subj))))

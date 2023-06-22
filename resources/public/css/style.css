@@ -1,10 +1,10 @@
 /* some style */
 
-div.ra-result {
+div.quf-result {
     margin: 1em;
 }
 
-div.ra-tall {
+div.quf-tall {
     max-height: 80vh;
     overflow: scroll;
     padding: 1em;
@@ -12,7 +12,7 @@ div.ra-tall {
     border: 1px dashed grey;
 }
 
-div.ra-height-collapsed {
+div.quf-height-collapsed {
     max-height: 10vh;
     overflow: hidden;
     padding: 1em;
@@ -20,38 +20,38 @@ div.ra-height-collapsed {
     border: 1px dashed grey;
 }
 
-.ra-wide {
+.quf-wide {
     max-width: 80vw;
 }
 
-.ra-width-collapsed {
+.quf-width-collapsed {
     max-width: 1ch;
 }
 
-div.ra-candidates {
+div.quf-candidates {
     margin: 1em;
 }
 
-div.ra-doc {
+div.quf-doc {
     margin: 1em;
     white-space: pre;
 }
 
-.ra-selected {
+.quf-selected {
     border: 2px solid;
     border-radius: 4px;
 }
 
-p.ra-out {
+p.quf-out {
     white-space: pre-wrap;
 }
 
-p.ra-err {
+p.quf-err {
     color: red;
     white-space: pre-wrap;
 }
 
-p.ra-ex {
+p.quf-ex {
     color: red;
     font-weight: bold;
 }
@@ -61,42 +61,42 @@ body {
     background-color: beige;
 }
 
-.ra-composite-wrapper {
+.quf-composite-wrapper {
     display: flex;
 }
 
-.ra-composite-body-vector, .ra-composite-body-list, .ra-composite-body-set {
+.quf-composite-body-vector, .quf-composite-body-list, .quf-composite-body-set {
     display: flex;
     column-gap: 1ch;
     flex-wrap: wrap;
 }
 
-.ra-map-entry {
+.quf-map-entry {
     display: flex;
     column-gap: 1ch;
 }
 
-span.ra-closing-paren {
+span.quf-closing-paren {
     align-self: end;
 }
 
-.ra-string {
+.quf-string {
     color: teal;
 }
 
-.ra-keyword {
+.quf-keyword {
     color: blue;
 }
 
-.ra-number {
+.quf-number {
     color: slateblue;
 }
 
-.ra-symbol {
+.quf-symbol {
     color: maroon;
 }
 
-.ra-bool {
+.quf-bool {
     color: brown;
 }
 
@@ -108,11 +108,11 @@ label {
     cursor: pointer;
 }
 
-label.ra-ellipsis {
+label.quf-ellipsis {
     display: none;
 }
 
-input:checked ~ label.ra-ellipsis {
+input:checked ~ label.quf-ellipsis {
     display: inline;
 }
 
@@ -124,7 +124,7 @@ input {
     font-family: monospace;
 }
 
-div.ra-input {
+div.quf-input {
     display: inline-block;
     font-family: monospace;
     padding: 0.2em;
@@ -170,37 +170,37 @@ th.ra:nth-child(1) {
     border-left-style: none;
 }
 
-td.ra-number-cell {
+td.quf-number-cell {
     text-align: right;
 }
 
-.ra-intrinsically-sized {
+.quf-intrinsically-sized {
     object-fit: contain;
     max-height: 50vh;
 }
 
-.ra-composite-wrapper .ra-intrinsically-sized {
+.quf-composite-wrapper .quf-intrinsically-sized {
     max-width: 27vw;
     margin: 1em;
 }
 
-.ra-medium-sized {
+.quf-medium-sized {
     height: 50vh;
     aspect-ratio: 16 / 9;
 }
 
-.ra-composite-wrapper .ra-medium-sized {
+.quf-composite-wrapper .quf-medium-sized {
     width: 27vw;
     height: auto;
     margin: 1em;
 }
 
-.ra-tall {
+.quf-tall {
     height: 75vh;
     width: 80%
 }
 
-.ra-composite-wrapper .ra-tall {
+.quf-composite-wrapper .quf-tall {
     width: 27vw;
     height: 16vw;
     margin: 1em;

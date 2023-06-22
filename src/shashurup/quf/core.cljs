@@ -1,13 +1,13 @@
-(ns ^:figwheel-hooks rackushka.core
+(ns ^:figwheel-hooks shashurup.quf.core
   (:use-macros
    [crate.def-macros :only [defpartial]])
   (:require
-   [rackushka.editor :as editor]
-   [rackushka.assistant :as assistant]
-   [rackushka.highlight :as highlight]
-   [rackushka.nrepl :as nrepl]
-   [rackushka.render :refer [render]]
-   [rackushka.utils :as u]
+   [shashurup.quf.editor :as editor]
+   [shashurup.quf.assistant :as assistant]
+   [shashurup.quf.highlight :as highlight]
+   [shashurup.quf.nrepl :as nrepl]
+   [shashurup.quf.render :refer [render]]
+   [shashurup.quf.utils :as u]
    [goog.dom :as gdom]
    [goog.events :as gevents]
    [goog.style :as gst]
@@ -38,16 +38,16 @@
   (gdom/getElement (str "out-" id)))
 
 (defn create-cell [id ns]
-  (crate/html [:div.ra-cell {:id (str "cell-" id)}
-               [:span.ra-prompt (str ns "=> ")]
+  (crate/html [:div.quf-cell {:id (str "cell-" id)}
+               [:span.quf-prompt (str ns "=> ")]
                [:div {:id (str "expr-" id)
-                      :class "ra-input"
+                      :class "quf-input"
                       :spellcheck "false"
                       :contenteditable "true"}]
-               [:div.ra-candidates {:id (str "cand-" id)}]
-               [:div.ra-doc {:id (str "doc-" id)}]
+               [:div.quf-candidates {:id (str "cand-" id)}]
+               [:div.quf-doc {:id (str "doc-" id)}]
                [:div {:id (str "out-" id)}]
-               [:div.ra-result {:id (str "result-" id)}]]))
+               [:div.quf-result {:id (str "result-" id)}]]))
 
 (defn render-result [val target]
   (let [r (render val)]
@@ -109,12 +109,12 @@
 (defn find-next-input [id]
   (when-let [this (get-cell-element id)]
     (when-let [next (gdom/getNextElementSibling this)]
-      (gdom/getElementByClass "ra-input" next))))
+      (gdom/getElementByClass "quf-input" next))))
 
 (defn find-prev-input [id]
   (when-let [this (get-cell-element id)]
     (when-let [next (gdom/getPreviousElementSibling this)]
-      (gdom/getElementByClass "ra-input" next))))
+      (gdom/getElementByClass "quf-input" next))))
 
 (defn focus-next-cell [id]
   (if-let [el (find-next-input id)]
@@ -136,7 +136,7 @@
       :else (append-cell))))
 
 (defn delete-all []
-  (doall (->> (gdom/getElementsByClass "ra-cell")
+  (doall (->> (gdom/getElementsByClass "quf-cell")
               array-seq
               (map gdom/removeNode)))
   (append-cell))
@@ -169,14 +169,14 @@
     (nrepl/send-op {:op "store-config"
                     :name (str "tabs/" name)
                     :config (map gdom/getTextContent
-                                 (gdom/getElementsByClass "ra-input"))}
+                                 (gdom/getElementsByClass "quf-input"))}
                    identity)))
 
 (defn out-class [line]
   (cond
-    (:out line) "ra-out"
-    (:err line) "ra-err"
-    (:ex line)  "ra-ex"))
+    (:out line) "quf-out"
+    (:err line) "quf-err"
+    (:ex line)  "quf-ex"))
 
 (defn apply-result [id result go-next]
   (let [valdiv (get-result-element id)
@@ -197,7 +197,7 @@
       (focus-next-cell id))))
 
 (defn create-progress-bar [id]
-  (let [handler-call (str "rackushka.core.interrupt_eval(" id ")")]
+  (let [handler-call (str "shashurup.quf.core.interrupt_eval(" id ")")]
     (crate/html [:div [:progress]
                  " "
                  [:input {:type "button"
@@ -244,21 +244,21 @@
 (defn interrupt-eval [id]
   (nrepl/send-interrupt (get-in @app-state [:requests (str id)])))
 
-(def result-height-cycle {"" "ra-tall"
-                          "ra-tall" "ra-height-collapsed"
-                          "ra-height-collapsed" ""})
+(def result-height-cycle {"" "quf-tall"
+                          "quf-tall" "quf-height-collapsed"
+                          "quf-height-collapsed" ""})
 
 (defn cycle-result-height [id]
   (u/cycle-style (get-result-element id) result-height-cycle))
 
 (defn hide-tabname []
   (gst/setStyle
-   (gdom/getElement "ra-tabname-modal")
+   (gdom/getElement "quf-tabname-modal")
    "display"
    "none"))
 
 (defn fill-tablist [resp]
-  (let [datalist (gdom/getElement "ra-tablist")]
+  (let [datalist (gdom/getElement "quf-tablist")]
     (gdom/removeChildren datalist)
     (doall (for [name (:names (first resp))]
              (gdom/appendChild datalist
@@ -267,10 +267,10 @@
 (defn show-tabname []
   (nrepl/send-op {:op "ls-config" :name "tabs"} fill-tablist)
   (gst/setStyle
-   (gdom/getElement "ra-tabname-modal")
+   (gdom/getElement "quf-tabname-modal")
    "display"
    "block")
-  (.focus (gdom/getElement "ra-tabname")))
+  (.focus (gdom/getElement "quf-tabname")))
 
 (defn load-cells [resp]
   (when-let [cells (:config (first resp))]
@@ -278,13 +278,13 @@
              (insert-cell nil nil expr)))))
 
 (defn set-tabname []
-  (let [name (.-value (gdom/getElement "ra-tabname"))]
+  (let [name (.-value (gdom/getElement "quf-tabname"))]
     (when (not-empty name)
       (nrepl/send-op {:op "load-config" :name (str "tabs/" name)}
                      load-cells)
       (swap! app-state assoc :name name)
       (gdom/setTextContent (first (gdom/getElementsByTagName "title"))
-                           (str name " - Rackushka"))))
+                           (str name " - Quasi una fantasia"))))
   (hide-tabname))
 
 (def tabname-key-map {"Enter" set-tabname
@@ -295,7 +295,7 @@
     (f)
     (.preventDefault e)))
 
-(.addEventListener (gdom/getElement "ra-tabname")
+(.addEventListener (gdom/getElement "quf-tabname")
                    "keydown"
                    on-tabname-key)
 

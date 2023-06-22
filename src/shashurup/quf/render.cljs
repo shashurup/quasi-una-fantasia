@@ -1,9 +1,9 @@
-(ns rackushka.render
+(ns shashurup.quf.render
   (:require [clojure.string :as s]
             [crate.core :as crate]
             [goog.dom :as gdom]
-            [rackushka.desc :as desc]
-            [rackushka.utils :as u]))
+            [shashurup.quf.desc :as desc]
+            [shashurup.quf.utils :as u]))
 
 ;; Tree
 
@@ -16,7 +16,7 @@
   [:span {:class class} (pr-str val)])
 
 (defmulti render (fn [subj]
-                   (if-let [hint (:rackushka/hint (meta subj))]
+                   (if-let [hint (:shashurup.quf/hint (meta subj))]
                      (if (keyword? hint)
                        hint
                        (first hint))
@@ -26,22 +26,22 @@
   [:span.ra (pr-str subj)])
 
 (defmethod render nil [subj]
-  (make-scalar "ra-nil" subj))
+  (make-scalar "quf-nil" subj))
 
 (defmethod render js/Number [subj]
-  (make-scalar "ra-number" subj))
+  (make-scalar "quf-number" subj))
 
 (defmethod render js/String [subj]
-  (make-scalar "ra-string" subj))
+  (make-scalar "quf-string" subj))
 
 (defmethod render js/Boolean [subj]
-  (make-scalar "ra-bool" subj))
+  (make-scalar "quf-bool" subj))
 
 (defmethod render Keyword [subj]
-  (make-scalar "ra-keyword" subj))
+  (make-scalar "quf-keyword" subj))
 
 (defmethod render Symbol [subj]
-  (make-scalar "ra-symbol" subj))
+  (make-scalar "quf-symbol" subj))
 
 (def paren-map {:map    ["{" "}"]
                 :vector ["[" "]"]
@@ -51,16 +51,16 @@
 (defn make-composite [subj cont-type render-fn]
   (let [check-id (new-check-id)
         [prefix suffix] (get paren-map cont-type)]
-    [:div.ra-composite-wrapper
+    [:div.quf-composite-wrapper
      [:label {:for check-id} prefix]
      [:input {:id check-id
               :type "checkbox"
               :style "display: none"}]
-     [:div {:class (str "ra-composite-body-"
+     [:div {:class (str "quf-composite-body-"
                         (subs (str cont-type) 1))}
       (for [node subj] (render-fn node))]
-     [:label.ra-ellipsis {:for check-id} "\u2026"] ;; ellipsis
-     [:span.ra-closing-paren suffix]]))
+     [:label.quf-ellipsis {:for check-id} "\u2026"] ;; ellipsis
+     [:span.quf-closing-paren suffix]]))
 
 (defmethod render PersistentVector [subj]
   (make-composite subj :vector render))
@@ -72,7 +72,7 @@
   (make-composite subj :set render))
 
 (defn render-map-entry [[k v]]
-  [:div.ra-map-entry (render k) (render v)])
+  [:div.quf-map-entry (render k) (render v)])
 
 (defn make-map [subj]
   (make-composite subj :map render-map-entry))
@@ -89,7 +89,7 @@
 (defmethod render :html [subj] subj)
 
 (defmethod render :tag [[tag arg]]
-  [:span {:class "ra-tag"} (str "#" tag " " arg)])
+  [:span {:class "quf-tag"} (str "#" tag " " arg)])
 
 
 ;; Table
@@ -98,7 +98,7 @@
 
 (defmethod render-cell :default [value]
   [:td.ra (if (coll? value)
-            (if (and (= :tag (:rackushka/hint (meta value)))
+            (if (and (= :tag (:shashurup.quf/hint (meta value)))
                      (= 'object (first value)) )
               (last (second value))
               (render value))
@@ -107,14 +107,14 @@
 (defmethod render-cell nil [_] [:td.ra])
 
 (defmethod render-cell js/String [value]
-  [:td {:class (str "ra " "ra-string-cell")} value])
+  [:td {:class (str "ra " "quf-string-cell")} value])
 
 (defmethod render-cell js/Number [value]
-  [:td {:class (str "ra " "ra-number-cell")}
+  [:td {:class (str "ra " "quf-number-cell")}
    (.format (js/Intl.NumberFormat.) value)])
 
 (defmethod render-cell js/Date [value]
-  [:td {:class (str "ra " "ra-date-cell")}
+  [:td {:class (str "ra " "quf-date-cell")}
    (.toISOString value)])
 
 (defn guess-columns [data]
@@ -123,9 +123,9 @@
       (keys row)
       (range (count row)))))
 
-(def col-width-cycle {"" "ra-wide"
-                      "ra-wide" "ra-width-collapsed"
-                      "ra-width-collapsed" ""})
+(def col-width-cycle {"" "quf-wide"
+                      "quf-wide" "quf-width-collapsed"
+                      "quf-width-collapsed" ""})
 
 (defn cycle-col-width [table col-idx]
   (let [tbody (first (gdom/getElementsByTagName "tbody" table))
@@ -149,7 +149,7 @@
     header))
 
 (defmethod render :table [data]
-  (let [hint (:rackushka/hint (meta data))
+  (let [hint (:shashurup.quf/hint (meta data))
         [names rndrs] (if (keyword? hint)
                         (desc/table-desc (guess-columns data))
                         (when (coll? hint)

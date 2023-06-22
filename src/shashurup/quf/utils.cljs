@@ -1,4 +1,4 @@
-(ns rackushka.utils
+(ns shashurup.quf.utils
   (:require [clojure.set :as set]
             [crate.core :as crate]
             [goog.dom :as gdom]

@@ -1,4 +1,4 @@
-(ns rackushka.secrets
+(ns shashurup.quf.secrets
   (:import [org.freedesktop.secret.simple SimpleCollection]))
 
 (defn lookup [attrs]

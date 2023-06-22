@@ -1,4 +1,4 @@
-(ns rackushka.desc
+(ns shashurup.quf.desc
   (:require [clojure.string :as s]))
 
 (defonce field-types
@@ -77,7 +77,7 @@
 (defn- htmlize [subj]
   (when subj
     (fn [arg]
-      (with-meta (subj arg) {:rackushka/hint :html}))))
+      (with-meta (subj arg) {:shashurup.quf/hint :html}))))
 
 (defn canonize-column [key desc]
   (let [m (cond

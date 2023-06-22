@@ -1,9 +1,9 @@
-(ns rackushka.naive-parser)
+(ns shashurup.quf.naive-parser)
 
-(def class-map {:string "ra-string"
-                :number "ra-number"
-                :keyword "ra-keyword"
-                :symbol "ra-symbol"})
+(def class-map {:string "quf-string"
+                :number "quf-number"
+                :keyword "quf-keyword"
+                :symbol "quf-symbol"})
 
 (defn whitespace? [ch]
   (or (#{\[ \] \{ \} \( \) \,} ch)

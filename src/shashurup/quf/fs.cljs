@@ -1,9 +1,9 @@
-(ns rackushka.fs
-  (:require [rackushka.desc :as desc]
-            [rackushka.utils :as u]))
+(ns shashurup.quf.fs
+  (:require [shashurup.quf.desc :as desc]
+            [shashurup.quf.utils :as u]))
 
 (defn- local-class [subj]
-  (str "rackushka-fs-" subj))
+  (str "quf-fs-" subj))
 
 (defn- render-name [[name directory? symlink?]]
   (let [class (cond
@@ -37,11 +37,11 @@
                      :name-ex {:title "Name"
                                :key [:name :directory? :symlink? :link-target]
                                :render render-name-with-link}
-                     :size :rackushka.desc/file-size
-                     :modified :rackushka.desc/millisecons
-                     :created :rackushka.desc/millisecons
+                     :size :shashurup.quf.desc/file-size
+                     :modified :shashurup.quf.desc/millisecons
+                     :created :shashurup.quf.desc/millisecons
                      :accessed {:title "Last access"
-                                :type :rackushka.desc/millisecons}
+                                :type :shashurup.quf.desc/millisecons}
                      :permissions convert-permissions}})
 
 (swap! desc/object-types assoc ::file file)

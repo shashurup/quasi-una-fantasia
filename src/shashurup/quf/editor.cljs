@@ -1,4 +1,4 @@
-(ns rackushka.editor
+(ns shashurup.quf.editor
   (:require
    [goog.dom :as gdom]))
 

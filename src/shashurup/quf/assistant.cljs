@@ -1,9 +1,9 @@
-(ns rackushka.assistant
+(ns shashurup.quf.assistant
   (:require
    [clojure.string :as s]
-   [rackushka.naive-parser :as np]
-   [rackushka.highlight :as hl]
-   [rackushka.nrepl :as nrepl]
+   [shashurup.quf.naive-parser :as np]
+   [shashurup.quf.highlight :as hl]
+   [shashurup.quf.nrepl :as nrepl]
    [crate.core :as crate]
    [goog.dom :as gdom]
    [goog.dom.classes :as gcls]))
@@ -35,13 +35,13 @@
     (filter not-empty (s/split text #"[\s()]"))))
 
 (defn select-candidate [candidate]
-  (gcls/add candidate "ra-selected"))
+  (gcls/add candidate "quf-selected"))
 
 (defn deselect-candidate [candidate]
-  (gcls/remove candidate "ra-selected"))
+  (gcls/remove candidate "quf-selected"))
 
 (defn find-selected-candidate [parent]
-  (gdom/getElementByClass "ra-selected" parent))
+  (gdom/getElementByClass "quf-selected" parent))
 
 (defn active [id]
   (find-selected-candidate (get-root-element id)))
@@ -62,7 +62,7 @@
 (defn clear-candidates [id]
   (let [parent (get-root-element id)
         doc-root (get-doc-root id)]
-    (gcls/set parent "ra-candidates")
+    (gcls/set parent "quf-candidates")
     (gdom/removeChildren parent)
     (gdom/removeChildren doc-root)))
 
@@ -71,7 +71,7 @@
              target
              (gdom/getNodeTextLength target)))
 
-(defmulti apply-candidate #(some #{"ra-at-point" "ra-history"}
+(defmulti apply-candidate #(some #{"quf-at-point" "quf-history"}
                                  (gcls/get %2)))
 
 (defn replace-current-container-text [new-text]
@@ -79,10 +79,10 @@
     (gdom/setTextContent target new-text)
     (move-cursor-to-the-end-of target)))
 
-(defmethod apply-candidate "ra-at-point" [id candidate]
+(defmethod apply-candidate "quf-at-point" [id candidate]
   (replace-current-container-text (gdom/getTextContent candidate)))
 
-(defmethod apply-candidate "ra-history" [id candidate]
+(defmethod apply-candidate "quf-history" [id candidate]
   (when-let [input (gdom/getElement (str "expr-" id))]
     (gdom/copyContents input candidate)
     (move-cursor-to-the-end-of (.-lastChild input))))
@@ -91,7 +91,7 @@
   (when-let [parent (get-root-element id)]
     (when-let [selected (find-selected-candidate parent)]
       (apply-candidate id selected)
-      (gcls/set parent "ra-candidates")
+      (gcls/set parent "quf-candidates")
       (gdom/removeChildren parent))))
 
 (defn find-first-matching-candidate [parent substring]
@@ -125,7 +125,7 @@
        target (get-root-element id)]
    (gdom/removeChildren target)
    (gdom/removeChildren (get-doc-root id))
-   (gcls/set target "ra-candidates")
+   (gcls/set target "quf-candidates")
    (when (not-empty candidates)
      (gcls/add target class)
      (doseq [c (take max-completions candidates)]
@@ -151,18 +151,18 @@
 
 (defn initiate-at-point [id]
   (cancel)
-  (nrepl/send-completions (text-at-cursor) #(show id % "ra-at-point")))
+  (nrepl/send-completions (text-at-cursor) #(show id % "quf-at-point")))
 
 (defn attempt-complete [id]
   (cancel)
   (nrepl/send-completions (text-at-cursor)
-                          #(complete-and-show id % "ra-at-point")))
+                          #(complete-and-show id % "quf-at-point")))
 
 (defn initiate-history [id]
   (cancel)
   (nrepl/send-history (words-at-cell-input id)
                       (inc max-completions)
-                      #(show id % "ra-history")))
+                      #(show id % "quf-history")))
 
 (defn show-doc [id doc]
   (let [root (get-doc-root id)
@@ -184,13 +184,13 @@
                        #(show-doc id %))
       (gdom/removeChildren root))))
 
-(defmulti handle-input-change #(some #{"ra-history" "ra-at-point"}
+(defmulti handle-input-change #(some #{"quf-history" "quf-at-point"}
                                      (gcls/get (get-root-element %))))
 
 (defmethod handle-input-change :default [id]
   (schedule #(initiate-at-point id) 1000))
 
-(defmethod handle-input-change "ra-at-point" [id]
+(defmethod handle-input-change "quf-at-point" [id]
   (let [old-selected (active id)]
     (if-let [new-selected (find-first-matching-candidate (get-root-element id)
                                                          (text-at-cursor))]
@@ -199,7 +199,7 @@
         (select-candidate new-selected))
       (initiate-at-point id))))
 
-(defmethod handle-input-change "ra-history" [id]
+(defmethod handle-input-change "quf-history" [id]
   (initiate-history id))
 
 (defn on-input-change [id]

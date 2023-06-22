@@ -1,5 +1,5 @@
-(ns rackushka.history
-  (:require [rackushka.config :as cfg]
+(ns shashurup.quf.history
+  (:require [shashurup.quf.config :as cfg]
             [clojure.edn :as edn]
             [clojure.string :as s]
             [nrepl.middleware :as mwre]

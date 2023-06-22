@@ -1,4 +1,4 @@
-(ns rackushka.events
+(ns shashurup.quf.events
   (:require [nrepl.middleware :as mwre]
             [nrepl.misc :as m]
             [nrepl.transport :as t]))
