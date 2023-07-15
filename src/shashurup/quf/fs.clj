@@ -271,7 +271,7 @@
 (defmulti view-text-file {:private true} :subtype)
 
 (defmethod view-text-file :default [{url :url}]
-  (with-meta (data/read-lines url) {:shashurup.quf/hint :text}))
+  (data/as-text url))
 
 (defmethod view-text-file :html [{url :url}]
   (with-meta 
@@ -279,18 +279,18 @@
     {:shashurup.quf/hint :html}))
 
 (defmethod view-text-file :xml [{url :url}]
-  (data/read-xml url))
+  (data/from-xml url))
 
 (defmethod view-text-file :csv [{url :url}]
-  (data/read-csv url))
+  (data/from-csv url))
 
 (defmulti view-app-file {:private true} :subtype)
 
 (defmethod view-app-file :json [{url :url}]
-  (data/read-json url))
+  (data/from-json url))
 
 (defmethod view-app-file :xml [{url :url}]
-  (data/read-xml url))
+  (data/from-xml url))
 
 (defmethod view-app-file :pdf [{url :url}]
   (with-meta

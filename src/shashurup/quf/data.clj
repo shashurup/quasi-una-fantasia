@@ -2,7 +2,8 @@
   (:require [clojure.xml :as xml]
             [cheshire.core :as json]
             [clojure.data.csv :as csv]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [clojure.string :as s]))
 
 (defn as-hiccup [{tag :tag attrs :attrs content :content}]
   (let [rest (map #(if (map? %) (as-hiccup %) %) content)]
@@ -10,21 +11,29 @@
            (cons tag (cons attrs rest))
            (cons tag rest)))))
 
-(defn read-json [url]
-  (with-open [r (io/reader url)]
-    (json/parse-stream r)))
+(defn from-json [subj]
+  (cond
+    (coll? subj) (json/parse-string (s/join "\n" subj))
+    (instance? java.io.Reader subj) (json/parse-stream subj)
+    :else (with-open [r (io/reader subj)]
+            (json/parse-stream r))))
 
-(defn read-xml [url]
-  (as-hiccup (xml/parse url)))
+(defn from-xml [subj]
+  (as-hiccup (xml/parse subj)))
 
-(defn read-lines [url]
-  (with-meta
-    (with-open [r (io/reader url)]
-      (doall (line-seq r)))
+(defn as-text [subj]
+  (with-meta 
+    (if (instance? java.io.Reader subj)
+      (line-seq subj)
+      (with-open [r (io/reader subj)]
+        (doall (line-seq r))))
     {:shashurup.quf/hint :text}))
 
-(defn read-csv [url]
-  (with-meta
-    (with-open [r (io/reader url)]
-      (doall (csv/read-csv r)))
+(defn from-csv [subj]
+  (with-meta 
+    (cond
+      ;; (coll? subj) (csv/read-string (s/join "\n" subj))
+      (instance? java.io.Reader subj) (csv/read-csv subj)
+      :else (with-open [r (io/reader subj)]
+              (doall (csv/read-csv r))))
     {:shashurup.quf/hint :table}))
