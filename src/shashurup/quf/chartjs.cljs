@@ -34,6 +34,9 @@
       :doughnut (compose-input skeleton
                                (add-colors dataset (count data))
                                {})
+      :scatter {:type type
+                :data {:datasets [{:data data
+                                   :backgroundColor (first colors)}]}}
       {})))
 
 (defn create-chart-control [canvas data]

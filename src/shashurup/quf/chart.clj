@@ -14,6 +14,8 @@
 
 (defn doughnut [data] (show data :doughnut))
 
+(defn scatter [data] (with-meta data {:shashurup.quf/hint [:chart :scatter]}))
+
 (defn histogram
   ([data] (histogram data 11))
   ([n data]
