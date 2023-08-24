@@ -25,9 +25,11 @@
                   :data {:labels (map first data)}}]
     (condp = type
       :bar (compose-input skeleton dataset {:scales {:y {:beginAtZero true}}
-                                            :backgroundColor (first colors)})
+                                            :backgroundColor (first colors)
+                                            :plugins {:legend {:display false}}})
       :line (compose-input skeleton dataset {:scales {:y {:beginAtZero true}}
-                                             :borderColor (first colors)})
+                                             :borderColor (first colors)
+                                             :plugins {:legend {:display false}}})
       :pie (compose-input skeleton
                           (add-colors dataset (count data))
                           {:maintainAspectRatio false})
@@ -36,7 +38,8 @@
                                {:maintainAspectRatio false})
       :scatter {:type type
                 :data {:datasets [{:data data
-                                   :backgroundColor (first colors)}]}}
+                                   :backgroundColor (first colors)}]}
+                :options {:plugins {:legend {:display false}}}}
       {})))
 
 (defn create-chart-control [canvas data]
