@@ -30,10 +30,10 @@
                                              :borderColor (first colors)})
       :pie (compose-input skeleton
                           (add-colors dataset (count data))
-                          {})
+                          {:maintainAspectRatio false})
       :doughnut (compose-input skeleton
                                (add-colors dataset (count data))
-                               {})
+                               {:maintainAspectRatio false})
       :scatter {:type type
                 :data {:datasets [{:data data
                                    :backgroundColor (first colors)}]}}
