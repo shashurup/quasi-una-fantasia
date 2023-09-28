@@ -76,6 +76,11 @@ body {
     column-gap: 1ch;
 }
 
+.quf-tag {
+    display: flex;
+    column-gap: 1ch;
+}
+
 span.quf-closing-paren {
     align-self: end;
 }

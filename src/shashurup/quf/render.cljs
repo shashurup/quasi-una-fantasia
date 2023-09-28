@@ -89,7 +89,7 @@
 (defmethod render :html [subj] subj)
 
 (defmethod render :tag [[tag arg]]
-  [:span {:class "quf-tag"} (str "#" tag " " arg)])
+  [:div.quf-tag (str "#" tag) (render arg)])
 
 
 ;; Table
