@@ -64,21 +64,17 @@
 (defonce object-types
   (atom {}))
 
-(defn local-file-url [path]
-  (str "fs" path))
-
-(defn render-object [path mime-type]
+(defn render-object [url mime-type]
   (when mime-type
     (cond
-      (s/starts-with? mime-type "image/") [:img.quf-intrinsically-sized {:src (local-file-url path)}]
+      (s/starts-with? mime-type "image/") [:img.quf-intrinsically-sized {:src url}]
       (s/starts-with? mime-type "video/") [:video.quf-intrinsically-sized {:controls true
                                                                            :autoplay false}
-                                           [:source {:src (local-file-url path)}]]
+                                           [:source {:src url}]]
       (s/starts-with? mime-type "audio/") [:audio {:controls true
                                                    :autoplay false
-                                                   :src (local-file-url path)}]
-      :else [:object.quf-tall {:type mime-type
-                               :data (local-file-url path)}])))
+                                                   :src url}]
+      :else [:object.quf-tall {:type mime-type :data url}])))
 
 (defn- kw2s [subj]
   (if (number? subj)

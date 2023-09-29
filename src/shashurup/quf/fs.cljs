@@ -32,8 +32,11 @@
   (apply str (for [[k v] permmap]
                (if (subj k) v \-))))
 
+(defn local-file-url [path]
+  (str "fs" path))
+
 (defn render-content [[path mime-type]]
-  (desc/render-object path mime-type))
+  (desc/render-object (local-file-url path) mime-type))
 
 (def file {:columns {:name {:key [:name :directory? :symlink?]
                             :render render-name}
