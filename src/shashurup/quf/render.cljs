@@ -23,7 +23,7 @@
                      (type subj))))
 
 (defmethod render :default [subj]
-  [:span.ra (pr-str subj)])
+  [:span.quf (pr-str subj)])
 
 (defmethod render nil [subj]
   (make-scalar "quf-nil" subj))
@@ -51,7 +51,7 @@
 (defn make-composite [subj cont-type render-fn]
   (let [check-id (new-check-id)
         [prefix suffix] (get paren-map cont-type)]
-    [:div.quf-composite-wrapper
+    [:div.quf-composite-wrapper.quf-container
      [:label {:for check-id} prefix]
      [:input {:id check-id
               :type "checkbox"
@@ -97,24 +97,24 @@
 (defmulti render-cell type)
 
 (defmethod render-cell :default [value]
-  [:td.ra (if (coll? value)
-            (if (and (= :tag (:shashurup.quf/hint (meta value)))
-                     (= 'object (first value)) )
-              (last (second value))
-              (render value))
-            (pr-str value))])
+  [:td.quf (if (coll? value)
+             (if (and (= :tag (:shashurup.quf/hint (meta value)))
+                      (= 'object (first value)) )
+               (last (second value))
+               (render value))
+             (pr-str value))])
 
-(defmethod render-cell nil [_] [:td.ra])
+(defmethod render-cell nil [_] [:td.quf])
 
 (defmethod render-cell js/String [value]
-  [:td {:class (str "ra " "quf-string-cell")} value])
+  [:td {:class (str "quf " "quf-string-cell")} value])
 
 (defmethod render-cell js/Number [value]
-  [:td {:class (str "ra " "quf-number-cell")}
+  [:td {:class (str "quf " "quf-number-cell")}
    (.format (js/Intl.NumberFormat.) value)])
 
 (defmethod render-cell js/Date [value]
-  [:td {:class (str "ra " "quf-date-cell")}
+  [:td {:class (str "quf " "quf-date-cell")}
    (.toISOString value)])
 
 (defn guess-columns [data]
@@ -144,7 +144,7 @@
     (cycle-col-width table col-idx)))
 
 (defn render-header [name]
-  (let [header (crate/html [:th.ra name])]
+  (let [header (crate/html [:th.quf name])]
     (.addEventListener header "click" header-click)
     header))
 
@@ -157,8 +157,9 @@
                             (if (keyword? sec)
                               (desc/table-desc sec (nth hint 2))
                               (desc/table-desc sec)))))]
-    [:table.ra [:thead [:tr (for [name names]
-                              (render-header name))]]
-               [:tbody (for [row data]
-                         [:tr (for [rndr rndrs]
-                                (render-cell (rndr row)))])]]))
+    [:table.quf.quf-container
+     [:thead [:tr (for [name names]
+                    (render-header name))]]
+     [:tbody (for [row data]
+               [:tr (for [rndr rndrs]
+                      (render-cell (rndr row)))])]]))

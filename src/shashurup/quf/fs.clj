@@ -177,6 +177,7 @@
   [& args]
   (let [flags {:m [:cols [:size :modified :name-ex]]
                :l [:cols [:permissions :user :group :size :modified :name-ex]]
+               :c [:cols [:content :name-ex]]
                :t [:sort :modified]
                :T [:sort [:modified :rev]]
                :s [:sort :size]
@@ -335,6 +336,11 @@
    (java.net.URL. (str "file://" (add-trailing-slash *cwd*)))
    (expand-tilde subj)))
 
+(defn- get-file-url [subj]
+  (absolute-url (if (map? subj)
+                  (:path subj)
+                  subj)))
+
 (defn- split-mime-type [subj]
   (map keyword (-> subj
                    (s/split #";")
@@ -347,12 +353,14 @@
 (defn- deep-mime-type [url]
   (.detect (Tika.) url))
 
+(defn get-file-mime-type [url]
+  (or (naive-mime-type url)
+      (deep-mime-type url)))
+
 (defn v
   "View file content."
   [subj]
-  (let [url (absolute-url (if (map? subj)
-                            (:path subj)
-                            subj))
+  (let [url (get-file-url subj)
         [type subtype] (split-mime-type (or (when (map? subj) (:mime-type subj))
                                       (naive-mime-type url)
                                       (deep-mime-type url)))]
@@ -362,9 +370,29 @@
 (defn t
   "Detect file mime type"
   [subj]
-  (let [url (if (map? subj)
-              (:path subj)
-              (str subj))]
-    (deep-mime-type (absolute-url url))))
+  (deep-mime-type (get-file-url subj)))
+
+(defmulti read-file {:private true} second)
+
+(defmethod read-file "text/csv" [[url _]]
+  (data/from-csv url))
+
+(defmethod read-file "application/xml" [[url _]]
+  (data/from-xml url))
+
+(defmethod read-file "application/json" [[url _]]
+  (data/from-json url))
+
+(defmethod read-file :default [[url mime-type]]
+  (if (s/starts-with? mime-type "text/")
+    (data/as-text url)
+    (slurp url)))
+
+(defn r
+  "Read file content."
+  [subj]
+  (let [url (get-file-url subj)
+        mime-type (when (map? subj) (:mime-type subj))]
+    (read-file [(str url) (or mime-type (get-file-mime-type url))])))
 
 (events/push {:type :require :ns "shashurup.quf.fs"})
