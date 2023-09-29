@@ -32,17 +32,22 @@
   (apply str (for [[k v] permmap]
                (if (subj k) v \-))))
 
+(defn render-content [[path mime-type]]
+  (desc/render-object path mime-type))
+
 (def file {:columns {:name {:key [:name :directory? :symlink?]
                             :render render-name}
                      :name-ex {:title "Name"
                                :key [:name :directory? :symlink? :link-target]
                                :render render-name-with-link}
-                     :size :shashurup.quf.desc/file-size
-                     :modified :shashurup.quf.desc/millisecons
-                     :created :shashurup.quf.desc/millisecons
+                     :size desc/file-size
+                     :modified desc/milliseconds
+                     :created desc/milliseconds
                      :accessed {:title "Last access"
-                                :type :shashurup.quf.desc/millisecons}
-                     :permissions convert-permissions}})
+                                :type :shashurup.quf.desc/milliseconds}
+                     :permissions convert-permissions
+                     :content {:key [:path :mime-type]
+                               :render render-content}}})
 
 (swap! desc/object-types assoc ::file file)
 

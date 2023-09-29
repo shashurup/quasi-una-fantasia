@@ -59,10 +59,26 @@
 (def milliseconds {:convert compact-time-from-milliseconds
                    :alt [{:convert full-time-from-milliseconds}]})
 
-(swap! field-types assoc ::millisecons milliseconds)
+(swap! field-types assoc ::milliseconds milliseconds)
 
 (defonce object-types
   (atom {}))
+
+(defn local-file-url [path]
+  (str "fs" path))
+
+(defn render-object [path mime-type]
+  (when mime-type
+    (cond
+      (s/starts-with? mime-type "image/") [:img.quf-intrinsically-sized {:src (local-file-url path)}]
+      (s/starts-with? mime-type "video/") [:video.quf-intrinsically-sized {:controls true
+                                                                           :autoplay false}
+                                           [:source {:src (local-file-url path)}]]
+      (s/starts-with? mime-type "audio/") [:audio {:controls true
+                                                   :autoplay false
+                                                   :src (local-file-url path)}]
+      :else [:object.quf-tall {:type mime-type
+                               :data (local-file-url path)}])))
 
 (defn- kw2s [subj]
   (if (number? subj)

@@ -244,9 +244,9 @@
 (defn interrupt-eval [id]
   (nrepl/send-interrupt (get-in @app-state [:requests (str id)])))
 
-(def result-height-cycle {"" "quf-tall"
-                          "quf-tall" "quf-height-collapsed"
-                          "quf-height-collapsed" ""})
+(def result-height-cycle {"" "quf-result-tall"
+                          "quf-result-tall" "quf-result-collapsed"
+                          "quf-result-collapsed" ""})
 
 (defn cycle-result-height [id]
   (u/cycle-style (get-result-element id) result-height-cycle))

@@ -177,6 +177,7 @@
   [& args]
   (let [flags {:m [:cols [:size :modified :name-ex]]
                :l [:cols [:permissions :user :group :size :modified :name-ex]]
+               :c [:cols [:content :name-ex]]
                :t [:sort :modified]
                :T [:sort [:modified :rev]]
                :s [:sort :size]
