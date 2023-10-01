@@ -71,6 +71,17 @@ body {
     flex-wrap: wrap;
 }
 
+.quf-object {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin: 1em;
+}
+
+.quf-object-attr {
+    max-width: 30vw;
+}
+
 .quf-map-entry {
     display: flex;
     column-gap: 1ch;
@@ -182,6 +193,7 @@ td.quf-number-cell {
 .quf-intrinsically-sized {
     object-fit: contain;
     max-height: 50vh;
+    max-width: 90vw;
 }
 
 .quf-medium-sized {
@@ -191,24 +203,30 @@ td.quf-number-cell {
 
 .quf-tall {
     height: 75vh;
-    width: 80%
+    width: 75vw;
 }
 
 .quf-container .quf-intrinsically-sized {
+    max-height: 27vh;
     max-width: 27vw;
-    margin: 1em;
 }
 
 .quf-container .quf-medium-sized {
     width: 27vw;
     height: auto;
-    margin: 1em;
 }
 
 .quf-container .quf-tall {
     width: 27vw;
-    height: 16vw;
-    margin: 1em;
+    height: 27vh;
+}
+
+td.quf .quf-intrinsically-sized {
+    margin: 1ch;
+}
+
+td.quf .quf-tall {
+    margin: 1ch;
 }
 
 .modal-back {

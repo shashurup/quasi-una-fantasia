@@ -148,18 +148,55 @@
     (.addEventListener header "click" header-click)
     header))
 
+(defn parse-hint [subj]
+  (when (coll? subj)
+    (let [sec (second subj)]
+      (if (keyword? sec)
+        (desc/table-desc sec (nth subj 2))
+        (desc/table-desc sec)))))
+
 (defmethod render :table [data]
   (let [hint (:shashurup.quf/hint (meta data))
         [names rndrs] (if (keyword? hint)
                         (desc/table-desc (guess-columns data))
-                        (when (coll? hint)
-                          (let [sec (second hint)]
-                            (if (keyword? sec)
-                              (desc/table-desc sec (nth hint 2))
-                              (desc/table-desc sec)))))]
+                        (parse-hint hint))]
     [:table.quf.quf-container
      [:thead [:tr (for [name names]
                     (render-header name))]]
      [:tbody (for [row data]
                [:tr (for [rndr rndrs]
                       (render-cell (rndr row)))])]]))
+
+(defn render-obj [obj names rndrs show-attr-names]
+  [:div.quf-object 
+   (for [[name rndr] (zipmap names rndrs)]
+     (let [val (rndr obj)
+           val-el (if (coll? val)
+                    (render val)
+                    [:span (str val)])]
+       (if show-attr-names
+         [:div.quf-map-entry [:span.quf-keyword name] "=" val-el]
+         [:div.quf-object-attr val-el])))])
+
+(defn render-list [data show-attr-names]
+  (let [hint (:shashurup.quf/hint (meta data))
+        [names rndrs] (parse-hint hint)]
+    [:div.quf-composite-body-list.quf-container
+     (for [obj data]
+       (render-obj obj names rndrs show-attr-names))]))
+
+(defmethod render :list [data]
+  (render-list data false))
+
+(defmethod render :list-with-attr-names [data]
+  (render-list data true))
+
+(defmethod render :object [data]
+  (let [hint (:shashurup.quf/hint (meta data))
+        [names rndrs] (parse-hint hint)]
+    (render-obj data names rndrs false)))
+
+(defmethod render :object-attr [data]
+  (let [hint (:shashurup.quf/hint (meta data))
+        [_ rndrs] (desc/table-desc (second hint) [(nth hint 2)])]
+    ((first rndrs) data)))
