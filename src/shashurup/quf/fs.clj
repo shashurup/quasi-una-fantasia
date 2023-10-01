@@ -263,69 +263,6 @@
      (> mod (- (System/currentTimeMillis)
                (* amount (get time-units unit :day)))))))
 
-(defn- redirect-local-files [url-str]
-  (let [url (java.net.URL. url-str)]
-    (if (= (.getProtocol url) "file")
-      (str "fs" (.getPath url))
-      url-str)))
-
-(defmulti view-text-file {:private true} :subtype)
-
-(defmethod view-text-file :default [{url :url}]
-  (data/as-text url))
-
-(defmethod view-text-file :html [{url :url}]
-  (with-meta 
-    [:iframe.quf-medium-sized {:src url}]
-    {:shashurup.quf/hint :html}))
-
-(defmethod view-text-file :xml [{url :url}]
-  (data/from-xml url))
-
-(defmethod view-text-file :csv [{url :url}]
-  (data/from-csv url))
-
-(defmulti view-app-file {:private true} :subtype)
-
-(defmethod view-app-file :json [{url :url}]
-  (data/from-json url))
-
-(defmethod view-app-file :xml [{url :url}]
-  (data/from-xml url))
-
-(defmethod view-app-file :pdf [{url :url}]
-  (with-meta
-    [:object.quf-tall {:type "application/pdf"
-                      :data (redirect-local-files url)}]
-    {:shashurup.quf/hint :html}))
-
-(defmulti view-file :type)
-
-(defmethod view-file :text [subj]
-  (view-text-file subj))
-
-(defmethod view-file :application [subj]
-  (view-app-file subj))
-
-(defmethod view-file :image [{url :url}]
-  (with-meta
-    [:img.quf-intrinsically-sized {:src (redirect-local-files url)}]
-    {:shashurup.quf/hint :html}))
-
-(defmethod view-file :video [{url :url}]
-  (with-meta
-    [:video.quf-intrinsically-sized {:controls true
-                             :autoplay true}
-     [:source {:src (redirect-local-files url)}]]
-    {:shashurup.quf/hint :html}))
-
-(defmethod view-file :audio [{url :url}]
-  (with-meta
-    [:audio {:controls true
-             :autoplay true
-             :src (redirect-local-files url)}]
-    {:shashurup.quf/hint :html}))
-
 (defn- add-trailing-slash [subj]
   (if (= (last subj) \/)
     subj
@@ -341,12 +278,6 @@
                   (:path subj)
                   subj)))
 
-(defn- split-mime-type [subj]
-  (map keyword (-> subj
-                   (s/split #";")
-                   first
-                   (s/split #"/" 2))) )
-
 (defn- naive-mime-type [url]
   (Files/probeContentType (as-path (.getPath url))))
 
@@ -360,11 +291,14 @@
 (defn v
   "View file content."
   [subj]
-  (let [url (get-file-url subj)
-        [type subtype] (split-mime-type (or (when (map? subj) (:mime-type subj))
-                                      (naive-mime-type url)
-                                      (deep-mime-type url)))]
-    (view-file {:url (str url) :type type :subtype subtype})))
+  (let [obj (if (map? subj) subj {:path subj})
+        obj (update obj :mime-type (fn [mt]
+                                     (if mt
+                                       mt
+                                       (let [url (absolute-url (:path obj))]
+                                         (or (naive-mime-type url)
+                                             (deep-mime-type url))))))]
+    (with-meta obj {:shashurup.quf/hint [:object-attr :shashurup.quf.fs/file :content]})))
 
 
 (defn t

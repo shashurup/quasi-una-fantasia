@@ -1,5 +1,6 @@
 (ns shashurup.quf.fs
-  (:require [shashurup.quf.desc :as desc]
+  (:require [clojure.string :as s]
+            [shashurup.quf.desc :as desc]
             [shashurup.quf.utils :as u]))
 
 (defn- local-class [subj]
@@ -33,7 +34,9 @@
                (if (subj k) v \-))))
 
 (defn local-file-url [path]
-  (str "fs" path))
+  (if (s/starts-with? path "/")
+    (str "fs" path)
+    path))
 
 (defn render-content [[path mime-type]]
   (desc/render-object (local-file-url path) mime-type))
