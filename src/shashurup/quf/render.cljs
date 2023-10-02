@@ -178,7 +178,6 @@
 
 (defn render-obj [obj names rndrs show-attr-names get-key]
   [:div.quf-object 
-   (when get-key (render-checkbox (get-key obj)))
    (for [[name rndr] (zipmap names rndrs)]
      (let [val (rndr obj)
            val-el (if (coll? val)
@@ -186,7 +185,8 @@
                     [:span (str val)])]
        (if show-attr-names
          [:div.quf-map-entry [:span.quf-keyword name] "=" val-el]
-         [:div.quf-object-attr val-el])))])
+         [:div.quf-object-attr val-el])))
+   (when get-key (render-checkbox (get-key obj)))])
 
 (defn render-list [data show-attr-names]
   (let [hint (:shashurup.quf/hint (meta data))
