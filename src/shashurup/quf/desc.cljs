@@ -114,16 +114,20 @@
         (:convert column-desc)
         (make-getter (:key column-desc))))
 
-(defn- pack-table-desc [columns]
-  [(mapv :title columns) (mapv make-renderer columns)])
+(defn- pack-table-desc [columns key]
+  [(mapv :title columns)
+   (mapv make-renderer columns)
+   (when key (make-getter key))])
 
 (defn table-desc
   ([type-key columns]
-   (let [desc (get-in @object-types [type-key :columns])]
+   (let [desc (get @object-types type-key)]
      (pack-table-desc (for [col columns]
-                        (canonize-column col (get desc col))))))
+                        (canonize-column col (get-in desc [:columns col])))
+                      (:key desc))))
   ([columns]
    (pack-table-desc (for [col columns]
                       (if (map? col)
                         (canonize-column {:key col} col)
-                        (canonize-column col nil))))))
+                        (canonize-column col nil)))
+                    nil)))

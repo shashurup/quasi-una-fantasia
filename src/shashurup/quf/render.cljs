@@ -148,6 +148,11 @@
     (.addEventListener header "click" header-click)
     header))
 
+(defn render-checkbox [val]
+  [:input.quf-selector {:type "checkbox"
+                        :style "display: none"
+                        :value val}])
+
 (defn parse-hint [subj]
   (when (coll? subj)
     (let [sec (second subj)]
@@ -157,18 +162,23 @@
 
 (defmethod render :table [data]
   (let [hint (:shashurup.quf/hint (meta data))
-        [names rndrs] (if (keyword? hint)
-                        (desc/table-desc (guess-columns data))
-                        (parse-hint hint))]
+        [names rndrs get-key] (if (keyword? hint)
+                               (desc/table-desc (guess-columns data))
+                               (parse-hint hint))]
     [:table.quf.quf-container
-     [:thead [:tr (for [name names]
-                    (render-header name))]]
+     [:thead [:tr
+              (when get-key [:th])
+              (for [name names]
+                (render-header name))]]
      [:tbody (for [row data]
-               [:tr (for [rndr rndrs]
-                      (render-cell (rndr row)))])]]))
+               [:tr
+                (when get-key [:td (render-checkbox (get-key row))])
+                (for [rndr rndrs]
+                  (render-cell (rndr row)))])]]))
 
-(defn render-obj [obj names rndrs show-attr-names]
+(defn render-obj [obj names rndrs show-attr-names get-key]
   [:div.quf-object 
+   (when get-key (render-checkbox (get-key obj)))
    (for [[name rndr] (zipmap names rndrs)]
      (let [val (rndr obj)
            val-el (if (coll? val)
@@ -180,10 +190,10 @@
 
 (defn render-list [data show-attr-names]
   (let [hint (:shashurup.quf/hint (meta data))
-        [names rndrs] (parse-hint hint)]
+        [names rndrs get-key] (parse-hint hint)]
     [:div.quf-composite-body-list.quf-container
      (for [obj data]
-       (render-obj obj names rndrs show-attr-names))]))
+       (render-obj obj names rndrs show-attr-names get-key))]))
 
 (defmethod render :list [data]
   (render-list data false))
@@ -193,10 +203,10 @@
 
 (defmethod render :object [data]
   (let [hint (:shashurup.quf/hint (meta data))
-        [names rndrs] (parse-hint hint)]
-    (render-obj data names rndrs false)))
+        [names rndrs get-key] (parse-hint hint)]
+    (render-obj data names rndrs false get-key)))
 
 (defmethod render :object-attr [data]
   (let [hint (:shashurup.quf/hint (meta data))
-        [_ rndrs] (desc/table-desc (second hint) [(nth hint 2)])]
+        [_ rndrs _] (desc/table-desc (second hint) [(nth hint 2)])]
     ((first rndrs) data)))

@@ -302,6 +302,11 @@
 (defn new-tab []
   (.open js/window (.-location js/window)))
 
+(defn show-checkboxes [id]
+  (when-let [valdiv (get-result-element id)]
+    (doall (map #(set! (.-display (.-style %)) "block")
+                (gdom/getElementsByClass "quf-selector" valdiv)))))
+
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
                    "Tab" assistant/attempt-complete
@@ -320,7 +325,8 @@
                    "C-e" move-cursor-at-end
                    "C-s" cycle-result-height
                    "C-=" show-tabname
-                   "C-t" new-tab})
+                   "C-t" new-tab
+                   "C-m" show-checkboxes})
 
 (def completions-key-map {"Enter" assistant/use-candidate
                           "Escape" assistant/clear-candidates

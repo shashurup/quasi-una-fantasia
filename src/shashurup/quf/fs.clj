@@ -177,7 +177,7 @@
   [& args]
   (let [flags {:m [:cols [:size :modified :name-ex]]
                :l [:cols [:permissions :user :group :size :modified :name-ex]]
-               :c [:cols [:content :name-ex]]
+               :c [:cols [:content :name-ex] :mode :list]
                :t [:sort :modified]
                :T [:sort [:modified :rev]]
                :s [:sort :size]
@@ -185,10 +185,11 @@
                :n [:sort name-key]
                :N [:sort [name-key :rev]]
                :h [:filter (constantly true)]}
-        [arg & {:keys [cols sort filter] :or
-                 {cols [:name]
-                  filter not-hidden?
-                  sort old-fashioned-sort-key}}] (default-arg "." (expand-flags args flags))
+        [arg & {:keys [cols sort filter mode] :or
+                {mode :table
+                 cols [:name]
+                 filter not-hidden?
+                 sort old-fashioned-sort-key}}] (default-arg "." (expand-flags args flags))
         [f filter2] (if (or (fn? arg) (pattern? arg))
                       ["." (mk-matcher arg)]
                       [arg (constantly true)])
@@ -203,7 +204,7 @@
                       (clojure.core/filter filter2)
                       (sort-by keyfn cmp))
                  [(attrs path)])
-      {:shashurup.quf/hint [:table :shashurup.quf.fs/file cols]})))
+      {:shashurup.quf/hint [mode :shashurup.quf.fs/file cols]})))
 
 (defn f
   "Find files, args can be:

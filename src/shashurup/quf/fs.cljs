@@ -53,7 +53,8 @@
                                 :type :shashurup.quf.desc/milliseconds}
                      :permissions convert-permissions
                      :content {:key [:path :mime-type]
-                               :render render-content}}})
+                               :render render-content}}
+           :key :path})
 
 (swap! desc/object-types assoc ::file file)
 
