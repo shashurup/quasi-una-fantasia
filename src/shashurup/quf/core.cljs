@@ -15,7 +15,7 @@
    [clojure.string :as s]
    [cljs.pprint :as pp]))
 
-(defonce app-state (atom {}))
+(defonce app-state (atom {:selection []}))
 
 (defonce cell-id (atom 0))
 
@@ -178,6 +178,16 @@
     (:err line) "quf-err"
     (:ex line)  "quf-ex"))
 
+(defn checkbox-changed [event id]
+  (let [checkbox (.-target event)]
+    (swap! app-state update :selection conj [id
+                                             (.-value checkbox)
+                                             (.-checked checkbox)])))
+
+(defn hook-checkboxes [id]
+  (doall (map (fn [el] (.addEventListener el "click" #(checkbox-changed % id)))
+              (gdom/getElementsByClass "quf-selector" (get-result-element id)))))
+
 (defn apply-result [id result go-next]
   (let [valdiv (get-result-element id)
         outdiv (get-out-element id)
@@ -192,6 +202,7 @@
                           (s/join ", " (vals line))])))
     (gdom/removeChildren valdiv)
     (mapv #(render-result % valdiv) (:value result))
+    (hook-checkboxes id)
     (.scrollIntoView (get-cell-element id))
     (when (and success go-next)
       (focus-next-cell id))))
