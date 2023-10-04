@@ -164,26 +164,26 @@ th.quf, td.quf {
 }
 
 td.quf {
-    border-left-style: solid;
+    border-left-style: none;
     border-bottom-style: none;
     border-top-style: none;
-    border-right-style: none;
+    border-right-style: solid;
     white-space: pre;
 }
 
 th.quf {
-    border-left-style: solid;
+    border-left-style: none;
     border-bottom-style: solid;
     border-top-style: none;
+    border-right-style: solid;
+}
+
+td.quf:last-child {
     border-right-style: none;
 }
 
-td.quf:nth-child(1) {
-    border-left-style: none;
-}
-
-th.quf:nth-child(1) {
-    border-left-style: none;
+th.quf:last-child {
+    border-right-style: none;
 }
 
 td.quf-number-cell {
