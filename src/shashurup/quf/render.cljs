@@ -149,9 +149,8 @@
     header))
 
 (defn render-checkbox [val]
-  [:input.quf-selector {:type "checkbox"
-                        :style "display: none"
-                        :value val}])
+  [:input.quf-check {:type "checkbox"
+                     :value val}])
 
 (defn parse-hint [subj]
   (when (coll? subj)
@@ -167,12 +166,12 @@
                                (parse-hint hint))]
     [:table.quf.quf-container
      [:thead [:tr
-              (when get-key [:th])
+              (when get-key [:th.quf-check-cell])
               (for [name names]
                 (render-header name))]]
      [:tbody (for [row data]
                [:tr
-                (when get-key [:td (render-checkbox (get-key row))])
+                (when get-key [:td.quf-check-cell (render-checkbox (get-key row))])
                 (for [rndr rndrs]
                   (render-cell (rndr row)))])]]))
 

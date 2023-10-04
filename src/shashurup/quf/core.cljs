@@ -9,6 +9,7 @@
    [shashurup.quf.render :refer [render]]
    [shashurup.quf.utils :as u]
    [goog.dom :as gdom]
+   [goog.dom.classlist :as gcls]
    [goog.events :as gevents]
    [goog.style :as gst]
    [crate.core :as crate]
@@ -186,7 +187,7 @@
 
 (defn hook-checkboxes [id]
   (doall (map (fn [el] (.addEventListener el "click" #(checkbox-changed % id)))
-              (gdom/getElementsByClass "quf-selector" (get-result-element id)))))
+              (gdom/getElementsByClass "quf-check" (get-result-element id)))))
 
 (defn apply-result [id result go-next]
   (let [valdiv (get-result-element id)
@@ -321,9 +322,9 @@
   (.open js/window (.-location js/window)))
 
 (defn show-checkboxes [id]
-  (when-let [valdiv (get-result-element id)]
-    (doall (map #(set! (.-display (.-style %)) "block")
-                (gdom/getElementsByClass "quf-selector" valdiv)))))
+  (when-let [container (gdom/getElementByClass "quf-container"
+                                               (get-result-element id))]
+    (gcls/add container "quf-visible-checks")))
 
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay

@@ -190,6 +190,26 @@ td.quf-number-cell {
     text-align: right;
 }
 
+.quf-check {
+    display: none;
+}
+
+.quf-check-cell {
+    border-width: 1px;
+}
+
+th.quf-check-cell {
+    border-bottom-style: solid;
+}
+
+.quf-visible-checks .quf-check {
+    display: block;
+}
+
+.quf-visible-checks .quf-check-cell {
+    border-right-style: solid;
+}
+
 .quf-intrinsically-sized {
     object-fit: contain;
     max-height: 50vh;
