@@ -20,6 +20,15 @@
 
 (defonce cell-id (atom 0))
 
+(defn checkbox-changed [event id]
+  (let [checkbox (.-target event)]
+    (swap! app-state update :selection conj [id
+                                             (.-value checkbox)
+                                             (.-checked checkbox)])))
+
+(defn uncheck-cell [id]
+  (swap! app-state update :selection conj [id nil false]))
+
 (defn new-cell-id []
   (swap! cell-id inc))
 
@@ -131,6 +140,7 @@
   (let [next-input (find-next-input id)
         prev-input (find-prev-input id)]
     (gdom/removeNode (get-cell-element id))
+    (uncheck-cell id)
     (cond
       next-input (.focus next-input)
       prev-input (.focus prev-input)
@@ -178,15 +188,6 @@
     (:out line) "quf-out"
     (:err line) "quf-err"
     (:ex line)  "quf-ex"))
-
-(defn checkbox-changed [event id]
-  (let [checkbox (.-target event)]
-    (swap! app-state update :selection conj [id
-                                             (.-value checkbox)
-                                             (.-checked checkbox)])))
-
-(defn uncheck-cell [id]
-  (swap! app-state update :selection conj [id nil false]))
 
 (defn hook-checkboxes [id]
   (doall (map (fn [el] (.addEventListener el "click" #(checkbox-changed % id)))
