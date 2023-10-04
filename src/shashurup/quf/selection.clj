@@ -15,7 +15,9 @@
 
 (defn- remove-items [subj deletions]
   (reduce (fn [m [k v _]]
-            (update m k #(disj % v)))
+            (if v
+              (update m k #(disj % v))
+              (dissoc m k)))
           subj
           deletions))
 

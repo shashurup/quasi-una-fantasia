@@ -185,6 +185,9 @@
                                              (.-value checkbox)
                                              (.-checked checkbox)])))
 
+(defn uncheck-cell [id]
+  (swap! app-state update :selection conj [id nil false]))
+
 (defn hook-checkboxes [id]
   (doall (map (fn [el] (.addEventListener el "click" #(checkbox-changed % id)))
               (gdom/getElementsByClass "quf-check" (get-result-element id)))))
@@ -202,6 +205,7 @@
              (crate/html [:p {:class (out-class line)}
                           (s/join ", " (vals line))])))
     (gdom/removeChildren valdiv)
+    (uncheck-cell id)
     (mapv #(render-result % valdiv) (:value result))
     (hook-checkboxes id)
     (.scrollIntoView (get-cell-element id))
