@@ -215,6 +215,11 @@
                           :value "Cancel"
                           :onclick handler-call}]])))
 
+(defn selection-updates []
+  (let [[{sel :selection} _] (swap-vals! app-state update :selection (constantly []))]
+    (when (not-empty sel)
+      {:selection-updates sel})))
+
 (defn eval-cell
   ([id] (eval-cell id true))
   ([id go-next]
@@ -223,7 +228,9 @@
    (let [expr (-> (get-input-element id)
                   .-textContent
                   (s/replace \u00a0 " "))]
-     (let [req-id (nrepl/send-eval expr #(apply-result id % go-next))]
+     (let [req-id (nrepl/send-eval expr
+                                   #(apply-result id % go-next)
+                                   (selection-updates))]
        (swap! app-state assoc-in [:requests (str id)] req-id)))))
 
 (defn eval-cell-and-stay [id] (eval-cell id false))

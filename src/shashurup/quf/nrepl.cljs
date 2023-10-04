@@ -59,24 +59,28 @@
 (defn update-session [resp]
   (swap! state assoc :session (:new-session (first resp))))
 
-(defn send-eval [expr callback]
-  (let [session (:session @state)]
-    (if session
-      (let [id (:cur-id (swap! state update :cur-id #(inc (or % 0))))]
-        (send-op {:op "eval"
-                  :code expr
-                  :session session
-                  :id id
-                  :nrepl.middleware.print/print "shashurup.quf.srv/pr-with-meta"}
-                 (fn [resp]
-                   (history-append expr)
-                   (update-ns resp)
-                   (callback (merge-eval-result resp))))
-        id)
-      (send-op {:op "clone"}
-               (fn [resp]
-                 (update-session resp)
-                 (send-eval expr callback))))))
+(defn send-eval
+  ([expr callback] (send-eval expr callback nil))
+  ([expr callback extra]
+   (let [session (:session @state)]
+     (if session
+       (let [id (:cur-id (swap! state update :cur-id #(inc (or % 0))))
+             op-args (merge {:op "eval"
+                             :code expr
+                             :session session
+                             :id id
+                             :nrepl.middleware.print/print "shashurup.quf.srv/pr-with-meta"}
+                            extra)]
+         (send-op op-args
+                  (fn [resp]
+                    (history-append expr)
+                    (update-ns resp)
+                    (callback (merge-eval-result resp))))
+         id)
+       (send-op {:op "clone"}
+                (fn [resp]
+                  (update-session resp)
+                  (send-eval expr callback extra)))))))
 
 (defn send-interrupt [id]
   (send-op {:op "interrupt"
