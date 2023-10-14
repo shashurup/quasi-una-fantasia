@@ -3,7 +3,8 @@
             [cheshire.core :as json]
             [clojure.data.csv :as csv]
             [clojure.java.io :as io]
-            [clojure.string :as s]))
+            [clojure.string :as s]
+            [shashurup.quf.quf :as quf]))
 
 (defn as-hiccup [{tag :tag attrs :attrs content :content}]
   (let [rest (map #(if (map? %) (as-hiccup %) %) content)]
@@ -22,18 +23,18 @@
   (as-hiccup (xml/parse subj)))
 
 (defn as-text [subj]
-  (with-meta 
+  (quf/hint
     (if (instance? java.io.Reader subj)
       (line-seq subj)
       (with-open [r (io/reader subj)]
         (doall (line-seq r))))
-    {:shashurup.quf/hint :text}))
+    :text))
 
 (defn from-csv [subj]
-  (with-meta 
+  (quf/hint
     (cond
       ;; (coll? subj) (csv/read-string (s/join "\n" subj))
       (instance? java.io.Reader subj) (csv/read-csv subj)
       :else (with-open [r (io/reader subj)]
               (doall (csv/read-csv r))))
-    {:shashurup.quf/hint :table}))
+    :table))
