@@ -362,11 +362,12 @@
 (defn copy
   "Copy file(s)."
   [& args]
-  (let [pathes (map #(resolve-path *cwd* %) args)
+  (let [pathes (map #(resolve-path *cwd* %)
+                    (flatten args))
         target (last pathes)]
     (cond
-      (< (count args) 2) (throw (Exception. "At least two args are expected."))
-      (= (count args) 2) (let [source (first pathes)
+      (< (count pathes) 2) (throw (Exception. "At least two args are expected."))
+      (= (count pathes) 2) (let [source (first pathes)
                                target (if (exists? target)
                                         (mk-target-path source target)
                                         target)]
