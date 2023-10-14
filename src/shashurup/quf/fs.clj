@@ -1,5 +1,5 @@
 (ns shashurup.quf.fs
-  (:import [java.nio.file Files Paths LinkOption]
+  (:import [java.nio.file Files Paths LinkOption CopyOption]
            [java.nio.file.attribute PosixFilePermission]
            [java.time Instant]
            [java.time.temporal ChronoUnit]
@@ -29,6 +29,12 @@
     subj
     (Paths/get (str subj)
                (into-array java.lang.String []))))
+
+(defn- exists? [path]
+  (Files/exists (as-path path) no-opts))
+
+(defn- path-file-name [path]
+  (.getFileName (as-path path)))
 
 (defn- expand-tilde [subj]
   (if (s/starts-with? subj "~")
@@ -329,5 +335,44 @@
   (let [url (get-file-url subj)
         mime-type (when (map? subj) (:mime-type subj))]
     (read-file [(str url) (or mime-type (get-file-mime-type url))])))
+
+(defn- expand-file-arg [subj]
+  (map :path 
+       (cond
+         (string? subj) (tree subj identity)
+         (map? subj)    (tree subj identity)
+         (coll? subj)   (map #(if (string? %) {:path %} %) subj))))
+
+(defn- mk-target-path [source target-dir]
+  (.resolve (as-path target-dir) (path-file-name source)))
+
+(defn- copy-tree [source target]
+  (Files/copy (as-path source)
+              (as-path target)
+              (into-array CopyOption []))
+  (when (:directory? (attrs source))
+    (->> source
+         files
+         (map (fn [{p :path}]
+                (copy-tree p (mk-target-path p target))))
+         doall))
+  nil)
+
+(defn copy
+  "Copy file(s)."
+  [& args]
+  (let [pathes (map #(resolve-path *cwd* %) args)
+        target (last pathes)]
+    (cond
+      (< (count args) 2) (throw (Exception. "At least two args are expected."))
+      (= (count args) 2) (let [source (first pathes)
+                               target (if (exists? target)
+                                        (mk-target-path source target)
+                                        target)]
+                           (copy-tree source target))
+      :else (if (not (:directory? (attrs target)))
+              (throw (Exception. "The last arg must be a directory."))
+              (->> (butlast pathes)
+                   (map #(copy-tree % (mk-target-path % target))))))))
 
 (events/push {:type :require :ns "shashurup.quf.fs"})
