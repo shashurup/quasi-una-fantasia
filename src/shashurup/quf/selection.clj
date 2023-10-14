@@ -29,7 +29,8 @@
                          (add-items additions)
                          (remove-items (remove #(nth % 2) updates)))]
     (assoc session (var *selection*) [new-cell-map new-current]
-                   (var *s) (get new-cell-map new-current))))
+                   (var *s) (seq (get new-cell-map
+                                      new-current)))))
 
 (defn wrap-selection [h]
   (fn [{:keys [op session selection-updates] :as msg}]
