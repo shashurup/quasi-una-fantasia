@@ -1,6 +1,6 @@
 (ns shashurup.quf.fs
   (:import [java.nio.file Files Paths LinkOption CopyOption]
-           [java.nio.file.attribute PosixFilePermission]
+           [java.nio.file.attribute PosixFilePermission FileAttribute]
            [java.time Instant]
            [java.time.temporal ChronoUnit]
            [org.apache.tika Tika])
@@ -337,44 +337,81 @@
         mime-type (when (map? subj) (:mime-type subj))]
     (read-file [(str url) (or mime-type (get-file-mime-type url))])))
 
-(defn- expand-file-arg [subj]
-  (map :path 
-       (cond
-         (string? subj) (tree subj identity)
-         (map? subj)    (tree subj identity)
-         (coll? subj)   (map #(if (string? %) {:path %} %) subj))))
-
 (defn- mk-target-path [source target-dir]
   (.resolve (as-path target-dir) (path-file-name source)))
 
 (defn- copy-tree [source target]
-  (Files/copy (as-path source)
-              (as-path target)
-              (into-array CopyOption []))
-  (when (:directory? (attrs source))
-    (->> source
-         files
-         (map (fn [{p :path}]
-                (copy-tree p (mk-target-path p target))))
-         doall))
-  nil)
+  (let [source (as-path source)
+        target (as-path target)]
+    (concat 
+     [(str (Files/copy source target (make-array CopyOption 0)))]
+     (when (:directory? (attrs source))
+       (->> source
+            files
+            (mapcat (fn [{p :path}]
+                      (copy-tree p (mk-target-path p target))))
+            doall)))))
 
-(defn copy
-  "Copy file(s)."
-  [& args]
-  (let [pathes (map #(resolve-path *cwd* %)
-                    (flatten args))
+(defn- move-tree [source target]
+  [(str (Files/move (as-path source)
+                    (as-path target)
+                    (make-array CopyOption 0)))])
+
+(defn- arg->path [subj]
+  (if (map? subj)
+    (:path subj)
+    (resolve-path *cwd* subj)))
+
+(defn- act-on-files 
+  [f & args]
+  (let [pathes (map arg->path (flatten args))
         target (last pathes)]
     (cond
       (< (count pathes) 2) (throw (Exception. "At least two args are expected."))
       (= (count pathes) 2) (let [source (first pathes)
-                               target (if (exists? target)
-                                        (mk-target-path source target)
-                                        target)]
-                           (copy-tree source target))
+                                 target (if (exists? target)
+                                          (mk-target-path source target)
+                                          target)]
+                             (f source target))
       :else (if (not (:directory? (attrs target)))
               (throw (Exception. "The last arg must be a directory."))
               (->> (butlast pathes)
-                   (map #(copy-tree % (mk-target-path % target))))))))
+                   (mapcat #(f % (mk-target-path % target))))))))
+
+(defn copy
+  "Copy file(s)."
+  [& args]
+  (apply act-on-files copy-tree args))
+
+(defn move
+  "Move file(s)."
+  [& args]
+  (apply act-on-files move-tree args))
+
+(defn del-tree [subj]
+  (conj 
+   (when (:directory? (attrs subj))
+     (->> (files subj)
+          (map :path)
+          (mapcat del-tree)
+          doall))
+   (do (Files/delete (as-path subj))
+       (str subj))))
+
+(defn del
+  "Delete file(s)."
+  [& args]
+  (->> (flatten args)
+       (map arg->path)
+       (mapcat del-tree)
+       doall))
+
+(def rm del)
+
+(defn create-dir [subj]
+  (str (Files/createDirectory (as-path (arg->path subj))
+                              (make-array FileAttribute 0))))
+
+(def mkdir create-dir)
 
 (events/push {:type :require :ns "shashurup.quf.fs"})
