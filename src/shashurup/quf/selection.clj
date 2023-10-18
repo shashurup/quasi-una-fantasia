@@ -7,27 +7,21 @@
 
 (def ^:dynamic *s [])
 
-(defn- add-items [subj additions]
-  (reduce (fn [m [k v _]]
-            (update m k #(conj (or % #{}) v)))
-          subj
-          additions))
-
-(defn- remove-items [subj deletions]
-  (reduce (fn [m [k v _]]
-            (if v
-              (update m k #(disj % v))
-              (dissoc m k)))
-          subj
-          deletions))
+(defn- apply-an-update [cell-map [cell id add]]
+  (if add
+    (update cell-map cell #(conj (or % #{}) id))
+    (if id
+      (update cell-map cell disj id)
+      (dissoc cell-map cell))))
 
 (defn- update-selection [session updates]
   (let [[cell-map current] (get session (var *selection*))
-        additions (filter #(nth % 2) updates)
-        new-current (or (first (last additions)) current)
-        new-cell-map (-> cell-map
-                         (add-items additions)
-                         (remove-items (remove #(nth % 2) updates)))]
+        new-current (or (->> updates
+                             (filter (fn [[_ _ add]] add))
+                             last
+                             first)
+                        current)
+        new-cell-map (reduce apply-an-update cell-map updates)]
     (assoc session (var *selection*) [new-cell-map new-current]
                    (var *s) (seq (get new-cell-map
                                       new-current)))))
