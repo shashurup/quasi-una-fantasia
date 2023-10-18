@@ -51,7 +51,8 @@
     (when-let [current (find-selected-candidate parent)]
       (when-let [next (move-fn current)]
         (select-candidate next)
-        (deselect-candidate current)))))
+        (deselect-candidate current)
+        next))))
 
 (defn select-next-candidate [id]
   (move-selection id gdom/getNextElementSibling))
@@ -93,6 +94,12 @@
       (apply-candidate id selected)
       (gcls/set parent "quf-candidates")
       (gdom/removeChildren parent))))
+
+(defn use-next-candidate [id]
+  (apply-candidate id (select-next-candidate id)))
+
+(defn use-prev-candidate [id]
+  (apply-candidate id (select-prev-candidate id)))
 
 (defn find-first-matching-candidate [parent substring]
   (->> (gdom/getElementsByTagName "span" parent)
@@ -207,5 +214,7 @@
   (handle-input-change id))
 
 (defn plug [input id]
-  (.addEventListener input "focusout" cancel)
+  (.addEventListener input "focusout" (fn []
+                                        (cancel)
+                                        (clear-candidates id)))
   (.addEventListener input "input" #(on-input-change id)))

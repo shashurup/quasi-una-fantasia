@@ -352,11 +352,9 @@
                    "C-t" new-tab
                    "C-m" show-checkboxes})
 
-(def completions-key-map {"Enter" assistant/use-candidate
-                          "Escape" assistant/clear-candidates
-                          "Tab" assistant/select-next-candidate
-                          "C-j" assistant/select-next-candidate
-                          "C-k" assistant/select-prev-candidate})
+(def completions-key-map {"Escape" assistant/clear-candidates
+                          "C-j" assistant/use-next-candidate
+                          "C-k" assistant/use-prev-candidate})
 
 (defn get-key-map [id]
   (merge cell-key-map
