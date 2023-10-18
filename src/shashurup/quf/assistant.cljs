@@ -72,7 +72,7 @@
              target
              (gdom/getNodeTextLength target)))
 
-(defmulti apply-candidate #(some #{"quf-at-point" "quf-history"}
+(defmulti apply-candidate #(some #{"quf-at-point" "quf-whole-expr"}
                                  (gcls/get %2)))
 
 (defn replace-current-container-text [new-text]
@@ -83,7 +83,7 @@
 (defmethod apply-candidate "quf-at-point" [id candidate]
   (replace-current-container-text (gdom/getTextContent candidate)))
 
-(defmethod apply-candidate "quf-history" [id candidate]
+(defmethod apply-candidate "quf-whole-expr" [id candidate]
   (when-let [input (gdom/getElement (str "expr-" id))]
     (gdom/copyContents input candidate)
     (move-cursor-to-the-end-of (.-lastChild input))))
@@ -169,7 +169,7 @@
   (cancel)
   (nrepl/send-history (words-at-cell-input id)
                       (inc max-completions)
-                      #(show id % "quf-history")))
+                      #(show id % "quf-whole-expr")))
 
 (defn show-doc [id doc]
   (let [root (get-doc-root id)
@@ -191,7 +191,7 @@
                        #(show-doc id %))
       (gdom/removeChildren root))))
 
-(defmulti handle-input-change #(some #{"quf-history" "quf-at-point"}
+(defmulti handle-input-change #(some #{"quf-whole-expr" "quf-at-point"}
                                      (gcls/get (get-root-element %))))
 
 (defmethod handle-input-change :default [id]
@@ -206,15 +206,17 @@
         (select-candidate new-selected))
       (initiate-at-point id))))
 
-(defmethod handle-input-change "quf-history" [id]
+(defmethod handle-input-change "quf-whole-expr" [id]
   (initiate-history id))
 
 (defn on-input-change [id]
   (cancel)
   (handle-input-change id))
 
+(defn on-focus-out [id]
+  (cancel)
+  (clear-candidates id))
+
 (defn plug [input id]
-  (.addEventListener input "focusout" (fn []
-                                        (cancel)
-                                        (clear-candidates id)))
+  (.addEventListener input "focusout" #(on-focus-out id))
   (.addEventListener input "input" #(on-input-change id)))
