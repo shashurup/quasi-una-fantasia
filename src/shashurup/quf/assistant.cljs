@@ -142,6 +142,16 @@
      (.scrollIntoView (gdom/getElement (str "cell-" id)))
      (select-candidate (gdom/getFirstElementChild target)))))
 
+(defn initiate-at-point [id]
+  (cancel)
+  (nrepl/send-completions (text-at-point) #(show id % "quf-at-point")))
+
+(defn initiate-history [id]
+  (cancel)
+  (nrepl/send-history (words-at-cell-input id)
+                      (inc max-completions)
+                      #(show id % "quf-whole-expr")))
+
 (defn common-prefix [a b]
   (->> (range (inc (count a)))
        (map #(subs a 0 %))
@@ -156,20 +166,10 @@
     (replace-text-at-point completion))
   (show id candidates class))
 
-(defn initiate-at-point [id]
-  (cancel)
-  (nrepl/send-completions (text-at-point) #(show id % "quf-at-point")))
-
 (defn attempt-complete [id]
   (cancel)
   (nrepl/send-completions (text-at-point)
                           #(complete-and-show id % "quf-at-point")))
-
-(defn initiate-history [id]
-  (cancel)
-  (nrepl/send-history (words-at-cell-input id)
-                      (inc max-completions)
-                      #(show id % "quf-whole-expr")))
 
 (defn show-doc [id doc]
   (let [root (get-doc-root id)
@@ -191,8 +191,11 @@
                        #(show-doc id %))
       (gdom/removeChildren root))))
 
-(defmulti handle-input-change #(some #{"quf-whole-expr" "quf-at-point"}
-                                     (gcls/get (get-root-element %))))
+(defn- assistant-content-class [id]
+  (some #{"quf-whole-expr" "quf-at-point"}
+        (gcls/get (get-root-element id))))
+
+(defmulti handle-input-change assistant-content-class)
 
 (defmethod handle-input-change :default [id]
   (schedule #(initiate-at-point id) 1000))
