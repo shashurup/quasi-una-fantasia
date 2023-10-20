@@ -24,11 +24,11 @@
 (defn get-doc-root [id]
   (gdom/getElement (str "doc-" id)))
 
-(defn container-at-cursor []
+(defn container-at-point []
   (.-startContainer (.getRangeAt (js/getSelection) 0)))
 
-(defn text-at-cursor []
-  (.-textContent (container-at-cursor)))
+(defn text-at-point []
+  (.-textContent (container-at-point)))
 
 (defn words-at-cell-input [id]
   (let [text (.-textContent (gdom/getElement (str "expr-" id)))]
@@ -75,13 +75,13 @@
 (defmulti apply-candidate #(some #{"quf-at-point" "quf-whole-expr"}
                                  (gcls/get %2)))
 
-(defn replace-current-container-text [new-text]
-  (when-let [target (container-at-cursor)]
+(defn replace-text-at-point [new-text]
+  (when-let [target (container-at-point)]
     (gdom/setTextContent target new-text)
     (move-cursor-to-the-end-of target)))
 
 (defmethod apply-candidate "quf-at-point" [id candidate]
-  (replace-current-container-text (gdom/getTextContent candidate)))
+  (replace-text-at-point (gdom/getTextContent candidate)))
 
 (defmethod apply-candidate "quf-whole-expr" [id candidate]
   (when-let [input (gdom/getElement (str "expr-" id))]
@@ -153,16 +153,16 @@
 
 (defn complete-and-show [id candidates class]
   (let [completion (longest-prefix (map :candidate candidates))]
-    (replace-current-container-text completion))
+    (replace-text-at-point completion))
   (show id candidates class))
 
 (defn initiate-at-point [id]
   (cancel)
-  (nrepl/send-completions (text-at-cursor) #(show id % "quf-at-point")))
+  (nrepl/send-completions (text-at-point) #(show id % "quf-at-point")))
 
 (defn attempt-complete [id]
   (cancel)
-  (nrepl/send-completions (text-at-cursor)
+  (nrepl/send-completions (text-at-point)
                           #(complete-and-show id % "quf-at-point")))
 
 (defn initiate-history [id]
@@ -185,7 +185,7 @@
         selected (find-selected-candidate (get-root-element id))
         subj (if selected
                (gdom/getTextContent selected)
-               (text-at-cursor))]
+               (text-at-point))]
     (if (or selected (empty? (gdom/getTextContent root)))
       (nrepl/send-eval (str "(clojure.repl/doc " subj ")")
                        #(show-doc id %))
@@ -200,7 +200,7 @@
 (defmethod handle-input-change "quf-at-point" [id]
   (let [old-selected (active id)]
     (if-let [new-selected (find-first-matching-candidate (get-root-element id)
-                                                         (text-at-cursor))]
+                                                         (text-at-point))]
       (do 
         (deselect-candidate old-selected)
         (select-candidate new-selected))
