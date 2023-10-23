@@ -46,4 +46,9 @@
    - нет необходимости в глобальном поиск
 ** Анализ вдохновителей
 *** vim
+    - навигация w,e,b
+    - текстовые объекты 
 *** smartparen
+    - навигация: start/end of sexp/symbol, up/down
+    - wrap, unwrap
+    - slurp, barf (forward and backward)

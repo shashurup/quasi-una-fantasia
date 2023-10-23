@@ -1,6 +1,10 @@
 (ns shashurup.quf.editor
   (:require
-   [goog.dom :as gdom]))
+   [goog.dom :as gdom]
+   [goog.dom.classlist :as gcls]))
+
+(defn get-input-element [id]
+  (gdom/getElement (str "expr-" id)))
 
 (defn container-at-cursor []
   (.-startContainer (.getRangeAt (js/getSelection) 0)))
@@ -30,6 +34,19 @@
     (when (= tp "insertText")
       (when-let [pair (get pairs ch)]
         (insert-text-at-cursor pair)))))
+
+;; sexp mode
+
+(defn sexp-mode? [id]
+  (gcls/contains (get-input-element id) "quf-sexp-mode"))
+
+(defn sexp-mode [id]
+  (gcls/add (get-input-element id) "quf-sexp-mode"))
+
+(defn insert-mode [id]
+  (gcls/remove (get-input-element id) "quf-sexp-mode"))
+
+;; basics
 
 (defn- handle-input-change [e]
   (handle-pairs e))

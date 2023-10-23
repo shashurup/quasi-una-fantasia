@@ -116,6 +116,10 @@ span.quf-closing-paren {
     color: brown;
 }
 
+.quf-sexp-mode {
+    background-color: azure;
+}
+
 input:checked + div {
     display: none;
 }

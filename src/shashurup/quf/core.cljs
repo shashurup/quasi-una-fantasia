@@ -340,7 +340,7 @@
                    "C-o" insert-cell-after
                    "C-y" copy-cell-with-expr
                    "C-S-Y" append-cell-with-expr
-                   "C-l" delete-all
+                   "C-S-l" delete-all
                    "C-j" focus-next-cell
                    "C-k" focus-prev-cell
                    "C-r" assistant/initiate-history
@@ -350,16 +350,21 @@
                    "C-s" cycle-result-height
                    "C-=" show-tabname
                    "C-t" new-tab
-                   "C-m" show-checkboxes})
+                   "C-m" show-checkboxes
+                   "C-;" editor/sexp-mode})
 
 (def completions-key-map {"Escape" assistant/clear-candidates
                           "C-j" assistant/use-next-candidate
                           "C-k" assistant/use-prev-candidate})
 
+(def sexp-mode-key-map {"i" editor/insert-mode})
+
 (defn get-key-map [id]
   (merge cell-key-map
          (when (assistant/active id)
-           completions-key-map)))
+           completions-key-map)
+         (when (editor/sexp-mode? id)
+           sexp-mode-key-map)))
 
 (gevents/listen js/window
                 "load"
