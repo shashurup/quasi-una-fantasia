@@ -357,7 +357,9 @@
                           "C-j" assistant/use-next-candidate
                           "C-k" assistant/use-prev-candidate})
 
-(def sexp-mode-key-map {"i" editor/insert-mode})
+(def sexp-mode-key-map {"i" editor/insert-mode
+                        "w" editor/next-word
+                        "b" editor/prev-word})
 
 (defn get-key-map [id]
   (merge cell-key-map

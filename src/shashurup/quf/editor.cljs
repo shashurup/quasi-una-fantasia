@@ -6,6 +6,45 @@
 (defn get-input-element [id]
   (gdom/getElement (str "expr-" id)))
 
+(defn get-selection [] (js/getSelection))
+
+(defn collapsed? [selection] (.-isCollapsed selection))
+
+(defn get-anchor-node [selection] (.-anchorNode selection))
+
+(defn get-anchor-offset [selection] (.-anchorOffset selection))
+
+(defn previous-sibling [node] (.-previousSibling node))
+
+(defn next-sibling [node] (.-nextSibling node))
+
+(defn siblings [node f]
+  (rest (take-while identity (iterate f node))))
+
+(defn nodes-before [node] (siblings node #(.-previousSibling %)))
+
+(defn nodes-after [node] (siblings node #(.-nextSibling %)))
+
+(defn word-element? [node]
+  (and node (= (.-nodeName node) "SPAN")))
+
+(defn parent-word-element-if-any [selection]
+  (when-let [node (get-anchor-node selection)]
+    (if (word-element? (.-parentElement node))
+      (.-parentElement node)
+      node)))
+
+(defn first-word-element [nodes]
+  (first (filter word-element? nodes)))
+
+(defn prev-word-element [node]
+  (first-word-element (nodes-before node)))
+
+(defn next-word-element [node]
+  (first-word-element (nodes-after node)))
+
+(defn set-position! [selection node offset] (.setPosition selection node offset))
+
 (defn container-at-cursor []
   (.-startContainer (.getRangeAt (js/getSelection) 0)))
 
@@ -45,6 +84,22 @@
 
 (defn insert-mode [id]
   (gcls/remove (get-input-element id) "quf-sexp-mode"))
+
+(defn prev-word [id]
+  (when-let [sel (get-selection)]
+    (when (collapsed? sel)
+      (let [node (parent-word-element-if-any sel)]
+        (if (> (get-anchor-offset sel) 0)
+          (set-position! sel node 0)
+          (when-let [node (prev-word-element node)]
+            (set-position! sel node 0)))))))
+
+(defn next-word [id]
+  (when-let [sel (get-selection)]
+    (when (collapsed? sel)
+      (let [node (parent-word-element-if-any sel)]
+        (when-let [node (next-word-element node)]
+          (set-position! sel node 0))))))
 
 ;; basics
 
