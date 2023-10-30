@@ -14,6 +14,10 @@
 
 (defn get-anchor-offset [selection] (.-anchorOffset selection))
 
+(defn get-focus-node [selection] (.-focusNode selection))
+
+(defn get-focus-offset [selection] (.-focusOffset selection))
+
 (defn previous-sibling [node] (.-previousSibling node))
 
 (defn next-sibling [node] (.-nextSibling node))
@@ -25,25 +29,50 @@
 
 (defn nodes-after [node] (siblings node #(.-nextSibling %)))
 
-(defn word-element? [node]
+(defn sexp-element? [node]
   (and node (= (.-nodeName node) "SPAN")))
 
-(defn parent-word-element-if-any [selection]
+(defn string-sexp-element? [node]
+  (and (sexp-element? node)
+       (gcls/contains node "quf-string")))
+
+(defn text-node? [node]
+  (= (.-nodeType node) 3))
+
+(defn parent-sexp-element-if-any [selection]
   (when-let [node (get-anchor-node selection)]
-    (if (word-element? (.-parentElement node))
+    (if (sexp-element? (.-parentElement node))
       (.-parentElement node)
       node)))
 
-(defn first-word-element [nodes]
-  (first (filter word-element? nodes)))
+(defn first-sexp-element [nodes]
+  (first (filter sexp-element? nodes)))
 
-(defn prev-word-element [node]
-  (first-word-element (nodes-before node)))
+(defn prev-sexp-element [node]
+  (first-sexp-element (nodes-before node)))
 
-(defn next-word-element [node]
-  (first-word-element (nodes-after node)))
+(defn next-sexp-element [node]
+  (first-sexp-element (nodes-after node)))
+
+(defn whole-node-selected? [sel]
+  (let [node (get-anchor-node sel)
+        start (get-anchor-offset sel)
+        end (get-focus-offset sel)]
+    (= (abs (- end start))
+       (count (.-textContent node)))))
+
+(defn string-interior-selected? [sel]
+  (= (sort [(get-anchor-offset sel) (get-focus-offset sel)])
+     [1 (dec (count (.-textContent (get-anchor-node sel))))]))
 
 (defn set-position! [selection node offset] (.setPosition selection node offset))
+
+(defn select-whole-text-node! [selection node]
+  (when-let [parent (.-parentElement node)]
+    (.selectAllChildren selection parent)))
+
+(defn select-string-interior! [selection node]
+  (.setBaseAndExtent selection node 1 node (dec (count (.-textContent node)))))
 
 (defn container-at-cursor []
   (.-startContainer (.getRangeAt (js/getSelection) 0)))
@@ -85,21 +114,57 @@
 (defn insert-mode [id]
   (gcls/remove (get-input-element id) "quf-sexp-mode"))
 
-(defn prev-word [id]
+(defn prev-element [id]
   (when-let [sel (get-selection)]
     (when (collapsed? sel)
-      (let [node (parent-word-element-if-any sel)]
+      (let [node (parent-sexp-element-if-any sel)]
         (if (> (get-anchor-offset sel) 0)
           (set-position! sel node 0)
-          (when-let [node (prev-word-element node)]
+          (when-let [node (prev-sexp-element node)]
             (set-position! sel node 0)))))))
 
-(defn next-word [id]
+(defn next-element [id]
   (when-let [sel (get-selection)]
     (when (collapsed? sel)
-      (let [node (parent-word-element-if-any sel)]
-        (when-let [node (next-word-element node)]
+      (let [node (parent-sexp-element-if-any sel)]
+        (when-let [node (next-sexp-element node)]
           (set-position! sel node 0))))))
+
+(defn intra-element-selection-state [sel]
+  (when (identical? (get-anchor-node sel)
+                    (get-focus-node sel))
+    (let [anchor-node (get-anchor-node sel)
+          parent (.-parentElement anchor-node)]
+      (when (sexp-element? parent)
+        (when (not (whole-node-selected? sel))
+          (if (string-sexp-element? parent)
+            (if (string-interior-selected? sel)
+              :in-element
+              :in-string)
+            :in-element))))) )
+
+(defn selection-state [sel]
+  (or (intra-element-selection-state sel)
+      nil ;; todo figure sexp-interior
+      ))
+
+(defn extend-selection [id]
+  (when-let [sel (js/getSelection)]
+    (condp = (selection-state sel)
+      :in-element      (select-whole-text-node! sel (get-anchor-node sel))
+      :in-string       (select-string-interior! sel (get-anchor-node sel))
+      :in-sexp         true ;; select-sexp-interior
+      :sexp-interior   true ;; select-sexp
+      true)))
+
+(defn change [id]
+ (when-let [sel (js/getSelection)]
+   (.deleteFromDocument sel))
+ (insert-mode id))
+
+(defn delete [id]
+  (when-let [sel (js/getSelection)]
+    (.deleteFromDocument sel)))
 
 ;; basics
 

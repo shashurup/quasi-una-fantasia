@@ -358,8 +358,11 @@
                           "C-k" assistant/use-prev-candidate})
 
 (def sexp-mode-key-map {"i" editor/insert-mode
-                        "w" editor/next-word
-                        "b" editor/prev-word})
+                        "d" editor/delete
+                        "c" editor/change
+                        "w" editor/next-element
+                        "b" editor/prev-element
+                        "v" editor/extend-selection})
 
 (defn get-key-map [id]
   (merge cell-key-map
