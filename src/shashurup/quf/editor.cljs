@@ -80,35 +80,6 @@
 (defn select-string-interior! [selection node]
   (.setBaseAndExtent selection node 1 node (dec (count (.-textContent node)))))
 
-(defn container-at-cursor []
-  (.-startContainer (.getRangeAt (get-selection) 0)))
-
-(defn cursor-node-and-offset []
-  (let [range (.getRangeAt (get-selection) 0)]
-    [(.-startContainer range)
-     (.-startOffset range)]))
-
-(defn insert-text-at-cursor [text]
-  (let [[node offset] (cursor-node-and-offset)
-        node-text (.-textContent node)]
-    (gdom/setTextContent node
-                         (str (subs node-text 0 offset)
-                              text
-                              (subs node-text offset)))
-    (.setStart (.getRangeAt (get-selection) 0) node offset)))
-
-(def ^:private pairs {"[" "]"
-                      "(" ")"
-                      "{" "}"
-                      "\"" "\""})
-
-(defn- handle-pairs [e]
-  (let [ch (.-data e)
-        tp (.-inputType e)]
-    (when (= tp "insertText")
-      (when-let [pair (get pairs ch)]
-        (insert-text-at-cursor pair)))))
-
 ;; sexp mode
 
 (defn sexp-mode? [id]
@@ -166,7 +137,7 @@
   (when-let [sel (js/getSelection)]
     (condp = (selection-state sel)
       :in-element      (select-whole-element! sel (get-anchor-node sel))
-      :in-string       (select-string-interior! sel (get-anchor-node sel))
+      :in-string       (select-string-interior! sel (get-anchor-node sel)) ;; todo handle regexp literals
       :in-sexp         true ;; select-sexp-interior
       :sexp-interior   true ;; select-sexp
       true)))
@@ -180,12 +151,38 @@
   (when-let [sel (js/getSelection)]
     (.deleteFromDocument sel)))
 
-;; basics
+;; auto pairs
+;; todo rework this somehow
+;; it doesn't make sense when you have to move over a closing element
+
+(defn insert-text-at-cursor [text]
+  (let [sel (get-selection)
+        node (get-anchor-node sel)
+        offset (get-anchor-offset sel)
+        node-text (.-textContent node)]
+    (gdom/setTextContent node
+                         (str (subs node-text 0 offset)
+                              text
+                              (subs node-text offset)))
+    (.setStart (.getRangeAt (get-selection) 0) node offset)))
+
+(def ^:private pairs {"[" "]"
+                      "(" ")"
+                      "{" "}"
+                      "\"" "\""})
+
+(defn- handle-pairs [e]
+  (let [ch (.-data e)
+        tp (.-inputType e)]
+    (when (= tp "insertText")
+      (when-let [pair (get pairs ch)]
+        (insert-text-at-cursor pair)))))
 
 (defn- handle-input-change [e]
   (handle-pairs e))
 
 ;; paste text without formatting
+
 (defn- handle-paste [e]
   (.preventDefault e)
   (let [text (.getData (.-clipboardData e) "text/plain")]
