@@ -360,6 +360,8 @@
 (def sexp-mode-key-map {"i" editor/insert-mode
                         "d" editor/delete
                         "c" editor/change
+                        "h" editor/move-back
+                        "l" editor/move-forward
                         "w" editor/next-element
                         "b" editor/prev-element
                         "v" editor/extend-selection})

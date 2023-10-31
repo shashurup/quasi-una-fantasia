@@ -54,6 +54,11 @@
 (defn next-sexp-element [node]
   (first-sexp-element (nodes-after node)))
 
+(defn first-text-node-or-self [node]
+  (if-let [text (.-firstChild node)]
+    (if (text-node? text) text node)
+    node))
+
 (defn whole-node-selected? [sel]
   (let [node (get-anchor-node sel)
         start (get-anchor-offset sel)
@@ -67,18 +72,19 @@
 
 (defn set-position! [selection node offset] (.setPosition selection node offset))
 
-(defn select-whole-text-node! [selection node]
-  (when-let [parent (.-parentElement node)]
-    (.selectAllChildren selection parent)))
+(defn select-whole-element! [selection node]
+  (let [parent (.-parentElement node)
+        range (.getRangeAt selection 0)]
+    (.selectNode range parent)))
 
 (defn select-string-interior! [selection node]
   (.setBaseAndExtent selection node 1 node (dec (count (.-textContent node)))))
 
 (defn container-at-cursor []
-  (.-startContainer (.getRangeAt (js/getSelection) 0)))
+  (.-startContainer (.getRangeAt (get-selection) 0)))
 
 (defn cursor-node-and-offset []
-  (let [range (.getRangeAt (js/getSelection) 0)]
+  (let [range (.getRangeAt (get-selection) 0)]
     [(.-startContainer range)
      (.-startOffset range)]))
 
@@ -89,7 +95,7 @@
                          (str (subs node-text 0 offset)
                               text
                               (subs node-text offset)))
-    (.setStart (.getRangeAt (js/getSelection) 0) node offset)))
+    (.setStart (.getRangeAt (get-selection) 0) node offset)))
 
 (def ^:private pairs {"[" "]"
                       "(" ")"
@@ -119,16 +125,24 @@
     (when (collapsed? sel)
       (let [node (parent-sexp-element-if-any sel)]
         (if (> (get-anchor-offset sel) 0)
-          (set-position! sel node 0)
+          (set-position! sel (first-text-node-or-self node) 0)
           (when-let [node (prev-sexp-element node)]
-            (set-position! sel node 0)))))))
+            (set-position! sel (first-text-node-or-self node) 0)))))))
 
 (defn next-element [id]
   (when-let [sel (get-selection)]
     (when (collapsed? sel)
       (let [node (parent-sexp-element-if-any sel)]
         (when-let [node (next-sexp-element node)]
-          (set-position! sel node 0))))))
+          (set-position! sel (first-text-node-or-self node) 0))))))
+
+(defn move-forward [id]
+  (when-let [sel (get-selection)]
+    (.modify sel "move" "forward" "character")))
+
+(defn move-back [id]
+  (when-let [sel (get-selection)]
+    (.modify sel "move" "backward" "character")))
 
 (defn intra-element-selection-state [sel]
   (when (identical? (get-anchor-node sel)
@@ -151,7 +165,7 @@
 (defn extend-selection [id]
   (when-let [sel (js/getSelection)]
     (condp = (selection-state sel)
-      :in-element      (select-whole-text-node! sel (get-anchor-node sel))
+      :in-element      (select-whole-element! sel (get-anchor-node sel))
       :in-string       (select-string-interior! sel (get-anchor-node sel))
       :in-sexp         true ;; select-sexp-interior
       :sexp-interior   true ;; select-sexp
