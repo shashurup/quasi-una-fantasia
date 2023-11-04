@@ -1,7 +1,7 @@
 (ns shashurup.quf.assistant
   (:require
    [clojure.string :as s]
-   [shashurup.quf.naive-parser :as np]
+   [shashurup.quf.markup :as markup]
    [shashurup.quf.highlight :as hl]
    [shashurup.quf.nrepl :as nrepl]
    [crate.core :as crate]
@@ -111,7 +111,7 @@
 (defmethod render-candidate :default [subj class]
   (crate/html [:span {:class class}
                (map hl/layout->html
-                    (np/demarkate subj))]))
+                    (markup/parse subj))]))
 
 (defmethod render-candidate :function [subj class] (render-candidate (:candidate subj) class))
 

@@ -1,6 +1,6 @@
 (ns shashurup.quf.highlight
   (:require
-   [shashurup.quf.naive-parser :as np]
+   [shashurup.quf.markup :as markup]
    [clojure.string :as s]
    [crate.core :as crate]
    [goog.dom :as gdom]))
@@ -86,7 +86,7 @@
 
 (defn highlight [el]
   (let [text (.-textContent el)
-        layout (np/demarkate text)]
+        layout (markup/parse text)]
     (when (not= (existing-markup el) layout)
       (let [pos (get-cursor-position el)
             [el-num offset] (figure-placement layout pos)]

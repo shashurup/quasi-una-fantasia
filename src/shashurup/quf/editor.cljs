@@ -80,6 +80,40 @@
 (defn select-string-interior! [selection node]
   (.setBaseAndExtent selection node 1 node (dec (count (.-textContent node)))))
 
+(def closing-braces {"("  ")"
+                     "["  "]"
+                     "{"  "}"
+                     "#{" "}"})
+
+(defn extract-brace [node]
+  (when (text-node? node)
+    ))
+
+(defn open-brace? [node]
+  (get closing-braces (extract-brace node)))
+
+(defn parse-element [[result input]]
+  (let [current (first input)
+        remainder (rest input)]
+    (cond
+      (nil? current)
+        [result nil]
+
+      (open-brace? current)
+        (let [closing (get closing-braces (extract-brace current))
+              complete? (fn [[result input]]
+                          (or (nil? input)
+                              (= closing (extract-brace (last result)))))
+              [nested new-rem] (->> (iterate parse-element [[current] remainder])
+                                    (filter complete?)
+                                    first)]
+          [(conj (or result []) nested) new-rem])
+        
+      :else
+        [(conj (or result []) current) remainder])))
+
+(defn build-tree [input])
+
 ;; sexp mode
 
 (defn sexp-mode? [id]

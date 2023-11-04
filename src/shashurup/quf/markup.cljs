@@ -1,4 +1,4 @@
-(ns shashurup.quf.naive-parser)
+(ns shashurup.quf.markup)
 
 (def class-map {:string "quf-string"
                 :number "quf-number"
@@ -63,7 +63,7 @@
                                     {:in :number :hint nil}
                                     {:hint nil})))))))
 
-(defn demarkate [subj]
+(defn parse [subj]
   (let [{layout :layout} (reduce handle-char
                                  {:in :whitespace
                                   :start 0
