@@ -83,10 +83,15 @@
 (defmethod apply-candidate "quf-at-point" [id candidate]
   (replace-text-at-point (gdom/getTextContent candidate)))
 
+(defn rightmost-child [node]
+  (if-let [last-child (.-lastChild node)]
+    (rightmost-child last-child)
+    node))
+
 (defmethod apply-candidate "quf-whole-expr" [id candidate]
   (when-let [input (gdom/getElement (str "expr-" id))]
     (gdom/copyContents input candidate)
-    (move-cursor-to-the-end-of (.-lastChild input))))
+    (move-cursor-to-the-end-of (rightmost-child input))))
 
 (defn use-candidate [id]
   (when-let [parent (get-root-element id)]
