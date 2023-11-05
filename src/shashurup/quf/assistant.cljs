@@ -2,7 +2,7 @@
   (:require
    [clojure.string :as s]
    [shashurup.quf.markup :as markup]
-   [shashurup.quf.highlight :as hl]
+   [shashurup.quf.editor :as editor]
    [shashurup.quf.nrepl :as nrepl]
    [crate.core :as crate]
    [goog.dom :as gdom]
@@ -110,8 +110,7 @@
 
 (defmethod render-candidate :default [subj class]
   (crate/html [:span {:class class}
-               (map hl/layout->html
-                    (markup/parse subj))]))
+               (editor/structure->html (markup/parse subj))]))
 
 (defmethod render-candidate :function [subj class] (render-candidate (:candidate subj) class))
 

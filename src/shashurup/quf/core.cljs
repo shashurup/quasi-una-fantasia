@@ -4,7 +4,6 @@
   (:require
    [shashurup.quf.editor :as editor]
    [shashurup.quf.assistant :as assistant]
-   [shashurup.quf.highlight :as highlight]
    [shashurup.quf.nrepl :as nrepl]
    [shashurup.quf.render :refer [render]]
    [shashurup.quf.utils :as u]
@@ -95,7 +94,6 @@
           (doto expr-input
             (.focus)
             (editor/plug)
-            (highlight/plug)
             (assistant/plug id)
             (.addEventListener "keydown" keydown))))
       (nrepl/send-eval "*ns*" #(append-cell)))))

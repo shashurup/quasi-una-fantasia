@@ -1,5 +1,7 @@
 (ns shashurup.quf.editor
   (:require
+   [crate.core :as crate]
+   [shashurup.quf.markup :as markup]
    [goog.dom :as gdom]
    [goog.dom.classlist :as gcls]))
 
@@ -38,6 +40,12 @@
 
 (defn text-node? [node]
   (= (.-nodeType node) 3))
+
+(defn text-node-seq [subj]
+  (->> subj
+       (tree-seq #(.hasChildNodes %)
+                 #(.-childNodes %))
+       (filter text-node?)))
 
 (defn parent-sexp-element-if-any [selection]
   (when-let [node (get-anchor-node selection)]
@@ -212,8 +220,96 @@
       (when-let [pair (get pairs ch)]
         (insert-text-at-cursor pair)))))
 
-(defn- handle-input-change [e]
-  (handle-pairs e))
+;; input structure
+
+(def leaf-class-map {:string "quf-string"
+                     :char "quf-char"
+                     :number "quf-number"
+                     :keyword "quf-keyword"
+                     :symbol "quf-symbol"
+                     :bool "quf-bool"
+                     :nil "quf-nil"
+                     :open "quf-paren"
+                     :close "quf-paren"})
+
+(defn replace-content [el new-content]
+  (.replaceChildren el)
+  (doseq [child new-content]
+    (.append el (if (string? child)
+                  child
+                  (crate/html child)))))
+
+(defn structure->html [structure]
+  (for [[value type] structure]
+    (condp = type
+      :whitespace value
+      :container [:span.quf-container (structure->html value)]
+      [:span {:class (leaf-class-map type)
+              :data-quf-type (name type)} value])))
+
+(defn skeleton [subj]
+  (if (coll? subj)
+    ;; skeleton for markup
+    (for [[value type] subj]
+      (if (= type :container)
+        (skeleton value)
+        type)
+      )
+    ;; skeleton for for the input expression
+    (for [child (.-childNodes subj)]
+      (cond
+        (text-node? child) :whitespace
+        (.hasAttribute child "data-quf-type")
+            (keyword (.getAttribute child "data-quf-type"))
+        :else (skeleton child)))))
+
+(defn get-node-text-offset [node parent]
+  (->> parent
+       text-node-seq
+       (take-while #(not (identical? % node)))
+       (map #(.-length %))
+       (reduce +)))
+
+(defn get-cursor-position [el]
+  (let [range (.getRangeAt (js/getSelection) 0)
+        start-el (.-startContainer range)
+        start-pos (.-startOffset range)]
+    (+ (get-node-text-offset start-el el) start-pos)))
+
+(defn single-child? [node]
+  (= 1 (.-length (.-childNodes (.-parentNode node)))))
+
+(defn last-child? [node]
+  (not (.-nextSibling node)))
+
+(defn set-cursor-position! [el pos]
+  (when-let [[start _ node]
+             (->> el
+                  text-node-seq
+                  (reductions (fn [[start end cur] node]
+                                [end (+ end (.-length node)) node])
+                              [0 0 nil])
+                  rest
+                  (map (fn [[start end node]]
+                         [start
+                          (if (or (single-child? node)
+                                  (last-child? node))
+                            (inc end)
+                            end)
+                          node]))
+                  (filter (fn [[_ end _]] (< pos end)))
+                  first)]
+    (set-position! (get-selection) node (- pos start))))
+
+(defn restructure [e]
+  (let [el (.-target e)
+        text (.-textContent el)
+        markup (markup/parse text)]
+    (when (not= (skeleton markup) (skeleton el))
+      (.log js/console "sekeletons are different")
+      (let [pos (get-cursor-position el)]
+        (replace-content el (structure->html markup))
+        (set-cursor-position! el pos)))))
 
 ;; paste text without formatting
 
@@ -221,6 +317,11 @@
   (.preventDefault e)
   (let [text (.getData (.-clipboardData e) "text/plain")]
     (.execCommand js/document "insertText" false text)))
+
+(defn- handle-input-change [e]
+  ;(handle-pairs e)
+  (restructure e)
+  )
 
 (defn plug [input]
   (.addEventListener input "input" handle-input-change)
