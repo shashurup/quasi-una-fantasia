@@ -10,6 +10,18 @@
 
 (defn get-selection [] (js/getSelection))
 
+(defn get-range-0 [selection]
+  (.getRangeAt selection 0))
+
+(defn get-the-only-range []
+  (when-let [selection (get-selection)]
+    (.getRangeAt selection 0)))
+
+(defn range-includes? [range node] (.intersectsNode range node))
+
+(defn get-common-ancestor [selection]
+  (.-commonAncestorContainer (get-range-0 selection)))
+
 (defn collapsed? [selection] (.-isCollapsed selection))
 
 (defn get-anchor-node [selection] (.-anchorNode selection))
@@ -31,12 +43,22 @@
 
 (defn nodes-after [node] (siblings node #(.-nextSibling %)))
 
-(defn sexp-element? [node]
-  (and node (= (.-nodeName node) "SPAN")))
+(defn nodes-between [begin end]
+  (->> (nodes-after begin)
+       (take-while #(not (identical? % end)))))
 
-(defn string-sexp-element? [node]
+(defn sexp-element? [node]
+  (and node
+       (= (.-nodeName node) "SPAN")
+       (.hasAttribute node "data-quf-type")))
+
+(defn sexp-element-of-type? [node type]
   (and (sexp-element? node)
-       (gcls/contains node "quf-string")))
+       (gcls/contains node type)))
+
+(defn string-sexp-element? [node] (sexp-element-of-type? node "quf-string"))
+
+(defn paren-sexp-element? [node] (sexp-element-of-type? node "quf-paren"))
 
 (defn text-node? [node]
   (= (.-nodeType node) 3))
@@ -82,45 +104,24 @@
 
 (defn select-whole-element! [selection node]
   (let [parent (.-parentElement node)
-        range (.getRangeAt selection 0)]
+        range (get-range-0 selection)]
     (.selectNode range parent)))
 
 (defn select-string-interior! [selection node]
   (.setBaseAndExtent selection node 1 node (dec (count (.-textContent node)))))
 
-(def closing-braces {"("  ")"
-                     "["  "]"
-                     "{"  "}"
-                     "#{" "}"})
+(defn select-whole-sexp! [selection node]
+  (.selectNode (get-range-0 selection) node))
 
-(defn extract-brace [node]
-  (when (text-node? node)
-    ))
-
-(defn open-brace? [node]
-  (get closing-braces (extract-brace node)))
-
-(defn parse-element [[result input]]
-  (let [current (first input)
-        remainder (rest input)]
-    (cond
-      (nil? current)
-        [result nil]
-
-      (open-brace? current)
-        (let [closing (get closing-braces (extract-brace current))
-              complete? (fn [[result input]]
-                          (or (nil? input)
-                              (= closing (extract-brace (last result)))))
-              [nested new-rem] (->> (iterate parse-element [[current] remainder])
-                                    (filter complete?)
-                                    first)]
-          [(conj (or result []) nested) new-rem])
-        
-      :else
-        [(conj (or result []) current) remainder])))
-
-(defn build-tree [input])
+(defn select-sexp-interior! [selection node]
+  (let [first-child (.-firstChild node)
+        last-child (.-lastChild node)]
+    (if (and (paren-sexp-element? first-child)
+             (paren-sexp-element? last-child))
+      (doto (get-range-0 selection)
+            (.setStartAfter first-child)
+            (.setEndBefore last-child))
+      (select-whole-sexp! selection node))))
 
 ;; sexp mode
 
@@ -170,18 +171,31 @@
               :in-string)
             :in-element))))) )
 
+(defn sexp-selection-state [sel]
+  (let [common-ancestor (get-common-ancestor sel)]
+    (let [first-child (.-firstChild common-ancestor)
+          last-child (.-lastChild common-ancestor)
+          range (get-range-0 sel)]
+      (if (and (paren-sexp-element? first-child)
+               (paren-sexp-element? last-child)
+               (not (range-includes? range first-child))
+               (not (range-includes? range last-child))
+               (every? #(range-includes? range %)
+                       (nodes-between first-child last-child)))
+        :sexp-interior
+        :in-sexp))))
+
 (defn selection-state [sel]
   (or (intra-element-selection-state sel)
-      nil ;; todo figure sexp-interior
-      ))
+      (sexp-selection-state sel)))
 
 (defn extend-selection [id]
   (when-let [sel (js/getSelection)]
     (condp = (selection-state sel)
       :in-element      (select-whole-element! sel (get-anchor-node sel))
       :in-string       (select-string-interior! sel (get-anchor-node sel)) ;; todo handle regexp literals
-      :in-sexp         true ;; select-sexp-interior
-      :sexp-interior   true ;; select-sexp
+      :in-sexp         (select-sexp-interior! sel (get-common-ancestor sel))
+      :sexp-interior   (select-whole-sexp! sel (get-common-ancestor sel))
       true)))
 
 (defn change [id]
