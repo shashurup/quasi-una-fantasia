@@ -60,18 +60,17 @@
   (and node
        (= (.-nodeName node) "SPAN")
        (not (gcls/contains node "quf-paren"))
-       (.hasAttribute node "data-quf-type")))
+       (not (gcls/contains node "quf-container"))))
 
 (defn paren? [node]
-  (when node 
-    (let [node (if (text-node? node)
-                 (.-parentElement node)
-                 node)]
-      (gcls/contains node "quf-paren"))))
+  (and node
+       (= (.-nodeName node) "SPAN")
+       (gcls/contains node "quf-paren")))
 
 (defn whitespace? [node]
   (and node
        (text-node? node)
+       (not (paren? (.-parentElement node)))
        (not (sexp-element? (.-parentElement node)))))
 
 (defn sexp-element-of-type? [node type]
@@ -118,9 +117,11 @@
   (= (sort [(get-anchor-offset sel) (get-focus-offset sel)])
      [1 (dec (count (.-textContent (get-anchor-node sel))))]))
 
-(defn set-position! [selection node offset]
-  (.setPosition selection node offset)
-  selection)
+(defn set-position!
+  ([selection node] (set-position! selection node 0))
+  ([selection node offset]
+   (.setPosition selection node offset)
+   selection))
 
 (defn select-whole-element! [selection node]
   (let [parent (.-parentElement node)
@@ -159,16 +160,16 @@
     (when (collapsed? sel)
       (let [node (parent-sexp-element-if-any sel)]
         (if (> (get-anchor-offset sel) 0)
-          (set-position! sel (first-text-node-or-self node) 0)
+          (set-position! sel (first-text-node-or-self node))
           (when-let [node (prev-sexp-element node)]
-            (set-position! sel (first-text-node-or-self node) 0)))))))
+            (set-position! sel (first-text-node-or-self node))))))))
 
 (defn next-element [id]
   (when-let [sel (get-selection)]
     (when (collapsed? sel)
       (let [node (parent-sexp-element-if-any sel)]
         (when-let [node (next-sexp-element node)]
-          (set-position! sel (first-text-node-or-self node) 0))))))
+          (set-position! sel (first-text-node-or-self node)))))))
 
 (defn move-forward [id]
   (when-let [sel (get-selection)]
@@ -220,11 +221,11 @@
           parent (.-parentElement node)
           next (or (next-sibling node)
                    (next-sibling parent))]
-      (when (and (not (sexp-element? parent))
-                 (sexp-element? next))
+      (when (or (whitespace? node)
+                (and (paren? parent)
+                     (sexp-element? next)))
         (set-position! selection
-                       (first-text-node-or-self next)
-                       0)))))
+                       (first-text-node-or-self next))))))
 
 (defn find-container-node [sel]
   (let [node (get-common-ancestor sel)]
