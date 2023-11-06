@@ -28,6 +28,11 @@
 
 (defn get-anchor-offset [selection] (.-anchorOffset selection))
 
+(defn at-the-end? [selection]
+  (when-let [node (get-anchor-node selection)]
+    (= (count (.-textContent node))
+       (get-anchor-offset selection))))
+
 (defn get-focus-node [selection] (.-focusNode selection))
 
 (defn get-focus-offset [selection] (.-focusOffset selection))
@@ -47,22 +52,33 @@
   (->> (nodes-after begin)
        (take-while #(not (identical? % end)))))
 
+(defn text-node? [node]
+  (when node 
+    (= (.-nodeType node) 3)))
+
 (defn sexp-element? [node]
   (and node
        (= (.-nodeName node) "SPAN")
-       ; (not (gcls/contains node "quf-paren"))
+       (not (gcls/contains node "quf-paren"))
        (.hasAttribute node "data-quf-type")))
+
+(defn paren? [node]
+  (when node 
+    (let [node (if (text-node? node)
+                 (.-parentElement node)
+                 node)]
+      (gcls/contains node "quf-paren"))))
+
+(defn whitespace? [node]
+  (and node
+       (text-node? node)
+       (not (sexp-element? (.-parentElement node)))))
 
 (defn sexp-element-of-type? [node type]
   (and (sexp-element? node)
        (gcls/contains node type)))
 
 (defn string-sexp-element? [node] (sexp-element-of-type? node "quf-string"))
-
-(defn paren-sexp-element? [node] (sexp-element-of-type? node "quf-paren"))
-
-(defn text-node? [node]
-  (= (.-nodeType node) 3))
 
 (defn text-node-seq [subj]
   (->> subj
@@ -86,9 +102,10 @@
   (first-sexp-element (nodes-after node)))
 
 (defn first-text-node-or-self [node]
-  (if-let [text (.-firstChild node)]
-    (if (text-node? text) text node)
-    node))
+  (when node
+    (if-let [text (.-firstChild node)]
+      (if (text-node? text) text node)
+      node)))
 
 (defn whole-node-selected? [sel]
   (let [node (get-anchor-node sel)
@@ -101,7 +118,9 @@
   (= (sort [(get-anchor-offset sel) (get-focus-offset sel)])
      [1 (dec (count (.-textContent (get-anchor-node sel))))]))
 
-(defn set-position! [selection node offset] (.setPosition selection node offset))
+(defn set-position! [selection node offset]
+  (.setPosition selection node offset)
+  selection)
 
 (defn select-whole-element! [selection node]
   (let [parent (.-parentElement node)
@@ -117,8 +136,8 @@
 (defn select-sexp-interior! [selection node]
   (let [first-child (.-firstChild node)
         last-child (.-lastChild node)]
-    (if (and (paren-sexp-element? first-child)
-             (paren-sexp-element? last-child))
+    (if (and (paren? first-child)
+             (paren? last-child))
       (doto (get-range-0 selection)
             (.setStartAfter first-child)
             (.setEndBefore last-child))
@@ -177,8 +196,8 @@
     (let [first-child (.-firstChild common-ancestor)
           last-child (.-lastChild common-ancestor)
           range (get-range-0 sel)]
-      (if (and (paren-sexp-element? first-child)
-               (paren-sexp-element? last-child)
+      (if (and (paren? first-child)
+               (paren? last-child)
                (not (range-includes? range first-child))
                (not (range-includes? range last-child))
                (every? #(range-includes? range %)
@@ -190,13 +209,38 @@
   (or (intra-element-selection-state sel)
       (sexp-selection-state sel)))
 
+(defn fix-selection!
+  "Move selection to the more appropriate place.
+  For instance, when it is at the end of a whitespace
+  move it to the next element, etc."
+  [selection]
+  (when (and (collapsed? selection)
+             (at-the-end? selection))
+    (let [node (get-anchor-node selection)
+          parent (.-parentElement node)
+          next (or (next-sibling node)
+                   (next-sibling parent))]
+      (when (and (not (sexp-element? parent))
+                 (sexp-element? next))
+        (set-position! selection
+                       (first-text-node-or-self next)
+                       0)))))
+
+(defn find-container-node [sel]
+  (let [node (get-common-ancestor sel)]
+    (->> (iterate #(.-parentElement %) node)
+         (remove text-node?)
+         (remove paren?)
+         first)))
+
 (defn extend-selection [id]
-  (when-let [sel (js/getSelection)]
+  (fix-selection! (get-selection))
+  (when-let [sel (get-selection)]
     (condp = (selection-state sel)
       :in-element      (select-whole-element! sel (get-anchor-node sel))
       :in-string       (select-string-interior! sel (get-anchor-node sel)) ;; todo handle regexp literals
-      :in-sexp         (select-sexp-interior! sel (get-common-ancestor sel))
-      :sexp-interior   (select-whole-sexp! sel (get-common-ancestor sel))
+      :in-sexp         (select-sexp-interior! sel (find-container-node sel))
+      :sexp-interior   (select-whole-sexp! sel (find-container-node sel))
       true)))
 
 (defn change [id]
