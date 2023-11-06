@@ -50,6 +50,7 @@
 (defn sexp-element? [node]
   (and node
        (= (.-nodeName node) "SPAN")
+       ; (not (gcls/contains node "quf-paren"))
        (.hasAttribute node "data-quf-type")))
 
 (defn sexp-element-of-type? [node type]
@@ -290,12 +291,6 @@
         start-pos (.-startOffset range)]
     (+ (get-node-text-offset start-el el) start-pos)))
 
-(defn single-child? [node]
-  (= 1 (.-length (.-childNodes (.-parentNode node)))))
-
-(defn last-child? [node]
-  (not (.-nextSibling node)))
-
 (defn set-cursor-position! [el pos]
   (when-let [[start _ node]
              (->> el
@@ -304,14 +299,7 @@
                                 [end (+ end (.-length node)) node])
                               [0 0 nil])
                   rest
-                  (map (fn [[start end node]]
-                         [start
-                          (if (or (single-child? node)
-                                  (last-child? node))
-                            (inc end)
-                            end)
-                          node]))
-                  (filter (fn [[_ end _]] (< pos end)))
+                  (filter (fn [[_ end _]] (<= pos end)))
                   first)]
     (set-position! (get-selection) node (- pos start))))
 
@@ -320,7 +308,7 @@
         text (.-textContent el)
         markup (markup/parse text)]
     (when (not= (skeleton markup) (skeleton el))
-      (.log js/console "sekeletons are different")
+      (.log js/console "Restructure!")
       (let [pos (get-cursor-position el)]
         (replace-content el (structure->html markup))
         (set-cursor-position! el pos)))))
