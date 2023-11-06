@@ -1,5 +1,6 @@
 (ns shashurup.quf.editor
   (:require
+   [clojure.string :as s]
    [crate.core :as crate]
    [shashurup.quf.markup :as markup]
    [goog.dom :as gdom]
@@ -113,9 +114,14 @@
     (= (abs (- end start))
        (count (.-textContent node)))))
 
+(defn string-interior-range [text]
+  [(inc (or (s/index-of text "\"") 0))
+   (or (s/last-index-of text "\"")
+       (count text))])
+
 (defn string-interior-selected? [sel]
   (= (sort [(get-anchor-offset sel) (get-focus-offset sel)])
-     [1 (dec (count (.-textContent (get-anchor-node sel))))]))
+     (string-interior-range (.-textContent (get-anchor-node sel)))))
 
 (defn set-position!
   ([selection node] (set-position! selection node 0))
@@ -129,7 +135,9 @@
     (.selectNode range parent)))
 
 (defn select-string-interior! [selection node]
-  (.setBaseAndExtent selection node 1 node (dec (count (.-textContent node)))))
+  (let [text (.-textContent node)
+        [begin end] (string-interior-range text)]
+    (.setBaseAndExtent selection node begin node end)))
 
 (defn select-whole-sexp! [selection node]
   (.selectNode (get-range-0 selection) node))
@@ -239,7 +247,7 @@
   (when-let [sel (get-selection)]
     (condp = (selection-state sel)
       :in-element      (select-whole-element! sel (get-anchor-node sel))
-      :in-string       (select-string-interior! sel (get-anchor-node sel)) ;; todo handle regexp literals
+      :in-string       (select-string-interior! sel (get-anchor-node sel))
       :in-sexp         (select-sexp-interior! sel (find-container-node sel))
       :sexp-interior   (select-whole-sexp! sel (find-container-node sel))
       true)))
