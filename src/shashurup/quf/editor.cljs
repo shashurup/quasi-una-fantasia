@@ -53,6 +53,9 @@
   (->> (nodes-after begin)
        (take-while #(not (identical? % end)))))
 
+(defn parent-nodes [node]
+  (iterate #(.-parentElement %) node))
+
 (defn text-node? [node]
   (when node 
     (= (.-nodeType node) 3)))
@@ -63,6 +66,9 @@
        (not (gcls/contains node "quf-paren"))
        (not (gcls/contains node "quf-container"))))
 
+(defn in-sexp-element? [node]
+  (sexp-element? (.-parentElement node)))
+
 (defn paren? [node]
   (and node
        (= (.-nodeName node) "SPAN")
@@ -72,7 +78,7 @@
   (and node
        (text-node? node)
        (not (paren? (.-parentElement node)))
-       (not (sexp-element? (.-parentElement node)))))
+       (not (in-sexp-element? node))))
 
 (defn sexp-element-of-type? [node type]
   (and (sexp-element? node)
@@ -88,7 +94,7 @@
 
 (defn parent-sexp-element-if-any [selection]
   (when-let [node (get-anchor-node selection)]
-    (if (sexp-element? (.-parentElement node))
+    (if (in-sexp-element? node)
       (.-parentElement node)
       node)))
 
