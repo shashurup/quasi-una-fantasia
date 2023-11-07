@@ -53,8 +53,12 @@
   (->> (nodes-after begin)
        (take-while #(not (identical? % end)))))
 
+(defn root? [node]
+  (gcls/contains node "quf-input"))
+
 (defn parent-nodes [node]
-  (iterate #(.-parentElement %) node))
+  (take-while #(not (root? %))
+              (iterate #(.-parentElement %) node)))
 
 (defn text-node? [node]
   (when node 
@@ -67,7 +71,8 @@
        (not (gcls/contains node "quf-container"))))
 
 (defn in-sexp-element? [node]
-  (sexp-element? (.-parentElement node)))
+  (when node
+    (sexp-element? (.-parentElement node))))
 
 (defn paren? [node]
   (and node
@@ -92,20 +97,37 @@
                  #(.-childNodes %))
        (filter text-node?)))
 
-(defn parent-sexp-element-if-any [selection]
-  (when-let [node (get-anchor-node selection)]
-    (if (in-sexp-element? node)
-      (.-parentElement node)
-      node)))
+(defn prev-leaf-node [node]
+  (when-let [prev (->> (parent-nodes node)
+                       (map previous-sibling)
+                       (remove nil?)
+                       first)]
+    (->> (iterate #(.-lastChild %) prev)
+         (take-while identity)
+         last)))
 
-(defn first-sexp-element [nodes]
-  (first (filter sexp-element? nodes)))
+(defn next-leaf-node [node]
+  (when-let [next (->> (parent-nodes node)
+                       (map next-sibling)
+                       (remove nil?)
+                       first)]
+    (->> (iterate #(.-firstChild %) next)
+         (take-while identity)
+         last)))
 
-(defn prev-sexp-element [node]
-  (first-sexp-element (nodes-before node)))
+(defn prev-sexp-element-text [node]
+  (->> (iterate prev-leaf-node node)
+       (take-while identity)
+       rest
+       (filter in-sexp-element?)
+       first))
 
-(defn next-sexp-element [node]
-  (first-sexp-element (nodes-after node)))
+(defn next-sexp-element-text [node]
+  (->> (iterate next-leaf-node node)
+       (take-while identity)
+       rest
+       (filter in-sexp-element?)
+       first))
 
 (defn first-text-node-or-self [node]
   (when node
@@ -172,18 +194,18 @@
 (defn prev-element [id]
   (when-let [sel (get-selection)]
     (when (collapsed? sel)
-      (let [node (parent-sexp-element-if-any sel)]
+      (let [node (get-anchor-node sel)]
         (if (> (get-anchor-offset sel) 0)
-          (set-position! sel (first-text-node-or-self node))
-          (when-let [node (prev-sexp-element node)]
-            (set-position! sel (first-text-node-or-self node))))))))
+          (set-position! sel node)
+          (when-let [node (prev-sexp-element-text node)]
+            (set-position! sel node)))))))
 
 (defn next-element [id]
   (when-let [sel (get-selection)]
     (when (collapsed? sel)
-      (let [node (parent-sexp-element-if-any sel)]
-        (when-let [node (next-sexp-element node)]
-          (set-position! sel (first-text-node-or-self node)))))))
+      (let [node (get-anchor-node sel)]
+        (when-let [node (next-sexp-element-text node)]
+          (set-position! sel node))))))
 
 (defn move-forward [id]
   (when-let [sel (get-selection)]
