@@ -50,27 +50,8 @@
         offset (.-endOffset range)]
     (.item (.-childNodes parent) offset)))
 
-(defn previous-sibling [node] (.-previousSibling node))
-
-(defn next-sibling [node] (.-nextSibling node))
-
-(defn siblings [node f]
-  (rest (take-while identity (iterate f node))))
-
-(defn nodes-before [node] (siblings node #(.-previousSibling %)))
-
-(defn nodes-after [node] (siblings node #(.-nextSibling %)))
-
-(defn nodes-between [begin end]
-  (->> (nodes-after begin)
-       (take-while #(not (identical? % end)))))
-
 (defn root? [node]
   (gcls/contains node "quf-input"))
-
-(defn parent-nodes [node]
-  (take-while #(not (root? %))
-              (iterate #(.-parentElement %) node)))
 
 (defn text-node? [node]
   (when node 
@@ -107,6 +88,25 @@
        (gcls/contains node type)))
 
 (defn string-atom? [node] (atom-of-type? node "quf-string"))
+
+(defn parent-nodes [node]
+  (take-while #(not (root? %))
+              (iterate #(.-parentElement %) node)))
+
+(defn previous-sibling [node] (.-previousSibling node))
+
+(defn next-sibling [node] (.-nextSibling node))
+
+(defn siblings [node f]
+  (rest (take-while identity (iterate f node))))
+
+(defn nodes-before [node] (siblings node #(.-previousSibling %)))
+
+(defn nodes-after [node] (siblings node #(.-nextSibling %)))
+
+(defn nodes-between [begin end]
+  (->> (nodes-after begin)
+       (take-while #(not (identical? % end)))))
 
 (defn sibling-elements-before [node]
   (filter element?
