@@ -38,6 +38,18 @@
 
 (defn get-focus-offset [selection] (.-focusOffset selection))
 
+(defn get-start-element [selection]
+  (let [range (get-range-0 selection)
+        parent (.-startContainer range)
+        offset (.-startOffset range)]
+    (.item (.-childNodes parent) offset)))
+
+(defn get-end-element [selection]
+  (let [range (get-range-0 selection)
+        parent (.-endContainer range)
+        offset (.-endOffset range)]
+    (.item (.-childNodes parent) offset)))
+
 (defn previous-sibling [node] (.-previousSibling node))
 
 (defn next-sibling [node] (.-nextSibling node))
@@ -64,15 +76,20 @@
   (when node 
     (= (.-nodeType node) 3)))
 
-(defn sexp-element? [node]
+(defn atom? [node]
   (and node
        (= (.-nodeName node) "SPAN")
        (not (gcls/contains node "quf-paren"))
        (not (gcls/contains node "quf-container"))))
 
-(defn in-sexp-element? [node]
+(defn element? [node]
+  (and node
+       (= (.-nodeName node) "SPAN")
+       (not (gcls/contains node "quf-paren"))))
+
+(defn in-atom? [node]
   (when node
-    (sexp-element? (.-parentElement node))))
+    (atom? (.-parentElement node))))
 
 (defn paren? [node]
   (and node
@@ -83,13 +100,21 @@
   (and node
        (text-node? node)
        (not (paren? (.-parentElement node)))
-       (not (in-sexp-element? node))))
+       (not (in-atom? node))))
 
-(defn sexp-element-of-type? [node type]
-  (and (sexp-element? node)
+(defn atom-of-type? [node type]
+  (and (atom? node)
        (gcls/contains node type)))
 
-(defn string-sexp-element? [node] (sexp-element-of-type? node "quf-string"))
+(defn string-atom? [node] (atom-of-type? node "quf-string"))
+
+(defn sibling-elements-before [node]
+  (filter element?
+          (nodes-before node)))
+
+(defn sibling-elements-after [node]
+  (filter element?
+          (nodes-after node)))
 
 (defn text-node-seq [subj]
   (->> subj
@@ -115,18 +140,18 @@
          (take-while identity)
          last)))
 
-(defn prev-sexp-element-text [node]
+(defn prev-atom-text [node]
   (->> (iterate prev-leaf-node node)
        (take-while identity)
        rest
-       (filter in-sexp-element?)
+       (filter in-atom?)
        first))
 
-(defn next-sexp-element-text [node]
+(defn next-atom-text [node]
   (->> (iterate next-leaf-node node)
        (take-while identity)
        rest
-       (filter in-sexp-element?)
+       (filter in-atom?)
        first))
 
 (defn first-text-node-or-self [node]
@@ -157,7 +182,7 @@
    (.setPosition selection node offset)
    selection))
 
-(defn select-whole-element! [selection node]
+(defn select-whole-atom! [selection node]
   (let [parent (.-parentElement node)
         range (get-range-0 selection)]
     (.selectNode range parent)))
@@ -193,19 +218,29 @@
 
 (defn prev-element [id]
   (when-let [sel (get-selection)]
-    (when (collapsed? sel)
+    (if (collapsed? sel)
+      ;; move cursor backwards
       (let [node (get-anchor-node sel)]
         (if (> (get-anchor-offset sel) 0)
           (set-position! sel node)
-          (when-let [node (prev-sexp-element-text node)]
-            (set-position! sel node)))))))
+          (when-let [node (prev-atom-text node)]
+            (set-position! sel node))))
+      ;; extend selection backwards
+      (let [start (get-start-element sel)]
+        (when-let [node (first (sibling-elements-before start))]
+          (.setStartBefore (get-range-0 sel) node))))))
 
 (defn next-element [id]
   (when-let [sel (get-selection)]
-    (when (collapsed? sel)
+    (if (collapsed? sel)
+      ;; move cursor backwards
       (let [node (get-anchor-node sel)]
-        (when-let [node (next-sexp-element-text node)]
-          (set-position! sel node))))))
+        (when-let [node (next-atom-text node)]
+          (set-position! sel node)))
+      ;; extend selection backwards
+      (let [end (get-end-element sel)]
+        (when-let [node (first (sibling-elements-after end))]
+          (.setEndAfter (get-range-0 sel) node))))))
 
 (defn move-forward [id]
   (when-let [sel (get-selection)]
@@ -215,18 +250,18 @@
   (when-let [sel (get-selection)]
     (.modify sel "move" "backward" "character")))
 
-(defn intra-element-selection-state [sel]
+(defn intra-atom-selection-state [sel]
   (when (identical? (get-anchor-node sel)
                     (get-focus-node sel))
     (let [anchor-node (get-anchor-node sel)
           parent (.-parentElement anchor-node)]
-      (when (sexp-element? parent)
+      (when (atom? parent)
         (when (not (whole-node-selected? sel))
-          (if (string-sexp-element? parent)
+          (if (string-atom? parent)
             (if (string-interior-selected? sel)
-              :in-element
+              :in-atom
               :in-string)
-            :in-element))))) )
+            :in-atom))))) )
 
 (defn sexp-selection-state [sel]
   (let [common-ancestor (get-common-ancestor sel)]
@@ -243,7 +278,7 @@
         :in-sexp))))
 
 (defn selection-state [sel]
-  (or (intra-element-selection-state sel)
+  (or (intra-atom-selection-state sel)
       (sexp-selection-state sel)))
 
 (defn fix-selection!
@@ -259,7 +294,7 @@
                    (next-sibling parent))]
       (when (or (whitespace? node)
                 (and (paren? parent)
-                     (sexp-element? next)))
+                     (atom? next)))
         (set-position! selection
                        (first-text-node-or-self next))))))
 
@@ -274,7 +309,7 @@
   (fix-selection! (get-selection))
   (when-let [sel (get-selection)]
     (condp = (selection-state sel)
-      :in-element      (select-whole-element! sel (get-anchor-node sel))
+      :in-atom         (select-whole-atom! sel (get-anchor-node sel))
       :in-string       (select-string-interior! sel (get-anchor-node sel))
       :in-sexp         (select-sexp-interior! sel (find-container-node sel))
       :sexp-interior   (select-whole-sexp! sel (find-container-node sel))
