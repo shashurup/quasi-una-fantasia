@@ -6,6 +6,11 @@
    [goog.dom :as gdom]
    [goog.dom.classlist :as gcls]))
 
+(def ^:private pairs {"[" "]"
+                      "(" ")"
+                      "{" "}"
+                      "\"" "\""})
+
 (defn get-input-element [id]
   (gdom/getElement (str "expr-" id)))
 
@@ -37,6 +42,8 @@
 (defn get-focus-node [selection] (.-focusNode selection))
 
 (defn get-focus-offset [selection] (.-focusOffset selection))
+
+(defn make-text-node [text] (.createTextNode js/document text))
 
 (defn root? [node]
   (gcls/contains node "quf-input"))
@@ -321,19 +328,33 @@
       :sexp-interior   (select-whole-sexp! sel (find-container-node sel))
       true)))
 
-(defn wrap [open])
+(declare restructure)
+
+(defn wrap [id open]
+  (let [close (get pairs open)
+        sel (get-selection)
+        start (get-start-element sel)
+        end (get-end-element sel)]
+    (.insertBefore (.-parentElement start)
+                   (make-text-node open)
+                   start)
+    (.insertBefore (.-parentElement end)
+                   (make-text-node close)
+                   (next-sibling end))
+    (set-position! sel (first-text-node-or-self start))
+    (restructure (get-input-element id))))
 
 (defn wrap-with-a-paren [id]
-  (wrap "("))
+  (wrap id "("))
 
 (defn wrap-with-a-bracket [id]
-  (wrap "["))
+  (wrap id "["))
 
 (defn wrap-with-a-brace [id]
-  (wrap "{"))
+  (wrap id "{"))
 
 (defn wrap-with-quotes [id]
-  (wrap "\""))
+  (wrap id "\""))
 
 (defn change [id]
  (when-let [sel (js/getSelection)]
@@ -358,11 +379,6 @@
                               text
                               (subs node-text offset)))
     (.setStart (.getRangeAt (get-selection) 0) node offset)))
-
-(def ^:private pairs {"[" "]"
-                      "(" ")"
-                      "{" "}"
-                      "\"" "\""})
 
 (defn- handle-pairs [e]
   (let [ch (.-data e)
@@ -439,9 +455,8 @@
                   first)]
     (set-position! (get-selection) node (- pos start))))
 
-(defn restructure [e]
-  (let [el (.-target e)
-        text (.-textContent el)
+(defn restructure [el]
+  (let [text (.-textContent el)
         markup (markup/parse text)]
     (when (not= (skeleton markup) (skeleton el))
       (.log js/console "Restructure!")
@@ -458,7 +473,7 @@
 
 (defn- handle-input-change [e]
   ;(handle-pairs e)
-  (restructure e)
+  (restructure (.-target e))
   )
 
 (defn plug [input]

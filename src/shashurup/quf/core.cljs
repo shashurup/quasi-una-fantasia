@@ -363,10 +363,10 @@
                         "w" editor/next-element
                         "b" editor/prev-element
                         "v" editor/extend-selection
-                        "(" editor/wrap-with-a-paren
+                        "S-(" editor/wrap-with-a-paren
                         "[" editor/wrap-with-a-bracket
-                        "{" editor/wrap-with-a-brace
-                        "\"" editor/wrap-with-quotes})
+                        "S-{" editor/wrap-with-a-brace
+                        "S-\"" editor/wrap-with-quotes})
 
 (defn get-key-map [id]
   (merge cell-key-map
