@@ -38,18 +38,6 @@
 
 (defn get-focus-offset [selection] (.-focusOffset selection))
 
-(defn get-start-element [selection]
-  (let [range (get-range-0 selection)
-        parent (.-startContainer range)
-        offset (.-startOffset range)]
-    (.item (.-childNodes parent) offset)))
-
-(defn get-end-element [selection]
-  (let [range (get-range-0 selection)
-        parent (.-endContainer range)
-        offset (.-endOffset range)]
-    (.item (.-childNodes parent) offset)))
-
 (defn root? [node]
   (gcls/contains node "quf-input"))
 
@@ -88,6 +76,24 @@
        (gcls/contains node type)))
 
 (defn string-atom? [node] (atom-of-type? node "quf-string"))
+
+(defn get-start-element [selection]
+  (let [range (get-range-0 selection)
+        start (.-startContainer range)
+        parent (.-parentElement start)
+        offset (.-startOffset range)]
+    (if (text-node? start)
+      (if (atom? parent) parent start)
+      (.item (.-childNodes start) offset))))
+
+(defn get-end-element [selection]
+  (let [range (get-range-0 selection)
+        end (.-endContainer range)
+        parent (.-parentElement end)
+        offset (.-endOffset range)]
+    (if (text-node? end)
+      (if (atom? parent) parent end)
+      (.item (.-childNodes end) (dec offset)))))
 
 (defn parent-nodes [node]
   (take-while #(not (root? %))
@@ -314,6 +320,20 @@
       :in-sexp         (select-sexp-interior! sel (find-container-node sel))
       :sexp-interior   (select-whole-sexp! sel (find-container-node sel))
       true)))
+
+(defn wrap [open])
+
+(defn wrap-with-a-paren [id]
+  (wrap "("))
+
+(defn wrap-with-a-bracket [id]
+  (wrap "["))
+
+(defn wrap-with-a-brace [id]
+  (wrap "{"))
+
+(defn wrap-with-quotes [id]
+  (wrap "\""))
 
 (defn change [id]
  (when-let [sel (js/getSelection)]

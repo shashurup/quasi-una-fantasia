@@ -362,7 +362,11 @@
                         "l" editor/move-forward
                         "w" editor/next-element
                         "b" editor/prev-element
-                        "v" editor/extend-selection})
+                        "v" editor/extend-selection
+                        "(" editor/wrap-with-a-paren
+                        "[" editor/wrap-with-a-bracket
+                        "{" editor/wrap-with-a-brace
+                        "\"" editor/wrap-with-quotes})
 
 (defn get-key-map [id]
   (merge cell-key-map
