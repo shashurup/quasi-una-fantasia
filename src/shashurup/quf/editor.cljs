@@ -3,6 +3,7 @@
    [clojure.string :as s]
    [crate.core :as crate]
    [shashurup.quf.markup :as markup]
+   [shashurup.quf.utils :as u]
    [goog.dom :as gdom]
    [goog.dom.classlist :as gcls]))
 
@@ -378,13 +379,39 @@
            doall)
       (restructure (get-input-element id)))))
 
-(defn forward-slurp [id])
+(defn forward-slurp [id]
+  (when-let [sel (get-selection)]
+    (when-let [sexp (enclosing-sexp sel)]
+      (->> (nodes-after sexp)
+           (u/take-until element?)
+           (map #(.insertBefore sexp % (.-lastChild sexp)))
+           doall))))
 
-(defn backward-slurp [id])
+(defn backward-slurp [id]
+  (when-let [sel (get-selection)]
+    (when-let [sexp (enclosing-sexp sel)]
+      (->> (nodes-before sexp)
+           (u/take-until element?)
+           (map #(.insertBefore sexp % (.-nextSibling (.-firstChild sexp))))
+           doall))) )
 
-(defn forward-barf [id])
+(defn forward-barf [id]
+  (when-let [sel (get-selection)]
+    (when-let [sexp (enclosing-sexp sel)]
+      (->> (nodes-before (.-lastChild sexp))
+           (u/take-until whitespace?)
+           (map #(.insertBefore (.-parentElement sexp)
+                                %
+                                (next-sibling sexp)))
+           doall))))
 
-(defn backward-barf [id])
+(defn backward-barf [id]
+  (when-let [sel (get-selection)]
+    (when-let [sexp (enclosing-sexp sel)]
+      (->> (nodes-after (.-firstChild sexp))
+           (u/take-until whitespace?)
+           (map #(.insertBefore (.-parentElement sexp) % sexp))
+           doall))))
 
 (defn change [id]
  (when-let [sel (js/getSelection)]

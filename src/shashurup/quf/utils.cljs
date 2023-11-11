@@ -19,3 +19,10 @@
   (gdom/appendChild 
    (first (gdom/getElementsByTagName "head"))
    (crate/html [:link {:href ref :rel "stylesheet" :type "text/css"}])))
+
+(defn take-until [pred coll]
+  (->> coll
+       (partition-by pred)
+       (partition 2)
+       first
+       flatten))
