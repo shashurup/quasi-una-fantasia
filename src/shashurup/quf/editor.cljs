@@ -208,6 +208,13 @@
    (.setPosition selection node offset)
    selection))
 
+(defn set-position-at-end! [selection node]
+  (set-position! selection
+                 node
+                 (if (text-node? node)
+                   (count (.-textContent node))
+                   (.-length (.-childNodes node)))))
+
 (defn select-whole-atom! [selection node]
   (let [parent (.-parentElement node)
         range (get-range-0 selection)]
@@ -256,17 +263,23 @@
         (when-let [node (first (sibling-elements-before start))]
           (.setStartBefore (get-range-0 sel) node))))))
 
-(defn next-element [id]
+(defn next-element [id sel-fn]
   (when-let [sel (get-selection)]
     (if (collapsed? sel)
       ;; move cursor backwards
       (let [node (get-anchor-node sel)]
         (when-let [node (next-atom-text node)]
-          (set-position! sel node)))
+          (sel-fn sel node)))
       ;; extend selection backwards
       (let [end (get-end-element sel)]
         (when-let [node (first (sibling-elements-after end))]
           (.setEndAfter (get-range-0 sel) node))))))
+
+(defn next-element-begin [id]
+  (next-element id set-position!))
+
+(defn next-element-end [id]
+  (next-element id set-position-at-end!))
 
 (defn move-forward [id]
   (when-let [sel (get-selection)]
@@ -275,6 +288,16 @@
 (defn move-back [id]
   (when-let [sel (get-selection)]
     (.modify sel "move" "backward" "character")))
+
+(defn move-start [id]
+  (when-let [sel (get-selection)]
+    (set-position! sel (first (text-node-seq (get-input-element id))))))
+
+(defn move-end [id]
+  (when-let [sel (get-selection)]
+    (.setEndAfter (get-range-0 sel)
+                  (last (text-node-seq (get-input-element id))))
+    (.collapseToEnd sel)))
 
 (defn intra-atom-selection-state [sel]
   (when (identical? (get-anchor-node sel)

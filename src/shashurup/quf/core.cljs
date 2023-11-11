@@ -239,30 +239,6 @@
 
 (defn eval-cell-and-stay [id] (eval-cell id false))
 
-(defn get-first-text-node [node]
-  (when node
-    (if (= (.-nodeType node) 1)
-      (get-first-text-node (.-firstChild node))
-      node)))
-
-(defn move-cursor-at-start [id]
-  (let [input (get-input-element id)
-        cursor-el (or (get-first-text-node (.-firstChild input)) input)]
-    (doto (js/getSelection)
-      (.removeAllRanges)
-      (.addRange (doto (.createRange js/document)
-                   (.setStart cursor-el 0)
-                   (.collapse true))))))
-
-(defn move-cursor-at-end [id]
-  (let [input (get-input-element id)
-        cursor-el (or (get-first-text-node (.-lastChild input)) input)]
-    (doto (js/getSelection)
-      (.removeAllRanges)
-      (.addRange (doto (.createRange js/document)
-                   (.setStart cursor-el (count (.-textContent cursor-el)))
-                   (.collapse true))))))
-
 (defn interrupt-eval [id]
   (nrepl/send-interrupt (get-in @app-state [:requests (str id)])))
 
@@ -343,8 +319,6 @@
                    "C-k" focus-prev-cell
                    "C-r" assistant/initiate-history
                    "C-h" assistant/toggle-doc
-                   "C-a" move-cursor-at-start
-                   "C-e" move-cursor-at-end
                    "C-s" cycle-result-height
                    "C-=" show-tabname
                    "C-t" new-tab
@@ -360,7 +334,8 @@
                         "c" editor/change
                         "h" editor/move-back
                         "l" editor/move-forward
-                        "w" editor/next-element
+                        "w" editor/next-element-begin
+                        "e" editor/next-element-end
                         "b" editor/prev-element
                         "v" editor/extend-selection
                         "S-(" editor/wrap-with-a-paren
@@ -371,7 +346,11 @@
                         "f" editor/forward-slurp
                         "S-F" editor/forward-barf
                         "a" editor/backward-slurp
-                        "S-A" editor/backward-barf})
+                        "S-A" editor/backward-barf
+                        "S-^" editor/move-start
+                        "S-$" editor/move-end
+                        "0" editor/move-start
+                        })
 
 (defn get-key-map [id]
   (merge cell-key-map
