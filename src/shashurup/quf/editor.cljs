@@ -370,12 +370,13 @@
 
 (defn unwrap [id]
   (when-let [sel (get-selection)]
-    (let [sexp (enclosing-sexp sel)]
+    (when-let [sexp (enclosing-sexp sel)]
       (->> (children sexp)
            (filter paren?)
+           vec ;; makes a copy of node to delete
            (map #(.removeChild sexp %))
-           doall))
-    (restructure (get-input-element id))))
+           doall)
+      (restructure (get-input-element id)))))
 
 (defn forward-slurp [id])
 
@@ -485,6 +486,7 @@
     (set-position! (get-selection) node (- pos start))))
 
 (defn restructure [el]
+  (.log js/console "Checking structure ...")
   (let [text (.-textContent el)
         markup (markup/parse text)]
     (when (not= (skeleton markup) (skeleton el))
