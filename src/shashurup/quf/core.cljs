@@ -366,7 +366,8 @@
                         "S-(" editor/wrap-with-a-paren
                         "[" editor/wrap-with-a-bracket
                         "S-{" editor/wrap-with-a-brace
-                        "S-\"" editor/wrap-with-quotes})
+                        "S-\"" editor/wrap-with-quotes
+                        "u" editor/unwrap})
 
 (defn get-key-map [id]
   (merge cell-key-map

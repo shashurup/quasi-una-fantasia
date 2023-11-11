@@ -63,6 +63,10 @@
        (= (.-nodeName node) "SPAN")
        (not (gcls/contains node "quf-paren"))))
 
+(defn sexp? [node]
+  (and (element? node)
+       (gcls/contains node "quf-container")))
+
 (defn in-atom? [node]
   (when node
     (atom? (.-parentElement node))))
@@ -165,6 +169,14 @@
        (take-while identity)
        rest
        (filter in-atom?)
+       first))
+
+(defn children [node] (seq (.-childNodes node)))
+
+(defn enclosing-sexp [sel]
+  (->> (get-common-ancestor sel)
+       parent-nodes
+       (filter sexp?)
        first))
 
 (defn first-text-node-or-self [node]
@@ -355,6 +367,23 @@
 
 (defn wrap-with-quotes [id]
   (wrap id "\""))
+
+(defn unwrap [id]
+  (when-let [sel (get-selection)]
+    (let [sexp (enclosing-sexp sel)]
+      (->> (children sexp)
+           (filter paren?)
+           (map #(.removeChild sexp %))
+           doall))
+    (restructure (get-input-element id))))
+
+(defn forward-slurp [id])
+
+(defn backward-slurp [id])
+
+(defn forward-barf [id])
+
+(defn backward-barf [id])
 
 (defn change [id]
  (when-let [sel (js/getSelection)]
