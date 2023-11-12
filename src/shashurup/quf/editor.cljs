@@ -295,15 +295,13 @@
   (when-let [sel (get-selection)]
     (.modify sel "move" "backward" "character")))
 
-;; up and down doesn't work this way
-
 (defn move-up [id]
   (when-let [sel (get-selection)]
-    (.modify sel "move" "up" "character")))
+    (.modify sel "move" "backward" "line")))
 
 (defn move-down [id]
   (when-let [sel (get-selection)]
-    (.modify sel "move" "down" "character")))
+    (.modify sel "move" "forward" "line")))
 
 (defn move-start [id]
   (when-let [sel (get-selection)]
