@@ -231,12 +231,18 @@
 (defn select-sexp-interior! [selection node]
   (let [first-child (.-firstChild node)
         last-child (.-lastChild node)]
-    (if (and (paren? first-child)
-             (paren? last-child))
-      (doto (get-range-0 selection)
-            (.setStartAfter first-child)
-            (.setEndBefore last-child))
-      (select-whole-sexp! selection node))))
+    (cond (root? node)
+              (doto (get-range-0 selection)
+                (.setStartBefore first-child)
+                (.setEndAfter last-child))
+
+          (and (paren? first-child)
+               (paren? last-child))
+              (doto (get-range-0 selection)
+                (.setStartAfter first-child)
+                (.setEndBefore last-child))
+
+          :else (select-whole-sexp! selection node))))
 
 ;; sexp mode
 
@@ -288,6 +294,16 @@
 (defn move-back [id]
   (when-let [sel (get-selection)]
     (.modify sel "move" "backward" "character")))
+
+;; up and down doesn't work this way
+
+(defn move-up [id]
+  (when-let [sel (get-selection)]
+    (.modify sel "move" "up" "character")))
+
+(defn move-down [id]
+  (when-let [sel (get-selection)]
+    (.modify sel "move" "down" "character")))
 
 (defn move-start [id]
   (when-let [sel (get-selection)]

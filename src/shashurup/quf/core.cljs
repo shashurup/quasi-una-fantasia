@@ -334,6 +334,8 @@
                         "c" editor/change
                         "h" editor/move-back
                         "l" editor/move-forward
+                        "j" editor/move-down
+                        "k" editor/move-up
                         "w" editor/next-element-begin
                         "e" editor/next-element-end
                         "b" editor/prev-element
