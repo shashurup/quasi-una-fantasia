@@ -70,7 +70,7 @@
        (when (.-shiftKey e) "S-")
        (.-key e)))
 
-(declare get-key-map)
+(declare find-key-binding)
 (declare append-cell)
 
 (defn insert-cell [dir el expr-text]
@@ -80,7 +80,7 @@
             cell (create-cell id ns)
             keydown (fn [e]
                       (.log js/console "key " (key-event->str e))
-                      (when-let [f (get (get-key-map id) (key-event->str e))]
+                      (when-let [f (find-key-binding id (key-event->str e))]
                         (.log js/console "keymap match " (key-event->str e))
                         (f id)
                         (.preventDefault e)))]
@@ -354,12 +354,14 @@
                         "0" editor/move-start
                         })
 
-(defn get-key-map [id]
-  (merge cell-key-map
-         (when (assistant/active id)
-           completions-key-map)
-         (when (editor/sexp-mode? id)
-           sexp-mode-key-map)))
+(defn find-key-binding [id key]
+  (or (when (editor/sexp-mode? id)
+        (sexp-mode-key-map key))
+      (when (assistant/active id)
+        (completions-key-map key))
+      (cell-key-map key)
+      (when (editor/sexp-mode? id)
+        identity)))
 
 (gevents/listen js/window
                 "load"
