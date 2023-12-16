@@ -5,6 +5,7 @@
             [shashurup.quf.selection :as selection]
             [compojure.core :refer :all]
             [compojure.route :as route]
+            [compojure.coercions :refer [as-int]]
             [ring.middleware.defaults :as d]
             [ring.adapter.jetty :as j]
             [ring.util.response :as u]
@@ -36,6 +37,45 @@
     (hist/log op result)
     (events/augment-response op result)))
 
+(defn create-transport []
+  (let [[client server] (t/piped-transports)]
+    (future (srv/handle (srv/default-handler #'hist/wrap-history
+                                             #'events/wrap-events
+                                             #'cfg/wrap-config
+                                             #'selection/wrap-selection)
+                        server))
+    client))
+
+(defn parse-message [body]
+  (-> body
+      io/reader
+      java.io.PushbackReader.
+      edn/read))
+
+(defn response-seq [transport timeout]
+  (loop [msg (t/recv transport (* 1000 timeout))
+         result []]
+    (if msg
+      ;; when evaluation result is read
+      ;; wait for the next :status message
+      (let [timeout (if (contains? msg :value) timeout 0)]
+        (recur (t/recv transport timeout)
+               (conj result msg)))
+      result)))
+
+(defn handle-message [{{transport :transport} :session
+                      method :request-method
+                      body :body
+                      {timeout :timeout} :params}]
+  (let [transport (or transport (create-transport))
+        timeout (or (as-int timeout) 8)]
+    (when (= method :post)
+      (t/send transport (parse-message body)))
+    (-> (response-seq transport timeout)
+        pr-str
+        u/response
+        (assoc :session {:transport transport}))))
+
 (defroutes app
 
   (POST "/repl" {session :session
@@ -52,6 +92,10 @@
               u/response
               (assoc :session session))))
 
+  (GET "/messages" req (handle-message req))
+  
+  (POST "/messages" req (handle-message req))
+  
   (GET "/fs/*" {{path :*} :params}
        (u/file-response (str "/" path)))
 
