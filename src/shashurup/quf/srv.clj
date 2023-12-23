@@ -66,15 +66,18 @@
 (defn handle-message [{{transport :transport} :session
                       method :request-method
                       body :body
-                      {timeout :timeout} :params}]
+                       {timeout :timeout
+                        wait-reply :wait-reply} :params}]
   (let [transport (or transport (create-transport))
         timeout (or (as-int timeout) 8)]
     (when (= method :post)
       (t/send transport (parse-message body)))
-    (-> (response-seq transport timeout)
-        pr-str
-        u/response
-        (assoc :session {:transport transport}))))
+    (let [r (when (or (= method :get) wait-reply)
+              (response-seq transport timeout))]
+      (-> r
+          pr-str
+          u/response
+          (assoc :session {:transport transport})))))
 
 (defroutes app
 
