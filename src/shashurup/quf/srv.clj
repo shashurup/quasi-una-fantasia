@@ -27,7 +27,8 @@
                                                       #'cfg/wrap-config
                                                       #'selection/wrap-selection)
                                  server-side))
-     :client (nrepl/client client-side (* 24 60 60 1000))}))
+     :client (nrepl/client client-side (* 24 60 60 1000))
+     :transport client-side}))
 
 (defn handle-nrepl-request [op client]
   (let [result (nrepl/message client op)]
@@ -63,9 +64,10 @@
                (conj result msg)))
       result)))
 
-(defn handle-message [{{transport :transport} :session
-                      method :request-method
-                      body :body
+(defn handle-message [{session :session
+                       {transport :transport} :session
+                       method :request-method
+                       body :body
                        {timeout :timeout
                         wait-reply :wait-reply} :params}]
   (let [transport (or transport (create-transport))
@@ -77,7 +79,7 @@
       (-> r
           pr-str
           u/response
-          (assoc :session {:transport transport})))))
+          (assoc :session (assoc session :transport transport))))))
 
 (defroutes app
 
