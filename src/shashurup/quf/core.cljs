@@ -96,7 +96,10 @@
             (editor/plug)
             (assistant/plug id)
             (.addEventListener "keydown" keydown))))
-      (nrepl/send-eval "*ns*" #(append-cell)))))
+      (nrepl/send-clone (fn [_]
+                          (nrepl/send-eval "*ns*"
+                                           #(when (:value %)
+                                              (append-cell))))))))
 
 (defn append-cell [] (insert-cell nil nil nil))
 

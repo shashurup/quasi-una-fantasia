@@ -7,6 +7,8 @@
 
 (defn get-ns [] (:ns @state))
 
+(defn get-session [] (:session @state))
+
 (defn- handle-tag [tag arg]
   (condp = tag
     'inst (js/Date. arg)
@@ -73,8 +75,6 @@
     (.send req)))
 
 (defn handle-replies [replies]
-  (when (not (:session @state))
-    (swap! state assoc :session (:session (first replies))))
   (doall (map (fn [{:keys [id status] :as reply}]
                 (when-let [callback (get-callback id)]
                   (callback reply))
@@ -95,6 +95,13 @@
       (send-message op nil)
       (send-message op handle-replies :wait-reply 1))
     id))
+
+(defn send-clone [callback]
+  (send-op {:op "clone"}
+           (fn [{:keys [new-session]}]
+             (swap! state assoc :session new-session)
+             (when callback
+               (callback new-session)))))
 
 (defn send-eval
   ([expr callback] (send-eval expr callback nil))
