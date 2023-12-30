@@ -28,7 +28,8 @@
                                                       #'selection/wrap-selection)
                                  server-side))
      :client (nrepl/client client-side (* 24 60 60 1000))
-     :transport client-side}))
+     ;; :transport client-side
+     }))
 
 (defn handle-nrepl-request [op client]
   (let [result (nrepl/message client op)]
@@ -60,7 +61,7 @@
       ;; when evaluation result is read
       ;; wait for the next :status message
       (let [timeout (if (contains? msg :value) timeout 0)]
-        (recur (t/recv transport timeout)
+        (recur (t/recv transport (* 1000 timeout))
                (conj result msg)))
       result)))
 

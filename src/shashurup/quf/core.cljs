@@ -160,14 +160,12 @@
 (defn process-events [result]
   (let [processed-event-count (or (:processed-event-count @app-state) 0)
         event-queue-size (:event-queue-size result)
-        apply-events (fn [response]
-                       (let [events (:events (first response))]
-                         (swap! app-state
-                                assoc
-                                :processed-event-count
-                                (+ processed-event-count (count events)))
-                         (doall (map apply-event events))
-                         ))]
+        apply-events (fn [{:keys [events]}]
+                       ((swap! app-state
+                               assoc
+                               :processed-event-count
+                               (+ processed-event-count (count events))))
+                       (doall (map apply-event events)))]
     (when (> event-queue-size processed-event-count)
       (nrepl/send-op {:op "events"
                       :from processed-event-count}
@@ -179,7 +177,7 @@
                     :name (str "tabs/" name)
                     :config (map gdom/getTextContent
                                  (gdom/getElementsByClass "quf-input"))}
-                   identity)))
+                   nil)))
 
 (defn out-class [line]
   (cond
@@ -187,9 +185,40 @@
     (:err line) "quf-err"
     (:ex line)  "quf-ex"))
 
+(def out-class-map {:out "quf-out"
+                    :err "quf-err"
+                    :ex "quf-ex"})
+
+(def out-keys #{:out :err :ex})
+
+(defn make-out-line [reply]
+  (crate/html [:p {:class (some out-class-map (keys reply))}
+               (some reply out-keys)]))
+
 (defn hook-checkboxes [id]
   (doall (map (fn [el] (.addEventListener el "click" #(checkbox-changed % id)))
               (gdom/getElementsByClass "quf-check" (get-result-element id)))))
+
+(defn remove-progress-bar [id]
+  (gdom/removeNode (gdom/getElement (str "progress-" id))))
+
+(defn handle-eval-reply [id {:keys [out err ex value status] :as reply} go-next]
+  (remove-progress-bar id)
+  (cond
+    (contains? reply :value) (render-result value (get-result-element id))
+    (some reply out-keys) (gdom/append (get-out-element id)
+                                       (make-out-line reply))
+    (:event-queue-size reply) (process-events reply)
+    (nrepl/terminated? status) (do
+                                 (process-tab)
+                                 (uncheck-cell id)
+                                 (hook-checkboxes id)
+                                 (.scrollIntoView (get-cell-element id))
+                                 (when (and go-next
+                                            (not (gdom/getElementByClass
+                                                  "quf-err"
+                                                  (get-out-element id))))
+                                   (focus-next-cell id)))))
 
 (defn apply-result [id result go-next]
   (let [valdiv (get-result-element id)
@@ -213,8 +242,8 @@
 
 (defn create-progress-bar [id]
   (let [handler-call (str "shashurup.quf.core.interrupt_eval(" id ")")]
-    (crate/html [:div [:progress]
-                 " "
+    (crate/html [:div {:id (str "progress-" id)}
+                 [:progress] " "
                  [:input {:type "button"
                           :value "Cancel"
                           :onclick handler-call}]])))
@@ -228,12 +257,15 @@
   ([id] (eval-cell id true))
   ([id go-next]
    (doto (get-result-element id)
+     (gdom/removeChildren)
      (gdom/appendChild (create-progress-bar id)))
+   (doto (get-out-element id)
+     (gdom/removeChildren))
    (let [expr (-> (get-input-element id)
                   .-textContent
                   (s/replace \u00a0 " "))]
      (let [req-id (nrepl/send-eval expr
-                                   #(apply-result id % go-next)
+                                   #(handle-eval-reply id % go-next)
                                    (selection-updates))]
        (swap! app-state assoc-in [:requests (str id)] req-id)))))
 
@@ -258,7 +290,7 @@
 (defn fill-tablist [resp]
   (let [datalist (gdom/getElement "quf-tablist")]
     (gdom/removeChildren datalist)
-    (doall (for [name (:names (first resp))]
+    (doall (for [name (:names resp)]
              (gdom/appendChild datalist
                                (crate/html [:option name]))))))
 
@@ -271,7 +303,7 @@
   (.focus (gdom/getElement "quf-tabname")))
 
 (defn load-cells [resp]
-  (when-let [cells (:config (first resp))]
+  (when-let [cells (:config resp)]
     (doall (for [expr cells]
              (insert-cell nil nil expr)))))
 
@@ -352,6 +384,9 @@
                         "S-^" editor/move-start
                         "S-$" editor/move-end
                         "0" editor/move-start
+                        ;; "u" #(.execCommand js/document "undo")
+                        ;; "y" #(.execCommand js/document "copy")
+                        ;; "p" #(.execCommand js/document "paste")
                         })
 
 (defn find-key-binding [id key]

@@ -7,19 +7,6 @@
 
 (defn get-ns [] (:ns @state))
 
-(defn send-op [op callback]
-  (let [msg (pr-str op)
-        req (js/XMLHttpRequest.)]
-    (.open req "POST" "repl")
-    (.setRequestHeader req "Content-Type" "application/octet-stream")
-    (gevents/listen req
-                    "loadend"
-                    #(callback (if (= 200 (.-status req))
-                                 (read-string (.-responseText req))
-                                 (.-responseText req))))
-    (.send req msg)))
-
-
 (defn- handle-tag [tag arg]
   (condp = tag
     'inst (js/Date. arg)
@@ -32,77 +19,9 @@
     (catch js/Object _
       ^{:shashurup.quf/hint :shashurup.quf/text} [subj])))
 
-(defn merge-eval-result [subj]
-  (if (string? subj)
-    {:err subj}
-    {:id (:id (first subj))
-     :out (->> subj
-               (map #(select-keys % [:out :err :ex :root-ex]))
-               (remove empty?))
-     :value (->> subj
-                 (map :value)
-                 (remove nil?)
-                 (map read-value))
-     :event-queue-size (->> subj
-                            (map :event-queue-size)
-                            (remove nil?)
-                            first)}))
-
-(defn update-ns [resp]
-  (when-let [ns (some :ns resp)]
-    (swap! state assoc :ns ns)))
-
 (defn history-append [expr]
   (when-not (empty? expr)
     (swap! state update :history #(conj % expr))))
-
-(defn update-session [resp]
-  (swap! state assoc :session (:new-session (first resp))))
-
-(defn send-eval
-  ([expr callback] (send-eval expr callback nil))
-  ([expr callback extra]
-   (let [session (:session @state)]
-     (if session
-       (let [id (:cur-id (swap! state update :cur-id #(inc (or % 0))))
-             op-args (merge {:op "eval"
-                             :code expr
-                             :session session
-                             :id id
-                             :nrepl.middleware.print/print "shashurup.quf.srv/pr-with-meta"}
-                            extra)]
-         (send-op op-args
-                  (fn [resp]
-                    (history-append expr)
-                    (update-ns resp)
-                    (callback (merge-eval-result resp))))
-         id)
-       (send-op {:op "clone"}
-                (fn [resp]
-                  (update-session resp)
-                  (send-eval expr callback extra)))))))
-
-(defn send-interrupt [id]
-  (send-op {:op "interrupt"
-            :session (:session @state)
-            :id id}
-           (fn [_])))
-
-(defn send-completions [text callback]
-  (send-op {:op "completions"
-            :prefix text
-            :session (:session @state)
-            :options {:extra-metadata [:arglists]}}
-           #(callback (:completions (first %)))))
-
-(defn send-history [terms limit callback]
-  (send-op {:op "history"
-            :terms terms
-            :limit limit
-            :session (:session @state)}
-           #(callback (:matches (first %)))))
-
-;; =========== New REPL interactions =========================
 
 (defn build-query-string [params]
   (let [query (str (js/URLSearchParams. (clj->js (or params {}))))]
@@ -165,7 +84,7 @@
   (when (pending-callbacks?)
     (receive-messages handle-replies)))
 
-(defn send-op2 [op callback]
+(defn send-op [op callback]
   (let [already-waiting (pending-callbacks?)
         id (new-id)
         op (-> op
@@ -177,22 +96,36 @@
       (send-message op handle-replies :wait-reply 1))
     id))
 
-(defn send-eval2
-  ([expr callback] (send-eval2 expr callback nil))
+(defn send-eval
+  ([expr callback] (send-eval expr callback nil))
   ([expr callback extra]
-   (send-op2 (merge {:op "eval"
-                     :code expr
-                     :nrepl.middleware.print/print
-                       "shashurup.quf.srv/pr-with-meta"}
-                    extra)
-             (fn [reply]
-               (let [reply (if (:value reply)
-                             (update reply :value read-value)
-                             reply)]
-                 (history-append expr)
-                 (when-let [ns (:ns reply)]
-                   (swap! state assoc :ns ns))
-                 (when (and callback
-                            (some #{:value :out :err :ex :root-ex}
-                                  (keys reply)))
-                   (callback reply)))))))
+   (send-op (merge {:op "eval"
+                    :code expr
+                    :nrepl.middleware.print/print
+                    "shashurup.quf.srv/pr-with-meta"}
+                   extra)
+            (fn [reply]
+              (let [reply (if (:value reply)
+                            (update reply :value read-value)
+                            reply)]
+                (when (terminated? (:status reply))
+                  (history-append expr))
+                (when-let [ns (:ns reply)]
+                  (swap! state assoc :ns ns))
+                (when callback
+                  (callback reply)))))))
+
+(defn send-interrupt [id]
+  (send-op {:op "interrupt"} nil))
+
+(defn send-completions [text callback]
+  (send-op {:op "completions"
+            :prefix text
+            :options {:extra-metadata [:arglists]}}
+           #(callback (:completions %))))
+
+(defn send-history [terms limit callback]
+  (send-op {:op "history"
+            :terms terms
+            :limit limit}
+           #(callback (:matches %))))
