@@ -47,4 +47,4 @@
           (sort-by first)
           bar))))
 
-(events/push {:type :require :ns "shashurup.quf.chartjs"})
+(resp/client-require "shashurup.quf.chartjs")

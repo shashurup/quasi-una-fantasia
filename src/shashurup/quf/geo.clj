@@ -31,4 +31,4 @@
   [subj]
   (resp/hint (normalize-data subj) :geodata))
 
-(events/push {:type :require :ns "shashurup.quf.ol"})
+(resp/client-require "shashurup.quf.ol")

@@ -1,8 +1,5 @@
 (ns shashurup.quf.srv
-  (:require [shashurup.quf.config :as cfg]
-            [shashurup.quf.events :as events]
-            [shashurup.quf.history :as hist]
-            [shashurup.quf.response :as response]
+  (:require [shashurup.quf.response :as response]
             [shashurup.quf.selection :as selection]
             [compojure.core :refer :all]
             [compojure.route :as route]

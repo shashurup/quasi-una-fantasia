@@ -153,27 +153,6 @@
               (map gdom/removeNode)))
   (append-cell))
 
-(defmulti apply-event :type)
-
-(defmethod apply-event :default [_])
-
-(defmethod apply-event :require [{:keys [ns]}]
-  (goog/require ns))
-
-(defn process-events [result]
-  (let [processed-event-count (or (:processed-event-count @app-state) 0)
-        event-queue-size (:event-queue-size result)
-        apply-events (fn [{:keys [events]}]
-                       ((swap! app-state
-                               assoc
-                               :processed-event-count
-                               (+ processed-event-count (count events))))
-                       (doall (map apply-event events)))]
-    (when (> event-queue-size processed-event-count)
-      (nrepl/send-op {:op "events"
-                      :from processed-event-count}
-                     apply-events))))
-
 (defn process-tab []
   (when-let [name (:name @app-state)]
     (nrepl/send-op {:op "store-config"
@@ -212,6 +191,9 @@
 
 (defmulti handle-extra-data #(:shashurup.quf/hint (meta %)))
 
+(defmethod handle-extra-data :require [{ :keys [ns]} _]
+  (goog/require ns))
+
 (defmethod handle-extra-data :progress [{:keys [percent message]} id]
   (let [progress-el (get-progress-element id)]
     (when percent
@@ -231,7 +213,6 @@
     (contains? reply :value) (render-result value (get-result-element id))
     (some reply out-keys) (gdom/append (get-out-element id)
                                        (make-out-line reply))
-    (:event-queue-size reply) (process-events reply)
     x-data (handle-extra-data x-data id)
     (nrepl/terminated? status) (do
                                  (remove-progress-bar id)
