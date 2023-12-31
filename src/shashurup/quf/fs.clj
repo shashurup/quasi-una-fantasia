@@ -7,7 +7,7 @@
   (:require [clojure.string :as s]
             [shashurup.quf.quf :as quf]
             [shashurup.quf.data :as data]
-            [shashurup.quf.events :as events]))
+            [shashurup.quf.response :as response]))
 
 (def permission-map
   {PosixFilePermission/OWNER_READ :owner-read
@@ -414,4 +414,4 @@
 
 (def mkdir create-dir)
 
-(events/push {:type :require :ns "shashurup.quf.fs"})
+(response/client-require "shashurup.quf.fs")

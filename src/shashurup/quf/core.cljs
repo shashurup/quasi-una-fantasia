@@ -182,12 +182,6 @@
                                  (gdom/getElementsByClass "quf-input"))}
                    nil)))
 
-(defn out-class [line]
-  (cond
-    (:out line) "quf-out"
-    (:err line) "quf-err"
-    (:ex line)  "quf-ex"))
-
 (def out-class-map {:out "quf-out"
                     :err "quf-err"
                     :ex "quf-ex"})
@@ -202,17 +196,45 @@
   (doall (map (fn [el] (.addEventListener el "click" #(checkbox-changed % id)))
               (gdom/getElementsByClass "quf-check" (get-result-element id)))))
 
-(defn remove-progress-bar [id]
-  (gdom/removeNode (gdom/getElement (str "progress-" id))))
+(defn create-progress-bar [id]
+  (let [handler-call (str "shashurup.quf.core.interrupt_eval(" id ")")]
+    (crate/html [:div {:id (str "progress-" id)}
+                 [:progress {:max 100}] " "
+                 [:input {:type "button"
+                          :value "Cancel"
+                          :onclick handler-call}]])))
 
-(defn handle-eval-reply [id {:keys [out err ex value status] :as reply} go-next]
-  (remove-progress-bar id)
+(defn get-progress-element [id]
+  (gdom/getElement (str "progress-" id)))
+
+(defn remove-progress-bar [id]
+  (gdom/removeNode (get-progress-element id)))
+
+(defmulti handle-extra-data #(:shashurup.quf/hint (meta %)))
+
+(defmethod handle-extra-data :progress [{:keys [percent message]} id]
+  (let [progress-el (get-progress-element id)]
+    (when percent
+      (when-let [el (first (gdom/getElementsByTagName "progress" progress-el))]
+        (set! (.-value el) percent)))
+    (when message
+      (if-let [el (first (gdom/getElementsByTagName "p" progress-el))]
+        (.replaceChildren el message)
+        (.insertBefore progress-el
+                       (crate/html [:p message])
+                       (.-firstChild progress-el))))))
+
+(defn handle-eval-reply [id
+                         {:keys [out err ex value x-data status] :as reply}
+                         go-next]
   (cond
     (contains? reply :value) (render-result value (get-result-element id))
     (some reply out-keys) (gdom/append (get-out-element id)
                                        (make-out-line reply))
     (:event-queue-size reply) (process-events reply)
+    x-data (handle-extra-data x-data id)
     (nrepl/terminated? status) (do
+                                 (remove-progress-bar id)
                                  (process-tab)
                                  (uncheck-cell id)
                                  (hook-checkboxes id)
@@ -222,34 +244,6 @@
                                                   "quf-err"
                                                   (get-out-element id))))
                                    (focus-next-cell id)))))
-
-(defn apply-result [id result go-next]
-  (let [valdiv (get-result-element id)
-        outdiv (get-out-element id)
-        success (not-any? :ex (:out result))]
-    (process-events result)
-    (process-tab)
-    (gdom/removeChildren outdiv)
-    (apply gdom/append
-           outdiv
-           (for [line (:out result)]
-             (crate/html [:p {:class (out-class line)}
-                          (s/join ", " (vals line))])))
-    (gdom/removeChildren valdiv)
-    (uncheck-cell id)
-    (mapv #(render-result % valdiv) (:value result))
-    (hook-checkboxes id)
-    (.scrollIntoView (get-cell-element id))
-    (when (and success go-next)
-      (focus-next-cell id))))
-
-(defn create-progress-bar [id]
-  (let [handler-call (str "shashurup.quf.core.interrupt_eval(" id ")")]
-    (crate/html [:div {:id (str "progress-" id)}
-                 [:progress] " "
-                 [:input {:type "button"
-                          :value "Cancel"
-                          :onclick handler-call}]])))
 
 (defn selection-updates []
   (let [[{sel :selection} _] (swap-vals! app-state update :selection (constantly []))]

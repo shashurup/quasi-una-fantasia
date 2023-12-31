@@ -28,6 +28,7 @@
 
 (defn wrap-selection [h]
   (fn [{:keys [op session selection-updates] :as msg}]
+    (prn msg)
     (when (and (= op "eval") (not-empty selection-updates))
       (swap! session update-selection selection-updates))
     (h msg)))

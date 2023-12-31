@@ -2,6 +2,7 @@
   (:require [shashurup.quf.config :as cfg]
             [shashurup.quf.events :as events]
             [shashurup.quf.history :as hist]
+            [shashurup.quf.response :as response]
             [shashurup.quf.selection :as selection]
             [compojure.core :refer :all]
             [compojure.route :as route]
@@ -15,16 +16,9 @@
             [nrepl.core :as nrepl]
             [nrepl.server :as srv]))
 
-(defn pr-with-meta [subj target _]
-  (binding [*out* target
-            *print-meta* true]
-    (pr subj)))
-
 (defn create-transport []
   (let [[client server] (t/piped-transports)]
-    (future (srv/handle (srv/default-handler #'hist/wrap-history
-                                             #'events/wrap-events
-                                             #'cfg/wrap-config
+    (future (srv/handle (srv/default-handler #'response/wrap-extra-data
                                              #'selection/wrap-selection)
                         server))
     client))

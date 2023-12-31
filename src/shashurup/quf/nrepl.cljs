@@ -36,7 +36,7 @@
 
 (defn add-callback [id callback]
   (when id
-    (swap! state assoc-in [:callbacks id] callback)))
+    (first (swap-vals! state assoc-in [:callbacks id] callback))))
 
 (defn remove-callback [id]
   (when id
@@ -77,7 +77,10 @@
 (defn handle-replies [replies]
   (doall (map (fn [{:keys [id status] :as reply}]
                 (when-let [callback (get-callback id)]
-                  (callback reply))
+                  (try
+                    (callback reply)
+                    (catch js/Object ex
+                      (.log js/console ex))))
                 (when (and id (terminated? status))
                   (remove-callback id)))
               replies))
@@ -85,15 +88,13 @@
     (receive-messages handle-replies)))
 
 (defn send-op [op callback]
-  (let [already-waiting (pending-callbacks?)
-        id (new-id)
+  (let [id (new-id)
         op (-> op
                (assoc :id id)
                (merge (select-keys @state [:session])))]
-    (add-callback id callback)
-    (if already-waiting
-      (send-message op nil)
-      (send-message op handle-replies :wait-reply 1))
+    (if (empty? (:callbacks (add-callback id callback)))
+      (send-message op handle-replies :wait-reply 1)
+      (send-message op nil))
     id))
 
 (defn send-clone [callback]
@@ -103,18 +104,22 @@
              (when callback
                (callback new-session)))))
 
+(defn read-values [subj keys]
+  (reduce (fn [m k]
+            (if (contains? m k)
+              (update m k read-value)
+              m)) subj keys))
+
 (defn send-eval
   ([expr callback] (send-eval expr callback nil))
   ([expr callback extra]
    (send-op (merge {:op "eval"
                     :code expr
                     :nrepl.middleware.print/print
-                    "shashurup.quf.srv/pr-with-meta"}
+                    "shashurup.quf.response/pr-with-meta"}
                    extra)
             (fn [reply]
-              (let [reply (if (:value reply)
-                            (update reply :value read-value)
-                            reply)]
+              (let [reply (read-values reply [:value :x-data])]
                 (when (terminated? (:status reply))
                   (history-append expr))
                 (when-let [ns (:ns reply)]
