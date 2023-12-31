@@ -6,7 +6,8 @@
    [monger.core :as mg]
    [monger.collection :as mc]
    [monger.credentials :as mcreds]
-   [shashurup.quf.secrets :as secrets]))
+   [shashurup.quf.secrets :as secrets]
+   [shashurup.quf.response :as resp]))
 
 (def ^:dynamic *current*)
 
@@ -139,12 +140,12 @@
   "Lists database schemas. Optional argument is a database to query."
   [& args]
   (let [[db _] (preprocess args)]
-    (with-meta
-      (transform 
-       (jdbc/with-db-metadata [m (resolve-creds db)]
-         (jdbc/metadata-query (.getSchemas m)))
-       {:table_schem :schema})
-      {:shashurup.quf/hint :table})))
+    (resp/hint
+     (transform 
+      (jdbc/with-db-metadata [m (resolve-creds db)]
+        (jdbc/metadata-query (.getSchemas m)))
+      {:table_schem :schema})
+     :table)))
 
 (defn df
   "Lists database functions, args are:
@@ -158,14 +159,14 @@
         [schema fun] (if (> (count args) 1)
                          args
                          [nil (first args)])]
-    (with-meta
-      (transform 
-       (jdbc/with-db-metadata [m (resolve-creds db)]
-         (jdbc/metadata-query (.getFunctions m nil schema fun)))
-       {:function_schem :schema
-        :function_name :function
-        :remarks :remarks})
-      {:shashurup.quf/hint :table})))
+    (resp/hint
+     (transform 
+      (jdbc/with-db-metadata [m (resolve-creds db)]
+        (jdbc/metadata-query (.getFunctions m nil schema fun)))
+      {:function_schem :schema
+       :function_name :function
+       :remarks :remarks})
+     :table)))
 
 (defn dt
   "Lists database tables, args are:
@@ -179,14 +180,14 @@
         [schema table] (if (> (count args) 1)
                          args
                          [nil (first args)])]
-    (with-meta
-      (transform 
-       (jdbc/with-db-metadata [m (resolve-creds db)]
-         (jdbc/metadata-query (.getTables m nil schema table nil)))
-       {:table_type :type
-        :table_schem :schema
-        :table_name :table})
-      {:shashurup.quf/hint :table})))
+    (resp/hint
+     (transform 
+      (jdbc/with-db-metadata [m (resolve-creds db)]
+        (jdbc/metadata-query (.getTables m nil schema table nil)))
+      {:table_type :type
+       :table_schem :schema
+       :table_name :table})
+     :table)))
 
 (defn d
   "Describe database table, args are:
@@ -200,14 +201,14 @@
         [schema table] (if (> (count args) 1)
                          args
                          [nil (first args)])]
-    (with-meta
-      (transform 
-       (jdbc/with-db-metadata [m (resolve-creds db)]
-         (jdbc/metadata-query (.getColumns m nil schema table nil)))
-       {:table_schem :schema
-        :table_name :table
-        :column_name :column
-        :type_name :type
-        :column_size :size
-        :is_nullable :null})
-      {:shashurup.quf/hint :table})))
+    (resp/hint
+     (transform 
+      (jdbc/with-db-metadata [m (resolve-creds db)]
+        (jdbc/metadata-query (.getColumns m nil schema table nil)))
+      {:table_schem :schema
+       :table_name :table
+       :column_name :column
+       :type_name :type
+       :column_size :size
+       :is_nullable :null})
+     :table)))

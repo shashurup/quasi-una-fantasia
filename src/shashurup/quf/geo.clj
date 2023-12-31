@@ -1,6 +1,7 @@
 (ns shashurup.quf.geo
   (:require [clojure.set :as set]
-            [shashurup.quf.events :as events]))
+            [shashurup.quf.events :as events]
+            [shashurup.quf.response :as resp]))
 
 (defn normalize-data [data]
   (cond
@@ -28,8 +29,6 @@
           :tag or :type to automatically color objects
         a collection of vectors with [geometry label tag]"
   [subj]
-  (with-meta
-    (normalize-data subj)
-    {:shashurup.quf/hint :geodata}))
+  (resp/hint (normalize-data subj) :geodata))
 
 (events/push {:type :require :ns "shashurup.quf.ol"})

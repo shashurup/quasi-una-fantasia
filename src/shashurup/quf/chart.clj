@@ -1,6 +1,7 @@
 (ns shashurup.quf.chart
   (:require [clojure.math :as math]
-            [shashurup.quf.events :as events]))
+            [shashurup.quf.events :as events]
+            [shashurup.quf.response :as resp]))
 
 (def grid [10 15 20 25 30 40 50 60 70 80 90 100])
 
@@ -21,7 +22,7 @@
   (for [x data]
     (if (coll? x) x [(str x) x])))
 
-(defn show [data type] (with-meta (normalize data) {:shashurup.quf/hint [:chart type]}))
+(defn show [data type] (resp/hint (normalize data) [:chart type]))
 
 (defn bar [data] (show data :bar))
 
@@ -31,7 +32,7 @@
 
 (defn doughnut [data] (show data :doughnut))
 
-(defn scatter [data] (with-meta data {:shashurup.quf/hint [:chart :scatter]}))
+(defn scatter [data] (resp/hint data [:chart :scatter]))
 
 (defn histogram
   ([data] (histogram 11 data))

@@ -5,7 +5,7 @@
            [java.time.temporal ChronoUnit]
            [org.apache.tika Tika])
   (:require [clojure.string :as s]
-            [shashurup.quf.quf :as quf]
+            [shashurup.quf.response :as resp]
             [shashurup.quf.data :as data]
             [shashurup.quf.response :as response]))
 
@@ -204,14 +204,14 @@
         [keyfn cmp] (if (vector? sort)
                       [(first sort) #(- (compare %1 %2))]
                       [sort compare])]
-    (quf/hint (if (or filter2
-                      (:directory? (attrs path)))
-                (->> (files path)
-                     (clojure.core/filter filter)
-                     (clojure.core/filter filter2)
-                     (sort-by keyfn cmp))
-                [(attrs path)])
-              [mode :shashurup.quf.fs/file cols])))
+    (resp/hint (if (or filter2
+                       (:directory? (attrs path)))
+                 (->> (files path)
+                      (clojure.core/filter filter)
+                      (clojure.core/filter filter2)
+                      (sort-by keyfn cmp))
+                 [(attrs path)])
+               [mode :shashurup.quf.fs/file cols])))
 
 (defn f
   "Find files, args can be:
@@ -236,7 +236,7 @@
                   (constantly true))
         filters (cons skip-fn
                       (map mk-matcher exprs))]
-    (quf/hint
+    (resp/hint
      (->> (rest (tree abs-path skip-fn))
           (filter (apply every-pred filters))
           (map #(assoc % :name (relative-path abs-path (:path %)))))
@@ -306,7 +306,7 @@
                                        (let [url (absolute-url (:path obj))]
                                          (or (naive-mime-type url)
                                              (deep-mime-type url))))))]
-    (quf/hint obj [:object-attr :shashurup.quf.fs/file :content])))
+    (resp/hint obj [:object-attr :shashurup.quf.fs/file :content])))
 
 
 (defn t
