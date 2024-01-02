@@ -224,9 +224,8 @@
                                  (hook-checkboxes id)
                                  (.scrollIntoView (get-cell-element id))
                                  (when (and go-next
-                                            (not (gdom/getElementByClass
-                                                  "quf-err"
-                                                  (get-out-element id))))
+                                            (.hasChildNodes
+                                             (get-result-element id)))
                                    (focus-next-cell id)))))
 
 (defn selection-updates []
