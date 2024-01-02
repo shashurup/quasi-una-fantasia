@@ -573,4 +573,5 @@
 
 (defn plug [input]
   (.addEventListener input "input" handle-input-change)
+  (restructure input)
   (.addEventListener input "paste" handle-paste))
