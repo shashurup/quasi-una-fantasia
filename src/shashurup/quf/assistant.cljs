@@ -78,8 +78,11 @@
              target
              (gdom/getNodeTextLength target)))
 
-(defmulti apply-candidate #(some #{"quf-at-point" "quf-whole-expr"}
-                                 (gcls/get %2)))
+(defn- assistant-content-class [element]
+  (some #{"quf-whole-expr" "quf-at-point"}
+        (gcls/get element)))
+
+(defmulti apply-candidate #(assistant-content-class %2))
 
 (defn replace-text-at-point [new-text]
   (when-let [target (container-at-point)]
@@ -154,8 +157,9 @@
 
 (defn initiate-at-point [id]
   (cancel)
-  (when (sym-or-kwd-at-point?)
-    (nrepl/send-completions (text-at-point) #(show id % "quf-at-point"))))
+  (if (sym-or-kwd-at-point?)
+    (nrepl/send-completions (text-at-point) #(show id % "quf-at-point"))
+    (show id [] nil)))
 
 (defn initiate-history [id]
   (cancel)
@@ -178,11 +182,16 @@
     (replace-text-at-point completion))
   (show id candidates class))
 
-(defn attempt-complete [id]
+(defmulti attempt-complete #(assistant-content-class (get-root-element %)))
+
+(defmethod attempt-complete "quf-at-point" [id]
   (cancel)
   (when (sym-or-kwd-at-point?)
     (nrepl/send-completions (text-at-point)
                             #(complete-and-show id % "quf-at-point"))))
+
+(defmethod attempt-complete "quf-whole-expr" [id]
+  (use-candidate id))
 
 (defn show-doc [id doc]
   (let [root (get-doc-root id)
@@ -204,11 +213,7 @@
                        #(show-doc id %))
       (gdom/removeChildren root))))
 
-(defn- assistant-content-class [id]
-  (some #{"quf-whole-expr" "quf-at-point"}
-        (gcls/get (get-root-element id))))
-
-(defmulti handle-input-change assistant-content-class)
+(defmulti handle-input-change #(assistant-content-class (get-root-element %)))
 
 (defmethod handle-input-change :default [id]
   (schedule #(initiate-at-point id) 1000))
