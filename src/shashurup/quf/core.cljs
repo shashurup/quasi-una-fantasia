@@ -2,8 +2,9 @@
   (:use-macros
    [crate.def-macros :only [defpartial]])
   (:require
-   [shashurup.quf.editor :as editor]
    [shashurup.quf.assistant :as assistant]
+   [shashurup.quf.editor :as editor]
+   [shashurup.quf.history :as history]
    [shashurup.quf.nrepl :as nrepl]
    [shashurup.quf.render :refer [render]]
    [shashurup.quf.utils :as u]
@@ -242,6 +243,8 @@
    (let [expr (-> (get-input-element id)
                   .-textContent
                   (s/replace \u00a0 " "))]
+     (.requestIdleCallback js/window
+                           #(history/log expr))
      (let [req-id (nrepl/send-eval expr
                                    #(handle-eval-reply id % go-next)
                                    (selection-updates))]

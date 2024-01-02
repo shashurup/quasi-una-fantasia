@@ -1,8 +1,9 @@
 (ns shashurup.quf.assistant
   (:require
    [clojure.string :as s]
-   [shashurup.quf.markup :as markup]
    [shashurup.quf.editor :as editor]
+   [shashurup.quf.history :as history]
+   [shashurup.quf.markup :as markup]
    [shashurup.quf.nrepl :as nrepl]
    [crate.core :as crate]
    [goog.dom :as gdom]
@@ -152,9 +153,10 @@
 
 (defn initiate-history [id]
   (cancel)
-  (nrepl/send-history (words-at-cell-input id)
-                      (inc max-completions)
-                      #(show id % "quf-whole-expr")))
+  (let [candidates (->> (words-at-cell-input id)
+                        history/search
+                        (take max-completions))]
+    (show id candidates "quf-whole-expr")))
 
 (defn common-prefix [a b]
   (->> (range (inc (count a)))
