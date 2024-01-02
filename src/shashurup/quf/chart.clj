@@ -1,6 +1,5 @@
 (ns shashurup.quf.chart
   (:require [clojure.math :as math]
-            [shashurup.quf.events :as events]
             [shashurup.quf.response :as resp]))
 
 (def grid [10 15 20 25 30 40 50 60 70 80 90 100])

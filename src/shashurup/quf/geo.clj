@@ -1,6 +1,5 @@
 (ns shashurup.quf.geo
   (:require [clojure.set :as set]
-            [shashurup.quf.events :as events]
             [shashurup.quf.response :as resp]))
 
 (defn normalize-data [data]
