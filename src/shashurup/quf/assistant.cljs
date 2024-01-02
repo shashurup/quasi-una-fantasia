@@ -31,6 +31,11 @@
 (defn text-at-point []
   (.-textContent (container-at-point)))
 
+(defn sym-or-kwd-at-point? []
+  (let [span (.-parentElement (container-at-point))]
+    (or (gcls/has span "quf-symbol")
+        (gcls/has span "quf-keyword"))))
+
 (defn words-at-cell-input [id]
   (let [text (.-textContent (gdom/getElement (str "expr-" id)))]
     (filter not-empty (s/split text #"[\s()]"))))
@@ -149,7 +154,8 @@
 
 (defn initiate-at-point [id]
   (cancel)
-  (nrepl/send-completions (text-at-point) #(show id % "quf-at-point")))
+  (when (sym-or-kwd-at-point?)
+    (nrepl/send-completions (text-at-point) #(show id % "quf-at-point"))))
 
 (defn initiate-history [id]
   (cancel)
@@ -174,8 +180,9 @@
 
 (defn attempt-complete [id]
   (cancel)
-  (nrepl/send-completions (text-at-point)
-                          #(complete-and-show id % "quf-at-point")))
+  (when (sym-or-kwd-at-point?)
+    (nrepl/send-completions (text-at-point)
+                            #(complete-and-show id % "quf-at-point"))))
 
 (defn show-doc [id doc]
   (let [root (get-doc-root id)
