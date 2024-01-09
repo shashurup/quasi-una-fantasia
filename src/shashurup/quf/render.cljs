@@ -5,6 +5,48 @@
             [shashurup.quf.desc :as desc]
             [shashurup.quf.utils :as u]))
 
+;; DOM node-based typing
+
+(defn set-type! [obj type]
+  (set! (.-quf-type obj) type))
+
+(defn reset-type! [obj] (set-type! obj nil))
+
+(defn get-type [obj] (.-quf-type obj))
+
+;; Extra nrepl messages
+
+(defmulti handle-extra-data #(:shashurup.quf/hint (meta %)))
+
+(defmethod handle-extra-data :progress [{:keys [percent message]} id]
+  (let [progress-el (gdom/getElement (str "progress-" id))]
+    (when percent
+      (when-let [el (first (gdom/getElementsByTagName "progress" progress-el))]
+        (set! (.-value el) percent)))
+    (when message
+      (if-let [el (first (gdom/getElementsByTagName "p" progress-el))]
+        (.replaceChildren el message)
+        (.insertBefore progress-el
+                       (crate/html [:p message])
+                       (.-firstChild progress-el))))))
+
+;; Cell output handling
+
+(def out-class-map {:out "quf-out"
+                    :err "quf-err"
+                    :ex "quf-ex"})
+
+(def out-keys #{:out :err :ex})
+
+(defn make-out-line [reply]
+  (crate/html [:p {:class (some out-class-map (keys reply))}
+               (some reply out-keys)]))
+
+(defmulti handle-output #(get-type %1))
+
+(defmethod handle-output :default [target reply]
+  (gdom/append target (make-out-line reply)))
+
 ;; Tree
 
 (defonce check-id (atom 0))

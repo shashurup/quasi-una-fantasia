@@ -2,4 +2,10 @@
   :css-dirs ["resources/public/css"]
   :auto-testing true
    }
-{:main shashurup.quf.core}
+{:main shashurup.quf.core
+ ;; :foreign-libs [{:file "lib/xterm.js"
+ ;;                 :module-type :es6
+ ;;                 :provides ["xterm"]}]
+ :npm-deps {"xterm" "5.1.0"}
+ :install-deps true
+ }

@@ -116,7 +116,7 @@
    (send-op (merge {:op "eval"
                     :code expr
                     :nrepl.middleware.print/print
-                    "shashurup.quf.response/pr-with-meta"}
+                      "shashurup.quf.response/pr-with-meta"}
                    extra)
             (fn [reply]
               (let [reply (read-values reply [:value :x-data])]

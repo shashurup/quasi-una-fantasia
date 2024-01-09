@@ -20,8 +20,12 @@
                  [org.apache.tika/tika-parsers-standard-package "2.7.0"]
                  [crate "0.2.4"]
                  [cljsjs/openlayers "7.2.2-0"]
-                 [cljsjs/chartjs "3.9.1-0"]]
+                 [cljsjs/chartjs "3.9.1-0"]
+                 [org.jetbrains.pty4j/pty4j "0.12.25"]
+                 ]
 
+  :repositories [["JCenter" "https://jcenter.bintray.com/"]]
+  
   :source-paths ["src"]
 
   :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]

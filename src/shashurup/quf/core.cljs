@@ -6,7 +6,11 @@
    [shashurup.quf.editor :as editor]
    [shashurup.quf.history :as history]
    [shashurup.quf.nrepl :as nrepl]
-   [shashurup.quf.render :refer [render]]
+   [shashurup.quf.render :refer [render
+                                 handle-output
+                                 handle-extra-data
+                                 out-keys
+                                 reset-type!]]
    [shashurup.quf.utils :as u]
    [goog.dom :as gdom]
    [goog.dom.classlist :as gcls]
@@ -165,16 +169,6 @@
                         store-tab)
   (append-cell))
 
-(def out-class-map {:out "quf-out"
-                    :err "quf-err"
-                    :ex "quf-ex"})
-
-(def out-keys #{:out :err :ex})
-
-(defn make-out-line [reply]
-  (crate/html [:p {:class (some out-class-map (keys reply))}
-               (some reply out-keys)]))
-
 (defn hook-checkboxes [id]
   (doall (map (fn [el] (.addEventListener el "click" #(checkbox-changed % id)))
               (gdom/getElementsByClass "quf-check" (get-result-element id)))))
@@ -193,30 +187,15 @@
 (defn remove-progress-bar [id]
   (gdom/removeNode (get-progress-element id)))
 
-(defmulti handle-extra-data #(:shashurup.quf/hint (meta %)))
-
 (defmethod handle-extra-data :require [{ :keys [ns]} _]
   (goog/require ns))
-
-(defmethod handle-extra-data :progress [{:keys [percent message]} id]
-  (let [progress-el (get-progress-element id)]
-    (when percent
-      (when-let [el (first (gdom/getElementsByTagName "progress" progress-el))]
-        (set! (.-value el) percent)))
-    (when message
-      (if-let [el (first (gdom/getElementsByTagName "p" progress-el))]
-        (.replaceChildren el message)
-        (.insertBefore progress-el
-                       (crate/html [:p message])
-                       (.-firstChild progress-el))))))
 
 (defn handle-eval-reply [id
                          {:keys [out err ex value x-data status] :as reply}
                          go-next]
   (cond
     (contains? reply :value) (render-result value (get-result-element id))
-    (some reply out-keys) (gdom/append (get-out-element id)
-                                       (make-out-line reply))
+    (some reply out-keys) (handle-output (get-out-element id) reply)
     x-data (handle-extra-data x-data id)
     (nrepl/terminated? status) (do
                                  (remove-progress-bar id)
@@ -240,7 +219,8 @@
      (gdom/removeChildren)
      (gdom/appendChild (create-progress-bar id)))
    (doto (get-out-element id)
-     (gdom/removeChildren))
+     (gdom/removeChildren)
+     (reset-type!))
    (let [expr (-> (get-input-element id)
                   .-textContent
                   (s/replace \u00a0 " "))]
