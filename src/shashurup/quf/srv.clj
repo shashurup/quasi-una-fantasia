@@ -1,6 +1,6 @@
 (ns shashurup.quf.srv
   (:require [shashurup.quf.response :as response]
-            [shashurup.quf.selection :as selection]
+            [shashurup.quf.vars :as vars]
             [compojure.core :refer :all]
             [compojure.route :as route]
             [compojure.coercions :refer [as-int]]
@@ -16,7 +16,7 @@
 (defn create-transport []
   (let [[client server] (t/piped-transports)]
     (future (srv/handle (srv/default-handler #'response/wrap-extra-data
-                                             #'selection/wrap-selection)
+                                             #'vars/wrap-update-vars)
                         server))
     client))
 

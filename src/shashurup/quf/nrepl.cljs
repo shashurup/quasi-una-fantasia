@@ -141,3 +141,7 @@
             :terms terms
             :limit limit}
            #(callback (:matches %))))
+
+(defn send-update-vars [updates]
+  (send-op {:op "update-vars"
+            :updates (pr-str updates)} nil))

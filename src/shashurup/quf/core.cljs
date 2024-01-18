@@ -21,18 +21,20 @@
    [cljs.pprint :as pp]
    [cljs.tools.reader :refer [read-string]]))
 
-(defonce app-state (atom {:selection []}))
+(defonce app-state (atom {}))
 
 (defonce cell-id (atom 0))
 
 (defn checkbox-changed [event id]
-  (let [checkbox (.-target event)]
-    (swap! app-state update :selection conj [id
-                                             (.-value checkbox)
-                                             (.-checked checkbox)])))
+  (let [checkbox (.-target event)
+        upd [id (.-value checkbox) (.-checked checkbox)]]
+    (nrepl/send-update-vars [['*selection* 'update-selection upd]
+                             ['*s 'set-current-selection]])))
 
 (defn uncheck-cell [id]
-  (swap! app-state update :selection conj [id nil false]))
+  (nrepl/send-update-vars [['*selection*
+                            'update-selection
+                            [id nil false]]]))
 
 (defn new-cell-id []
   (swap! cell-id inc))
@@ -207,11 +209,6 @@
                                              (get-result-element id)))
                                    (focus-next-cell id)))))
 
-(defn selection-updates []
-  (let [[{sel :selection} _] (swap-vals! app-state update :selection (constantly []))]
-    (when (not-empty sel)
-      {:selection-updates sel})))
-
 (defn eval-cell
   ([id] (eval-cell id true))
   ([id go-next]
@@ -229,8 +226,7 @@
      (.requestIdleCallback js/window
                            store-tab)
      (let [req-id (nrepl/send-eval expr
-                                   #(handle-eval-reply id % go-next)
-                                   (selection-updates))]
+                                   #(handle-eval-reply id % go-next))]
        (swap! app-state assoc-in [:requests (str id)] req-id)))))
 
 (defn eval-cell-and-stay [id] (eval-cell id false))

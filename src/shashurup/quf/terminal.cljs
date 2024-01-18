@@ -19,7 +19,9 @@
 
 (defmethod handle-extra-data :terminal [_ id]
   (let [el (get-out-element id)
-        terminal (xterm/Terminal. #js {:convertEol true})]
+        terminal (xterm/Terminal. #js {:convertEol true
+                                       :fontFamily "Monospace"
+                                       :fontSize 13})]
     (set-type! el :terminal)
     (set! (.-quf-terminal el) terminal)
     (.open terminal el)
