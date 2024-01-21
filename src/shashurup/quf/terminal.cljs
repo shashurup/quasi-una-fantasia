@@ -72,6 +72,11 @@
     (set-type! el :terminal)
     (set! (.-quf-terminal el) terminal)
     (.resize terminal cols rows)
+    (gevents/listen js/window
+                    "resize"
+                    (fn [_]
+                      (let [[cols rows] (terminal-dimensions)]
+                        (.resize terminal cols rows))))
     (.open terminal el)
     (.onKey terminal handle-key)
     (.focus terminal)))
