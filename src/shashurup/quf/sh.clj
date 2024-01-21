@@ -1,9 +1,10 @@
 (ns shashurup.quf.sh
   (:require [clojure.java.io :as io]
             [clojure.string :as s]
-            [shashurup.quf.response :as resp]
             [shashurup.quf.data :as d]
-            [shashurup.quf.fs :as fs])
+            [shashurup.quf.fs :as fs]
+            [shashurup.quf.response :as resp]
+            [shashurup.quf.vars :refer [*term-dimensions*]])
   (:import [java.lang ProcessBuilder ProcessBuilder$Redirect]
            [com.pty4j PtyProcessBuilder]))
 
@@ -78,11 +79,14 @@
 
 (defn- start-process-with-pty [cmd dir]
   (let [env (java.util.HashMap. (System/getenv))
+        [cols rows] (or *term-dimensions* [80 24]) 
         _ (.put env "TERM" "xterm")
         p (-> (PtyProcessBuilder. (into-array String cmd))
               (.setRedirectErrorStream true)
               (.setDirectory dir)
               (.setEnvironment env)
+              (.setInitialColumns (int cols))
+              (.setInitialRows (int rows))
               .start)]
     {:in (io/writer (.getOutputStream p))
      :out (io/reader (.getInputStream p))
