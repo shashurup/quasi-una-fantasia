@@ -80,5 +80,6 @@
   (.write (.-quf-terminal target)
           (some reply [:out :err])))
 
+(gevents/listen js/window "resize" send-terminal-dimensions)
 (send-terminal-dimensions)
 (u/add-style-ref "css/xterm.css")
