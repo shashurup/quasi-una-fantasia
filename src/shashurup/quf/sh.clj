@@ -6,7 +6,7 @@
             [shashurup.quf.response :as resp]
             [shashurup.quf.vars :refer [*term-dimensions*]])
   (:import [java.lang ProcessBuilder ProcessBuilder$Redirect]
-           [com.pty4j PtyProcessBuilder]))
+           [com.pty4j PtyProcessBuilder WinSize]))
 
 ;; clojure.java.shell/sh always create a pipe for stdin
 ;; this ins't always what we need
@@ -77,6 +77,10 @@
             result)
           (throw (Exception. (str "Exit code " exit))))))))
 
+(defn- resize [process]
+  (let [[cols rows] (or *term-dimensions* [80 24])]
+    (.setWinSize process (WinSize. (int cols) (int rows)))))
+
 (defn- start-process-with-pty [cmd dir]
   (let [env (java.util.HashMap. (System/getenv))
         [cols rows] (or *term-dimensions* [80 24]) 
@@ -90,16 +94,21 @@
               .start)]
     {:in (io/writer (.getOutputStream p))
      :out (io/reader (.getInputStream p))
-     :wait #(.waitFor p)}))
+     :wait #(.waitFor p)
+     :resize #(resize p)}))
 
-(defn flushing-copy [from to]
-  (let [buffer (make-array Character/TYPE 1024)]
+;; TODO use ESC[0m as a magic sequence to resize the terminal
+(defn flushing-copy [from to action-map]
+  (let [buffer (char-array 1024)]
     (loop []
       (let [size (.read from buffer)]
         (when (pos? size)
-          (do (.write to buffer 0 size)
-              (.flush to)
-              (recur)))))))
+          (if-let [action (get action-map
+                               (apply str (take size buffer)))]
+            (action)
+            (do (.write to buffer 0 size)
+                (.flush to)))
+          (recur))))))
 
 (defn !
   "Launches a subprocess interactively.
@@ -113,13 +122,13 @@
   
   Return value is a process return code."
   [& args]
-  (resp/send-extra-data (resp/hint {} :terminal))
+  (resp/print-with-hint {} :terminal)
   (let [args (if (> (count args) 1)
                args
                (remove empty? (s/split (first args) #"\s")))
-        {:keys [in out wait]} (start-process-with-pty args fs/*cwd*)]
-    (let [in-handler (future (flushing-copy *in* in))]
-      (flushing-copy out *out*)
+        {:keys [in out wait resize]} (start-process-with-pty args fs/*cwd*)]
+    (let [in-handler (future (flushing-copy *in* in {"\u001b[0m" resize}))]
+      (flushing-copy out *out* {})
       (future-cancel in-handler))
     (wait)))
 

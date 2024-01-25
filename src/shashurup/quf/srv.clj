@@ -15,8 +15,7 @@
 
 (defn create-transport []
   (let [[client server] (t/piped-transports)]
-    (future (srv/handle (srv/default-handler #'response/wrap-extra-data
-                                             #'vars/wrap-update-vars)
+    (future (srv/handle (srv/default-handler #'vars/wrap-update-vars)
                         server))
     client))
 

@@ -3,32 +3,21 @@
             [crate.core :as crate]
             [goog.dom :as gdom]
             [shashurup.quf.desc :as desc]
+            [shashurup.quf.nrepl :as nrepl]
             [shashurup.quf.utils :as u]))
 
-;; DOM node-based typing
+(defmulti render (fn [subj]
+                   (if-let [hint (:shashurup.quf/hint (meta subj))]
+                     (if (keyword? hint)
+                       hint
+                       (first hint))
+                     (type subj))))
 
-(defn set-type! [obj type]
-  (set! (.-quf-type obj) type))
+(defn get-result-element [id]
+  (gdom/getElement (str "result-" id)))
 
-(defn reset-type! [obj] (set-type! obj nil))
-
-(defn get-type [obj] (.-quf-type obj))
-
-;; Extra nrepl messages
-
-(defmulti handle-extra-data #(:shashurup.quf/hint (meta %)))
-
-(defmethod handle-extra-data :progress [{:keys [percent message]} id]
-  (let [progress-el (gdom/getElement (str "progress-" id))]
-    (when percent
-      (when-let [el (first (gdom/getElementsByTagName "progress" progress-el))]
-        (set! (.-value el) percent)))
-    (when message
-      (if-let [el (first (gdom/getElementsByTagName "p" progress-el))]
-        (.replaceChildren el message)
-        (.insertBefore progress-el
-                       (crate/html [:p message])
-                       (.-firstChild progress-el))))))
+(defn get-out-element [id]
+  (gdom/getElement (str "out-" id)))
 
 ;; Cell output handling
 
@@ -42,10 +31,43 @@
   (crate/html [:p {:class (some out-class-map (keys reply))}
                (some reply out-keys)]))
 
-(defmulti handle-output #(get-type %1))
+(defn render-result [val target]
+  (let [r (render val)]
+    (if (fn? r)
+      (r target)
+      (gdom/appendChild target (crate/html r)))))
 
-(defmethod handle-output :default [target reply]
-  (gdom/append target (make-out-line reply)))
+(defn default-eval-reply-handler [id {:keys [out err ex value status] :as reply}]
+  (cond
+    (contains? reply :value) (render-result value (get-result-element id))
+    (some reply out-keys) (gdom/append (get-out-element id) (make-out-line reply))))
+
+(defonce eval-reply-handler (atom default-eval-reply-handler))
+
+;; Extra nrepl messages
+
+(defn update-progress [id [message value max]]
+  (let [progress-el (gdom/getElement (str "progress-" id))]
+    (when value
+      (when-let [el (first (gdom/getElementsByTagName "progress" progress-el))]
+        (set! (.-value el) value)
+        (when max
+          (set! (.-max el) max))))
+    (when message
+      (if-let [el (first (gdom/getElementsByTagName "p" progress-el))]
+        (.replaceChildren el message)
+        (.insertBefore progress-el
+                       (crate/html [:p message])
+                       (.-firstChild progress-el))))))
+
+(defn wrap-progress-handler [handler]
+  (fn [id {:keys [out] :as reply}]
+    (let [data (nrepl/try-read-value-with-meta out)]
+      (if (= (:shashurup.quf/hint (meta data)) :progress)
+        (update-progress id data)
+        (handler id reply)))))
+
+(swap! eval-reply-handler wrap-progress-handler)
 
 ;; Tree
 
@@ -56,13 +78,6 @@
 
 (defn make-scalar [class val]
   [:span {:class class} (pr-str val)])
-
-(defmulti render (fn [subj]
-                   (if-let [hint (:shashurup.quf/hint (meta subj))]
-                     (if (keyword? hint)
-                       hint
-                       (first hint))
-                     (type subj))))
 
 (defmethod render :default [subj]
   [:span.quf (pr-str subj)])

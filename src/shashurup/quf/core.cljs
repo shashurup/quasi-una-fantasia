@@ -6,11 +6,7 @@
    [shashurup.quf.editor :as editor]
    [shashurup.quf.history :as history]
    [shashurup.quf.nrepl :as nrepl]
-   [shashurup.quf.render :refer [render
-                                 handle-output
-                                 handle-extra-data
-                                 out-keys
-                                 reset-type!]]
+   [shashurup.quf.render :refer [eval-reply-handler]]
    [shashurup.quf.utils :as u]
    [goog.dom :as gdom]
    [goog.dom.classlist :as gcls]
@@ -65,12 +61,6 @@
                [:div.quf-doc {:id (str "doc-" id)}]
                [:div {:id (str "out-" id)}]
                [:div.quf-result {:id (str "result-" id)}]]))
-
-(defn render-result [val target]
-  (let [r (render val)]
-    (if (fn? r)
-      (r target)
-      (gdom/appendChild target (crate/html r)))))
 
 (defn key-event->str [e]
   (str (when (.-altKey e) "A-")
@@ -178,7 +168,7 @@
 (defn create-progress-bar [id]
   (let [handler-call (str "shashurup.quf.core.interrupt_eval(" id ")")]
     (crate/html [:div {:id (str "progress-" id)}
-                 [:progress {:max 100}] " "
+                 [:progress] " "
                  [:input {:type "button"
                           :value "Cancel"
                           :onclick handler-call}]])))
@@ -189,25 +179,29 @@
 (defn remove-progress-bar [id]
   (gdom/removeNode (get-progress-element id)))
 
-(defmethod handle-extra-data :require [{ :keys [ns]} _]
-  (goog/require ns))
+(defn wrap-require-handler [handler]
+  (fn [id {:keys [out] :as reply}]
+    (let [data (nrepl/try-read-value-with-meta out)]
+      (if (= (:shashurup.quf/hint (meta data)) :require)
+        (doseq [ns data] (goog/require ns))
+        (handler id reply)))))
+
+(swap! eval-reply-handler wrap-require-handler)
 
 (defn handle-eval-reply [id
-                         {:keys [out err ex value x-data status] :as reply}
+                         {:keys [x-data status] :as reply}
                          go-next]
-  (cond
-    (contains? reply :value) (render-result value (get-result-element id))
-    (some reply out-keys) (handle-output (get-out-element id) reply)
-    x-data (handle-extra-data x-data id)
-    (nrepl/terminated? status) (do
-                                 (remove-progress-bar id)
-                                 (uncheck-cell id)
-                                 (hook-checkboxes id)
-                                 (.scrollIntoView (get-cell-element id))
-                                 (when (and go-next
-                                            (.hasChildNodes
-                                             (get-result-element id)))
-                                   (focus-next-cell id)))))
+  (let [handler @eval-reply-handler]
+    (handler id reply))
+  (when (nrepl/terminated? status)
+    (remove-progress-bar id)
+    (uncheck-cell id)
+    (hook-checkboxes id)
+    (.scrollIntoView (get-cell-element id))
+    (when (and go-next
+               (.hasChildNodes
+                (get-result-element id)))
+      (focus-next-cell id))))
 
 (defn eval-cell
   ([id] (eval-cell id true))
@@ -216,8 +210,7 @@
      (gdom/removeChildren)
      (gdom/appendChild (create-progress-bar id)))
    (doto (get-out-element id)
-     (gdom/removeChildren)
-     (reset-type!))
+     (gdom/removeChildren))
    (let [expr (-> (get-input-element id)
                   .-textContent
                   (s/replace \u00a0 " "))]

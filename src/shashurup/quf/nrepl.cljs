@@ -14,6 +14,12 @@
     'inst (js/Date. arg)
     (with-meta [tag arg] {:shashurup.quf/hint :tag})))
 
+(defn try-read-value-with-meta [subj]
+  (when (= (first subj) "^")
+    (try
+      (read-string subj)
+      (catch js/Object _))))
+
 (defn read-value [subj]
   (try
     (binding [cljs.tools.reader/*default-data-reader-fn* handle-tag]

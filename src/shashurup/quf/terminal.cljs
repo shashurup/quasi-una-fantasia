@@ -5,9 +5,7 @@
             [goog.dom :as gdom]
             [goog.events :as gevents]
             [shashurup.quf.nrepl :as nrepl]
-            [shashurup.quf.render :refer [handle-extra-data
-                                          handle-output
-                                          set-type!]]
+            [shashurup.quf.render :refer [eval-reply-handler]]
             [shashurup.quf.utils :as u]
             [xterm]))
 
@@ -57,20 +55,27 @@
 (defn get-out-element [id]
   (gdom/getElement (str "out-" id)))
 
-(defn handle-key [subj]
-  (.log js/console subj)
+(defn send-stdin [subj]
   (nrepl/send-op {:op "stdin"
-                  :stdin (.-key subj)}
+                  :stdin subj}
                  nil))
 
-(defmethod handle-extra-data :terminal [_ id]
+(defn handle-key [subj]
+  (send-stdin (.-key subj)))
+
+(defn handle-resize [_]
+  (send-terminal-dimensions)
+  (send-stdin "\u001b[0m"))
+
+(defonce terminals (atom {}))
+
+(defn plug-terminal [id]
   (let [el (get-out-element id)
         [cols rows] (terminal-dimensions)
         terminal (xterm/Terminal. #js {:convertEol true
                                        :fontFamily (first font)
                                        :fontSize (second font)})]
-    (set-type! el :terminal)
-    (set! (.-quf-terminal el) terminal)
+    (swap! terminals assoc id terminal)
     (.resize terminal cols rows)
     (gevents/listen js/window
                     "resize"
@@ -81,10 +86,24 @@
     (.onKey terminal handle-key)
     (.focus terminal)))
 
-(defmethod handle-output :terminal [target reply]
-  (.write (.-quf-terminal target)
-          (some reply [:out :err])))
+(defn deactivate-terminal [id]
+  (swap! terminals dissoc id))
 
-(gevents/listen js/window "resize" send-terminal-dimensions)
+(defn wrap-terminal-handler [handler]
+  (fn [id {:keys [out err status] :as reply}]
+    (if-let [terminal (get @terminals id)]
+      (cond 
+        (or out err) (.write terminal (or out err))
+        (nrepl/terminated? status) (do (deactivate-terminal id)
+                                       (handler id reply))
+        :else (handler id reply))
+      (let [data (nrepl/try-read-value-with-meta out)]
+        (if (= (:shashurup.quf/hint (meta data)) :terminal)
+          (plug-terminal id)
+          (handler id reply))))))
+
+(swap! eval-reply-handler wrap-terminal-handler)
+
+(gevents/listen js/window "resize" handle-resize)
 (send-terminal-dimensions)
 (u/add-style-ref "css/xterm.css")
