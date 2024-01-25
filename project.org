@@ -17,9 +17,9 @@
 * TODO Привести в порядок модули editor, completions и т.д.
 * DONE Поиск по истории должен игнорить скобки
 * DONE Вставляем только голый текст, без форматирования
-* TODO Initialize cljs thing in a reload-safe way
+* DONE Initialize cljs thing in a reload-safe way
 * TODO Сломалось отображение документации по символу под курсором
-* TODO Обновление переменной *selection* случается при каждом eval даже если у нас ничего нет в result
+* DONE Обновление переменной *selection* случается при каждом eval даже если у нас ничего нет в result
   https://stackoverflow.com/questions/58980235/stop-pasting-html-style-in-a-contenteditable-div-only-paste-the-plain-text
 * Сценарии
 ** Отображение в виде таблицы

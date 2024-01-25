@@ -102,8 +102,9 @@
           (plug-terminal id)
           (handler id reply))))))
 
-(swap! eval-reply-handler wrap-terminal-handler)
-
-(gevents/listen js/window "resize" handle-resize)
-(send-terminal-dimensions)
-(u/add-style-ref "css/xterm.css")
+(defonce startup-dummy 
+  (do
+    (swap! eval-reply-handler wrap-terminal-handler)
+    (gevents/listen js/window "resize" handle-resize)
+    (send-terminal-dimensions)
+    (u/add-style-ref "css/xterm.css")))

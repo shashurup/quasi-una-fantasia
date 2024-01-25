@@ -21,17 +21,6 @@
 
 (defonce cell-id (atom 0))
 
-(defn checkbox-changed [event id]
-  (let [checkbox (.-target event)
-        upd [id (.-value checkbox) (.-checked checkbox)]]
-    (nrepl/send-update-vars [['*selection* 'update-selection upd]
-                             ['*s 'set-current-selection]])))
-
-(defn uncheck-cell [id]
-  (nrepl/send-update-vars [['*selection*
-                            'update-selection
-                            [id nil false]]]))
-
 (defn new-cell-id []
   (swap! cell-id inc))
 
@@ -49,6 +38,23 @@
 
 (defn get-out-element [id]
   (gdom/getElement (str "out-" id)))
+
+(defn checkbox-changed [event id]
+  (let [checkbox (.-target event)
+        upd [id (.-value checkbox) (.-checked checkbox)]]
+    (nrepl/send-update-vars [['*selection* 'update-selection upd]
+                             ['*s 'set-current-selection]])))
+
+(defn something-checked? [id]
+  (when-let [el (get-result-element id)]
+    (some (fn [ch] (.-checked ch))
+          (gdom/getElementsByClass "quf-check" el))))
+
+(defn uncheck-cell [id]
+  (when (something-checked? id)
+    (nrepl/send-update-vars [['*selection*
+                              'update-selection
+                              [id nil false]]])))
 
 (defn create-cell [id ns]
   (crate/html [:div.quf-cell {:id (str "cell-" id)}
@@ -144,10 +150,10 @@
 (defn delete-cell [id]
   (let [next-input (find-next-input id)
         prev-input (find-prev-input id)]
+    (uncheck-cell id)
     (gdom/removeNode (get-cell-element id))
     (.requestIdleCallback js/window
                           store-tab)
-    (uncheck-cell id)
     (cond
       next-input (.focus next-input)
       prev-input (.focus prev-input)
@@ -186,8 +192,6 @@
         (doseq [ns data] (goog/require ns))
         (handler id reply)))))
 
-(swap! eval-reply-handler wrap-require-handler)
-
 (defn handle-eval-reply [id
                          {:keys [x-data status] :as reply}
                          go-next]
@@ -195,7 +199,6 @@
     (handler id reply))
   (when (nrepl/terminated? status)
     (remove-progress-bar id)
-    (uncheck-cell id)
     (hook-checkboxes id)
     (.scrollIntoView (get-cell-element id))
     (when (and go-next
@@ -206,6 +209,7 @@
 (defn eval-cell
   ([id] (eval-cell id true))
   ([id go-next]
+   (uncheck-cell id)
    (doto (get-result-element id)
      (gdom/removeChildren)
      (gdom/appendChild (create-progress-bar id)))
@@ -359,13 +363,16 @@
       (when (editor/sexp-mode? id)
         identity)))
 
-(gevents/listen js/window
-                "load"
-                (fn [_]
-                  (append-cell)
-                  (.addEventListener (gdom/getElement "quf-tabname")
-                                     "keydown"
-                                     on-tabname-key)))
+(defonce startup-dummy
+  (do
+    (swap! eval-reply-handler wrap-require-handler)
+    (gevents/listen js/window
+                    "load"
+                    (fn [_]
+                      (append-cell)
+                      (.addEventListener (gdom/getElement "quf-tabname")
+                                         "keydown"
+                                         on-tabname-key)))))
 
 ;; specify reload hook with ^:after-load metadata
 (defn ^:after-load on-reload []

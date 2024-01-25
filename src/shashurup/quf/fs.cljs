@@ -58,4 +58,5 @@
 
 (swap! desc/object-types assoc ::file file)
 
-(u/add-style-ref "css/fs.css")
+(defonce startup-dummy
+  (u/add-style-ref "css/fs.css"))

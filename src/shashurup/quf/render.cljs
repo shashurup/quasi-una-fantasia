@@ -67,8 +67,6 @@
         (update-progress id data)
         (handler id reply)))))
 
-(swap! eval-reply-handler wrap-progress-handler)
-
 ;; Tree
 
 (defonce check-id (atom 0))
@@ -266,3 +264,6 @@
   (let [hint (:shashurup.quf/hint (meta data))
         [_ rndrs _] (desc/table-desc (second hint) [(nth hint 2)])]
     ((first rndrs) data)))
+
+(defonce startup-dummy
+  (swap! eval-reply-handler wrap-progress-handler))
