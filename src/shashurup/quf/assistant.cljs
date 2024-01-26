@@ -184,11 +184,17 @@
 
 (defmulti attempt-complete #(assistant-content-class (get-root-element %)))
 
-(defmethod attempt-complete "quf-at-point" [id]
+(defn attempt-complete-at-point [id]
   (cancel)
   (when (sym-or-kwd-at-point?)
     (nrepl/send-completions (text-at-point)
                             #(complete-and-show id % "quf-at-point"))))
+
+(defmethod attempt-complete :default [id]
+  (attempt-complete-at-point id))
+
+(defmethod attempt-complete "quf-at-point" [id]
+  (attempt-complete-at-point id))
 
 (defmethod attempt-complete "quf-whole-expr" [id]
   (use-candidate id))
