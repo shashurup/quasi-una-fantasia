@@ -194,12 +194,8 @@
   (use-candidate id))
 
 (defn show-doc [id doc]
-  (let [root (get-doc-root id)
-        doc (->> (:out doc)
-                 (map :out)
-                 rest
-                 s/join)]
-    (gdom/setTextContent root doc)
+  (let [root (get-doc-root id)]
+    (gdom/append root (:out doc))
     (.scrollIntoView root)))
 
 (defn toggle-doc [id]
@@ -208,7 +204,7 @@
         subj (if selected
                (gdom/getTextContent selected)
                (text-at-point))]
-    (if (or selected (empty? (gdom/getTextContent root)))
+    (if (empty? (gdom/getTextContent root))
       (nrepl/send-eval (str "(clojure.repl/doc " subj ")")
                        #(show-doc id %))
       (gdom/removeChildren root))))
