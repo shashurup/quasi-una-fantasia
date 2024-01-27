@@ -1,5 +1,6 @@
 (ns shashurup.quf.sh
-  (:require [clojure.java.io :as io]
+  (:require [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as s]
             [shashurup.quf.data :as d]
             [shashurup.quf.fs :as fs]
@@ -77,9 +78,8 @@
             result)
           (throw (Exception. (str "Exit code " exit))))))))
 
-(defn- resize [process]
-  (let [[cols rows] (or *term-dimensions* [80 24])]
-    (.setWinSize process (WinSize. (int cols) (int rows)))))
+(defn- resize [process [cols rows]]
+  (.setWinSize process (WinSize. (int cols) (int rows))))
 
 (defn- start-process-with-pty [cmd dir]
   (let [env (java.util.HashMap. (System/getenv))
@@ -95,20 +95,26 @@
     {:in (io/writer (.getOutputStream p))
      :out (io/reader (.getInputStream p))
      :wait #(.waitFor p)
-     :resize #(resize p)}))
+     :resize #(resize p %)}))
 
-;; TODO use ESC[0m as a magic sequence to resize the terminal
-(defn flushing-copy [from to action-map]
+(defn flushing-copy [from to]
   (let [buffer (char-array 1024)]
     (loop []
       (let [size (.read from buffer)]
         (when (pos? size)
-          (if-let [action (get action-map
-                               (apply str (take size buffer)))]
-            (action)
-            (do (.write to buffer 0 size)
-                (.flush to)))
+          (.write to buffer 0 size)
+          (.flush to)
           (recur))))))
+
+(defn process-input [from to resize]
+  (loop []
+    (let [data (edn/read from)]
+      (if (= :resize (:cmd (meta data)))
+        (resize data)
+        (do 
+          (.write to data)
+          (.flush to)))
+      (recur))))
 
 (defn !
   "Launches a subprocess interactively.
@@ -127,9 +133,10 @@
                args
                (remove empty? (s/split (first args) #"\s")))
         {:keys [in out wait resize]} (start-process-with-pty args fs/*cwd*)]
-    (let [in-handler (future (flushing-copy *in* in {"\u001b[0m" resize}))]
-      (flushing-copy out *out* {})
+    (let [in-handler (future (process-input *in* in resize))]
+      (flushing-copy out *out*)
       (future-cancel in-handler))
     (wait)))
 
-(resp/client-require "shashurup.quf.terminal")
+(defonce startup-dummy 
+  (resp/client-require "shashurup.quf.terminal"))

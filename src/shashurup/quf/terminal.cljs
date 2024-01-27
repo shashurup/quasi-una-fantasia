@@ -60,12 +60,15 @@
                   :stdin subj}
                  nil))
 
+(defn send-command [cmd arg]
+  (binding [*print-meta* true]
+    (send-stdin (pr-str (with-meta arg {:cmd cmd})))))
+
 (defn handle-key [subj]
-  (send-stdin (.-key subj)))
+  (send-stdin (pr-str (.-key subj))))
 
 (defn handle-resize [_]
-  (send-terminal-dimensions)
-  (send-stdin "\u001b[0m"))
+  (send-terminal-dimensions))
 
 (defonce terminals (atom {}))
 
@@ -81,12 +84,15 @@
                     "resize"
                     (fn [_]
                       (let [[cols rows] (terminal-dimensions)]
-                        (.resize terminal cols rows))))
+                        (.resize terminal cols rows)
+                        (when (get @terminals id)
+                          (send-command :resize [cols rows])))))
     (.open terminal el)
     (.onKey terminal handle-key)
     (.focus terminal)))
 
 (defn deactivate-terminal [id]
+  (.onKey (get @terminals id) nil)
   (swap! terminals dissoc id))
 
 (defn wrap-terminal-handler [handler]
