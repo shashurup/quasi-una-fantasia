@@ -100,9 +100,32 @@
     (.onKey terminal handle-key)
     (.focus terminal)))
 
+(defn shrink-terminal [terminal amount]
+  (let [cols (.-cols terminal)
+        rows (.-rows terminal)]
+    (.log js/console "shrinking" cols rows amount)
+    (when (> rows amount)
+      (.resize terminal cols (- rows amount)))))
+
+(defn shrink-to-content
+  "When the terminal content doesn't occupy it completely
+   we just shrink it - we don't want this blank space really"
+  [terminal]
+  (let [el (gdom/getElementByClass "xterm-rows" (.-element terminal))]
+    (->> el
+         gdom/getChildren
+         reverse
+         (take-while #(nil? (.-firstChild %)))
+         count
+         (shrink-terminal terminal))))
+
 (defn deactivate-terminal [id]
-  (.onKey (get @terminals id) nil)
-  (swap! terminals dissoc id))
+  (let [terminal (get @terminals id)]
+    (.onKey terminal nil)
+    ;; At the moment terminal contents isn't rendred completely yet
+    ;; So we postpone shrinking
+    (js/setTimeout #(shrink-to-content terminal) 128)
+    (swap! terminals dissoc id)))
 
 (defn wrap-terminal-handler [handler]
   (fn [id {:keys [out err status] :as reply}]
