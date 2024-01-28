@@ -483,6 +483,16 @@
 
 ;; input structure
 
+(def control-syms #{"if" "if-not" "if-let"
+                    "when" "when-not" "when-let"
+                    "def" "defn" "defn-" "defonce"
+                    "cond" "condp"
+                    "let" "binding" "letfn"
+                    "for" "do" "doseq" "doall"
+                    "fn" "recur" "loop"
+                    "->" "->>"
+                    "require" "ns"})
+
 (def leaf-class-map {:string "quf-string"
                      :char "quf-char"
                      :number "quf-number"
@@ -492,6 +502,12 @@
                      :nil "quf-nil"
                      :open "quf-paren"
                      :close "quf-paren"})
+
+(defn figure-class [type value]
+  (let [class (leaf-class-map type)]
+    (if (control-syms value)
+      (str class " quf-control")
+      class)))
 
 (defn replace-content [el new-content]
   (.replaceChildren el)
@@ -505,7 +521,7 @@
     (condp = type
       :whitespace value
       :container [:span.quf-container (structure->html value)]
-      [:span {:class (leaf-class-map type)
+      [:span {:class (figure-class type value)
               :data-quf-type (name type)} value])))
 
 (defn skeleton [subj]
