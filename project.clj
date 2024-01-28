@@ -22,7 +22,7 @@
                  [cljsjs/openlayers "7.2.2-0"]
                  [cljsjs/chartjs "3.9.1-0"]
                  [org.jetbrains.pty4j/pty4j "0.12.25"]
-                 ]
+                 [clj-commons/clj-yaml "1.0.27"]]
 
   :repositories [["JCenter" "https://jcenter.bintray.com/"]]
   
@@ -31,7 +31,8 @@
   :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
             "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
-            "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "shashurup.quf.test-runner"]}
+            "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "shashurup.quf.test-runner"]
+            "base16"    ["run" "-m" "shashurup.quf.base16" "resources/public/base16.json"]}
 
   :profiles {:dev {:dependencies [[com.bhauman/figwheel-main "0.2.18"]
                                   [com.bhauman/rebel-readline-cljs "0.1.4"]]
