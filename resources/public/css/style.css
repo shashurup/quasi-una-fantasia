@@ -4,7 +4,7 @@
     --color-bg: beige;
     --color-sel-bg: tan;
     --color-fg: #1c1c18;
-    --color-sexp-bg: wheat;
+    --color-alt-bg: honeydew;
     --color-symbol: maroon;
     --color-literal: slateblue;
     --color-string: teal;
@@ -142,7 +142,7 @@ span.quf-closing-paren {
 }
 
 .quf-sexp-mode {
-    background-color: var(--color-sexp-bg);
+    background-color: var(--color-alt-bg);
 }
 
 input:checked + div {

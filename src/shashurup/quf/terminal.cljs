@@ -6,8 +6,16 @@
             [goog.events :as gevents]
             [shashurup.quf.nrepl :as nrepl]
             [shashurup.quf.render :refer [eval-reply-handler]]
+            [shashurup.quf.theme :as theme]
             [shashurup.quf.utils :as u]
             [xterm]))
+
+(defn create-theme []
+  (let [t (theme/get-theme)]
+    {:background (:alt-bg t)
+     :foreground (:fg t)
+     :selectionBackground (:sel-bg t)
+     :selectionInactiveBackground (:sel-bg t)}))
 
 (def font ["Monospace" 13])
 (def measure-element (let [style (str "font-family: " (first font) "; "
@@ -75,9 +83,10 @@
 (defn plug-terminal [id]
   (let [el (get-out-element id)
         [cols rows] (terminal-dimensions)
-        terminal (xterm/Terminal. #js {:convertEol true
-                                       :fontFamily (first font)
-                                       :fontSize (second font)})]
+        terminal (xterm/Terminal. (clj->js {:convertEol true
+                                            :fontFamily (first font)
+                                            :fontSize (second font)
+                                            :theme (create-theme)}))]
     (swap! terminals assoc id terminal)
     (.resize terminal cols rows)
     (gevents/listen js/window
