@@ -1,5 +1,17 @@
 /* some style */
 
+:root {
+    --color-bg: beige;
+    --color-sel-bg: tan;
+    --color-fg: #1c1c18;
+    --color-sexp-bg: wheat;
+    --color-symbol: maroon;
+    --color-literal: slateblue;
+    --color-string: teal;
+    --color-keyword: blue;
+    --color-error: red;
+}
+
 div.quf-result {
     margin: 1em;
 }
@@ -47,18 +59,23 @@ p.quf-out {
 }
 
 p.quf-err {
-    color: red;
+    color: var(--color-error);
     white-space: pre-wrap;
 }
 
 p.quf-ex {
-    color: red;
+    color: var(--color-error);
     font-weight: bold;
+}
+
+::selection {
+    background-color: var(--color-sel-bg);
 }
 
 body {
     font-family: monospace;
-    background-color: beige;
+    color: var(--color-fg);
+    background-color: var(--color-bg);
 }
 
 .quf-composite-wrapper {
@@ -97,31 +114,35 @@ span.quf-closing-paren {
 }
 
 .quf-string {
-    color: teal;
+    color: var(--color-string);
 }
 
 .quf-char {
-    color: teal;
+    color: var(--color-string);
 }
 
 .quf-keyword {
-    color: blue;
+    color: var(--color-keyword);
 }
 
 .quf-number {
-    color: slateblue;
+    color: var(--color-literal);
 }
 
 .quf-symbol {
-    color: maroon;
+    color: var(--color-symbol);
+}
+
+.quf-control {
+    font-weight: bold;
 }
 
 .quf-bool {
-    color: brown;
+    color: var(--color-literal);
 }
 
 .quf-sexp-mode {
-    background-color: wheat;
+    background-color: var(--color-sexp-bg);
 }
 
 input:checked + div {
