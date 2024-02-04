@@ -26,3 +26,18 @@
        (partition 2)
        first
        flatten))
+
+(defonce fn-counter (atom 0))
+
+(defonce fns (atom {}))
+
+(defn gen-js-call
+  ([f] (gen-js-call f "fn"))
+  ([f prefix]
+   (let [name (str prefix (swap! fn-counter inc))]
+     (swap! fns assoc name f)
+     (str "shashurup.quf.utils.call(\"" name "\");"))))
+
+(defn call [name]
+  (let [f (@fns name)]
+    (f)))

@@ -6,6 +6,7 @@
    [shashurup.quf.editor :as editor]
    [shashurup.quf.history :as history]
    [shashurup.quf.nrepl :as nrepl]
+   [shashurup.quf.theme :as theme]
    [shashurup.quf.render :refer [eval-reply-handler]]
    [shashurup.quf.utils :as u]
    [goog.dom :as gdom]
@@ -366,6 +367,7 @@
 (defonce startup-dummy
   (do
     (swap! eval-reply-handler wrap-require-handler)
+    (theme/init)
     (gevents/listen js/window
                     "load"
                     (fn [_]

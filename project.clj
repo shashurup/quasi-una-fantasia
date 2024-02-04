@@ -32,7 +32,7 @@
             "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
             "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "shashurup.quf.test-runner"]
-            "base16"    ["run" "-m" "shashurup.quf.base16" "resources/public/base16.json"]}
+            "base16"    ["run" "-m" "shashurup.quf.base16" "resources/public/base16.edn"]}
 
   :profiles {:dev {:dependencies [[com.bhauman/figwheel-main "0.2.18"]
                                   [com.bhauman/rebel-readline-cljs "0.1.4"]]

@@ -22,7 +22,7 @@
     (try
       (let [scheme (yaml/parse-stream r)]
         (when (:scheme scheme)
-          scheme))
+          (into {} scheme)))
       (catch Exception _))) )
 
 (defn -main [filename]
@@ -30,8 +30,7 @@
   (let [result (sh "find" "base16" "-name" "*.yaml" "-o" "-name" "*.yml")
         files (split-lines (:out result))]
     (with-open [w (io/writer filename)]
-      (json/generate-stream
-       (->> files
-            (map read-theme)
-            (remove nil?))
-       w {:pretty true}))))
+      (binding [*out* w]
+        (pr (->> files
+                 (map read-theme)
+                 (remove nil?)))))))
