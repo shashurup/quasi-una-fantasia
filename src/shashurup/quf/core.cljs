@@ -140,21 +140,21 @@
     (.focus el)
     (insert-cell-before id)))
 
-(defn store-tab []
-  (when-let [name (:name @app-state)]
-    (.setItem (.-localStorage js/window)
-              (str "tab." name)
-              (pr-str (->> (gdom/getElementsByClass "quf-input")
-                           (map #(.-textContent %))
-                           (remove empty?))))))
+(defn store-cell-exprs []
+  (let [name (:ns @nrepl/state)]
+    (when (not= name "user")
+      (.setItem (.-localStorage js/window)
+                (str "ns." name)
+                (pr-str (->> (gdom/getElementsByClass "quf-input")
+                             (map #(.-textContent %))
+                             (remove empty?)))))))
 
 (defn delete-cell [id]
   (let [next-input (find-next-input id)
         prev-input (find-prev-input id)]
     (uncheck-cell id)
     (gdom/removeNode (get-cell-element id))
-    (.requestIdleCallback js/window
-                          store-tab)
+    (.requestIdleCallback js/window store-cell-exprs)
     (cond
       next-input (.focus next-input)
       prev-input (.focus prev-input)
@@ -164,8 +164,7 @@
   (doall (->> (gdom/getElementsByClass "quf-cell")
               array-seq
               (map gdom/removeNode)))
-  (.requestIdleCallback js/window
-                        store-tab)
+  (.requestIdleCallback js/window store-cell-exprs)
   (append-cell))
 
 (defn hook-checkboxes [id]
@@ -193,6 +192,12 @@
         (doseq [ns data] (goog/require ns))
         (handler id reply)))))
 
+(defonce title (.-textContent (first (gdom/getElementsByTagName "title"))))
+
+(defn update-title []
+  (when-let [title-el (first (gdom/getElementsByTagName "title"))]
+    (gdom/setTextContent title-el (str (:ns @nrepl/state) " - " title))))
+
 (defn handle-eval-reply [id
                          {:keys [x-data status] :as reply}
                          go-next]
@@ -202,6 +207,8 @@
     (remove-progress-bar id)
     (hook-checkboxes id)
     (.scrollIntoView (get-cell-element id))
+    (.requestIdleCallback js/window update-title)
+    (.requestIdleCallback js/window store-cell-exprs)
     (when (and go-next
                (.hasChildNodes
                 (get-result-element id)))
@@ -221,8 +228,6 @@
                   (s/replace \u00a0 " "))]
      (.requestIdleCallback js/window
                            #(history/log expr))
-     (.requestIdleCallback js/window
-                           store-tab)
      (let [req-id (nrepl/send-eval expr
                                    #(handle-eval-reply id % go-next))]
        (swap! app-state assoc-in [:requests (str id)] req-id)))))
@@ -239,61 +244,39 @@
 (defn cycle-result-height [id]
   (u/cycle-style (get-result-element id) result-height-cycle))
 
-(defn hide-tabname []
-  (gst/setStyle
-   (gdom/getElement "quf-tabname-modal")
-   "display"
-   "none"))
-
-(defn tab-list []
+(defn stored-nses []
   (->> (range)
        (map #(.key (.-localStorage js/window) %))
        (take-while identity)
-       (filter #(s/starts-with? % "tab."))
-       (map #(subs % 4))))
+       (filter #(s/starts-with? % "ns."))
+       (map #(subs % 3))))
 
-(defn fill-tablist []
-  (let [datalist (gdom/getElement "quf-tablist")]
-    (gdom/removeChildren datalist)
-    (doall (for [name (tab-list)]
-             (gdom/appendChild datalist
-                               (crate/html [:option name]))))))
-
-(defn show-tabname []
-  (fill-tablist)
-  (gst/setStyle
-   (gdom/getElement "quf-tabname-modal")
-   "display"
-   "block")
-  (.focus (gdom/getElement "quf-tabname")))
-
-(defn tab-exprs [name]
+(defn load-ns-exprs [name]
   (-> (.-localStorage js/window)
-      (.getItem (str "tab." name))
+      (.getItem (str "ns." name))
       read-string
       (or [])))
 
-(defn load-cells [name]
-  (doall (for [expr (tab-exprs name)]
-           (insert-cell nil nil expr))))
+(defn populate-cells [exprs]
+  (doseq [expr exprs] (insert-cell nil nil expr)))
 
-(defn set-tabname []
-  (let [name (.-value (gdom/getElement "quf-tabname"))]
-    (when (not-empty name)
-      (when-let [first-cell (first  (load-cells name))]
-        (.focus first-cell))
-      (swap! app-state assoc :name name)
-      (gdom/setTextContent (first (gdom/getElementsByTagName "title"))
-                           (str name " - Quasi una fantasia"))))
-  (hide-tabname))
-
-(def tabname-key-map {"Enter" set-tabname
-                      "Escape" hide-tabname})
-
-(defn on-tabname-key [e]
-  (when-let [f (tabname-key-map (key-event->str e))]
-    (f)
-    (.preventDefault e)))
+(defn load-ns-dialog []
+  (let [dialog (crate/html [:dialog.ns-dialog
+                            "Select a namespace"
+                            [:select#ns-selector {:autofocus true}
+                             (for [n (stored-nses)]
+                               [:option n])]
+                            [:button#ok-ns "Ok"]
+                            [:button#cancel-ns "Cancel"]])]
+    (.append (.-body js/document) dialog)
+    (gevents/listen dialog "close" #(.remove dialog))
+    (gevents/listen (gdom/getElement "ok-ns")
+                    "click" #(let [choice (.-value (gdom/getElement "ns-selector"))]
+                               (populate-cells (load-ns-exprs choice))
+                               (.close dialog)))
+    (gevents/listen (gdom/getElement "cancel-ns")
+                    "click" #(.close dialog))
+    (.showModal dialog)))
 
 (defn new-tab []
   (.open js/window (.-location js/window)))
@@ -318,7 +301,7 @@
                    "C-r" assistant/initiate-history
                    "C-h" assistant/toggle-doc
                    "C-s" cycle-result-height
-                   "C-=" show-tabname
+                   "C-=" load-ns-dialog
                    "C-t" new-tab
                    "C-m" show-checkboxes
                    "C-;" editor/sexp-mode})
@@ -370,11 +353,7 @@
     (theme/init)
     (gevents/listen js/window
                     "load"
-                    (fn [_]
-                      (append-cell)
-                      (.addEventListener (gdom/getElement "quf-tabname")
-                                         "keydown"
-                                         on-tabname-key)))))
+                    (fn [_] (append-cell)))))
 
 ;; specify reload hook with ^:after-load metadata
 (defn ^:after-load on-reload []
