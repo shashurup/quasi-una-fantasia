@@ -70,5 +70,4 @@
       (filter match (map from-base16 base16))
       [:list :shashurup.quf.theme/theme [:preview :name]]))))
 
-(defonce startup-dummy
-  (resp/client-require "shashurup.quf.theme"))
+(resp/client-require "shashurup.quf.theme")

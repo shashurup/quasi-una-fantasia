@@ -138,5 +138,4 @@
       (future-cancel in-handler))
     (wait)))
 
-(defonce startup-dummy 
-  (resp/client-require "shashurup.quf.terminal"))
+(resp/client-require "shashurup.quf.terminal")
