@@ -87,6 +87,10 @@
   (and (atom? node)
        (gcls/contains node type)))
 
+(defn end-of-whitespace? [node offset]
+  (and (whitespace? node)
+       (= (.-length node) offset)))
+
 (defn string-atom? [node] (atom-of-type? node "quf-string"))
 
 (defn get-start-element [selection]
@@ -95,7 +99,10 @@
         parent (.-parentElement start)
         offset (.-startOffset range)]
     (if (text-node? start)
-      (if (atom? parent) parent start)
+      (cond
+        (paren? parent) (.-parentElement parent)
+        (atom? parent) parent
+        :else start)
       (.item (.-childNodes start) offset))))
 
 (defn get-end-element [selection]
@@ -352,14 +359,9 @@
   (when (and (collapsed? selection)
              (at-the-end? selection))
     (let [node (get-anchor-node selection)
-          parent (.-parentElement node)
-          next (or (next-sibling node)
-                   (next-sibling parent))]
-      (when (or (whitespace? node)
-                (and (paren? parent)
-                     (atom? next)))
-        (set-position! selection
-                       (first-text-node-or-self next))))))
+          parent (.-parentElement node)]
+      (when (or (whitespace? node) (paren? parent))
+        (set-position! selection (next-leaf-node node))))))
 
 (defn find-container-node [sel]
   (let [node (get-common-ancestor sel)]
@@ -381,17 +383,19 @@
 (declare restructure)
 
 (defn wrap [id open]
+  (fix-selection! (get-selection))
   (let [close (get pairs open)
         sel (get-selection)
         start (get-start-element sel)
-        end (get-end-element sel)]
+        end (if (collapsed? sel) start (get-end-element sel))
+        open-node (make-text-node (str open " "))]
     (.insertBefore (.-parentElement start)
-                   (make-text-node open)
+                   open-node
                    start)
     (.insertBefore (.-parentElement end)
                    (make-text-node close)
                    (next-sibling end))
-    (set-position! sel (first-text-node-or-self start))
+    (set-position! sel open-node 1)
     (restructure (get-input-element id))))
 
 (defn wrap-with-a-paren [id]
