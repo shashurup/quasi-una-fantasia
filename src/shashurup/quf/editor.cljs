@@ -579,6 +579,30 @@
         (replace-content el (structure->html markup))
         (set-cursor-position! el pos)))))
 
+;; autoident
+
+(defn indent []
+  (let [sel (get-selection)
+        node (get-anchor-node sel)]
+    (when-let [sexp (->> (parent-nodes node)
+                         (filter sexp?)
+                         first)]
+      (let [open (first (filter paren? (.-childNodes sexp)))
+            call? (= (.-textContent open) "(")
+            atoms (reverse (sibling-elements-before node))
+            atom-count (count atoms)]
+        (let [[ref-node offset] (if (= 0 atom-count)
+                                  [open 3]
+                                  (if call?
+                                    (if (> atom-count 1)
+                                      [(second atoms) 0]
+                                      [(first atoms) 2])
+                                    [(first atoms) 0]))]
+          (doall (->>  (iterate prev-leaf-node ref-node)
+                       (rest)
+                       (take-while identity)
+                       (map #(.-textContent %)))))))))
+
 ;; paste text without formatting
 
 (defn- handle-paste [e]
@@ -588,6 +612,7 @@
 
 (defn- handle-input-change [e]
   ;(handle-pairs e)
+  (.log js/console "On input " (.-data e) (.-inputType e))
   (restructure (.-target e))
   )
 
