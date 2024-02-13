@@ -600,6 +600,7 @@
                             (take-while identity)
                             (map #(.-textContent %))
                             (partition-by #(s/includes? % "\n")))]
+    (.log js/console (pr-str head) (pr-str tail))
     (+ (apply + (map count head))
        (when tail
          (count (last (s/split-lines (ffirst tail))))))))
@@ -613,8 +614,21 @@
       (let [[ref-node offset] (indent-reference node sexp)
             column (indent-column ref-node)
             pos (get-anchor-offset sel)]
+        (.log js/console
+              "ref-node" (.-textContent ref-node)
+              "column " column
+              "offset " offset)
         (.insertData node pos (.repeat " " (+ column offset)))
         (set-position! sel node (+ pos column offset))))))
+
+(defn need-indent? [e]
+  (or (= (.-inputType e) "insertLineBreak")
+      (let [sel (get-selection)
+            node (get-anchor-node sel)
+            offset (get-anchor-offset sel)]
+        (.log js/console "text is " (pr-str  (.-textContent node)) "offset is " offset)
+        (and (= (.-inputType e) "insertText")
+             (nil? (.-data e))))))
 
 ;; paste text without formatting
 
@@ -626,6 +640,9 @@
 (defn- handle-input-change [e]
   ;(handle-pairs e)
   (.log js/console "On input " (.-data e) (.-inputType e))
+  (when (need-indent? e)
+    (.log js/console "Indenting")
+    (indent))
   (restructure (.-target e))
   )
 
