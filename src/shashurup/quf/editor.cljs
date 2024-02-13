@@ -581,27 +581,40 @@
 
 ;; autoident
 
+(defn indent-reference [anchor-node sexp]
+  (let [open (first (filter paren? (.-childNodes sexp)))
+        call? (= (.-textContent open) "(")
+        atoms (reverse (sibling-elements-before anchor-node))
+        atom-count (count atoms)]
+    (if (= 0 atom-count)
+      [open 3]
+      (if call?
+        (if (> atom-count 1)
+          [(second atoms) 0]
+          [(first atoms) 2])
+        [(first atoms) 0]))))
+
+(defn indent-column [node]
+  (let [[head & tail] (->>  (iterate prev-leaf-node node)
+                            (rest)
+                            (take-while identity)
+                            (map #(.-textContent %))
+                            (partition-by #(s/includes? % "\n")))]
+    (+ (apply + (map count head))
+       (when tail
+         (count (last (s/split-lines (ffirst tail))))))))
+
 (defn indent []
   (let [sel (get-selection)
         node (get-anchor-node sel)]
     (when-let [sexp (->> (parent-nodes node)
                          (filter sexp?)
                          first)]
-      (let [open (first (filter paren? (.-childNodes sexp)))
-            call? (= (.-textContent open) "(")
-            atoms (reverse (sibling-elements-before node))
-            atom-count (count atoms)]
-        (let [[ref-node offset] (if (= 0 atom-count)
-                                  [open 3]
-                                  (if call?
-                                    (if (> atom-count 1)
-                                      [(second atoms) 0]
-                                      [(first atoms) 2])
-                                    [(first atoms) 0]))]
-          (doall (->>  (iterate prev-leaf-node ref-node)
-                       (rest)
-                       (take-while identity)
-                       (map #(.-textContent %)))))))))
+      (let [[ref-node offset] (indent-reference node sexp)
+            column (indent-column ref-node)
+            pos (get-anchor-offset sel)]
+        (.insertData node pos (.repeat " " (+ column offset)))
+        (set-position! sel node (+ pos column offset))))))
 
 ;; paste text without formatting
 
