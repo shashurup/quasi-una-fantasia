@@ -299,7 +299,7 @@
 (defn v
   "View file content."
   [subj]
-  (let [obj (if (map? subj) subj {:path subj})
+  (let [obj (if (map? subj) subj {:path (resolve-path *cwd* subj)})
         obj (update obj :mime-type (fn [mt]
                                      (if mt
                                        mt
