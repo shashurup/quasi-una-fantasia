@@ -7,19 +7,22 @@
   :min-lein-version "2.7.1"
 
   :dependencies [[org.clojure/clojure "1.11.1"]
-                 [org.clojure/clojurescript "1.11.60"]
-                 [compojure "1.6.2"]
-                 [nrepl/drawbridge "0.2.1"]
-                 [cheshire "5.11.0"]
+                 [ring/ring-core "1.11.0"]
+                 [ring/ring-jetty-adapter "1.9.1"]
+                 ;; 0.4.0 by default uses cookie-store we don't need
+                 [ring/ring-defaults "0.3.4"] 
+                 [nrepl "1.1.0"]
+                 [compojure "1.7.1"]
+                 [cheshire "5.12.0"]
                  [org.clojure/data.csv "1.0.1"]
                  [org.clojure/java.jdbc "0.7.12"]
                  [de.swiesend/secret-service "1.8.1-jdk17"]
-                 [org.postgresql/postgresql "42.5.1"]
+                 [org.postgresql/postgresql "42.7.1"]
                  [com.novemberain/monger "3.6.0"]
-                 [org.apache.tika/tika-core "2.7.0"]
-                 [org.apache.tika/tika-parsers-standard-package "2.7.0"]
-                 [crate "0.2.4"]
-                 [cljsjs/openlayers "7.2.2-0"]
+                 [org.apache.tika/tika-core "2.9.1"]
+                 [org.apache.tika/tika-parsers-standard-package "2.9.1"]
+                 [crate "0.2.5"]
+                 [cljsjs/openlayers "7.5.2-0"]
                  [cljsjs/chartjs "3.9.1-0"]
                  [org.jetbrains.pty4j/pty4j "0.12.25"]
                  [clj-commons/clj-yaml "1.0.27"]]
@@ -28,13 +31,18 @@
   
   :source-paths ["src"]
 
+  :main shashurup.quf.srv
+
+  :aot [shashurup.quf.srv]
+
   :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
             "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
             "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "shashurup.quf.test-runner"]
-            "base16"    ["run" "-m" "shashurup.quf.base16" "resources/public/base16.edn"]}
+            "base16"    ["run" "-m" "shashurup.quf.base16" "resources/base16.edn"]}
 
-  :profiles {:dev {:dependencies [[com.bhauman/figwheel-main "0.2.18"]
+  :profiles {:dev {:dependencies [[org.clojure/clojurescript "1.11.132"]
+                                  [com.bhauman/figwheel-main "0.2.18"]
                                   [com.bhauman/rebel-readline-cljs "0.1.4"]]
                    
                    :resource-paths ["target"]

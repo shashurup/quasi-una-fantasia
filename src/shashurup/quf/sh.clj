@@ -138,4 +138,4 @@
       (future-cancel in-handler))
     (wait)))
 
-(resp/client-require "shashurup.quf.terminal")
+(resp/client-module :terminal)

@@ -1,4 +1,5 @@
 (ns shashurup.quf.srv
+  (:gen-class)
   (:require [shashurup.quf.response :as response]
             [shashurup.quf.vars :as vars]
             [compojure.core :refer :all]
@@ -10,7 +11,6 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [nrepl.transport :as t]
-            [nrepl.core :as nrepl]
             [nrepl.server :as srv]))
 
 (defn create-transport []
@@ -65,7 +65,7 @@
   (route/not-found "<h1>Page not found</h1>"))
 
 (defn start-server [join?]
-  (j/run-jetty (d/wrap-defaults app {:session true})
+  (j/run-jetty (d/wrap-defaults app d/site-defaults)
                {:port 9500 :join? join?}))
 
 (defn -main [& args]

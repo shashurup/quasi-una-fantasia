@@ -1,5 +1,6 @@
 (ns shashurup.quf.terminal
-  (:require [clojure.math :refer [ceil round]]
+  (:require [cljs.loader :as loader]
+            [clojure.math :refer [ceil round]]
             [clojure.string :refer [join]]
             [crate.core :as crate]
             [goog.dom :as gdom]
@@ -146,3 +147,5 @@
     (gevents/listen js/window "resize" handle-resize)
     (send-terminal-dimensions)
     (u/add-style-ref "css/xterm.css")))
+
+(loader/set-loaded! :terminal)

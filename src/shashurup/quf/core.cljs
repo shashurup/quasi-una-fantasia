@@ -15,6 +15,7 @@
    [goog.style :as gst]
    [crate.core :as crate]
    [clojure.string :as s]
+   [cljs.loader :as loader]
    [cljs.pprint :as pp]
    [cljs.tools.reader :refer [read-string]]))
 
@@ -185,11 +186,11 @@
 (defn remove-progress-bar [id]
   (gdom/removeNode (get-progress-element id)))
 
-(defn wrap-require-handler [handler]
+(defn wrap-module-handler [handler]
   (fn [id {:keys [out] :as reply}]
     (let [data (nrepl/try-read-value-with-meta out)]
-      (if (= (:shashurup.quf/hint (meta data)) :require)
-        (doseq [ns data] (goog/require ns))
+      (if (= (:shashurup.quf/hint (meta data)) :module)
+        (doseq [ns data] (loader/load ns))
         (handler id reply)))))
 
 (defonce title (.-textContent (first (gdom/getElementsByTagName "title"))))
@@ -349,7 +350,7 @@
 
 (defonce startup-dummy
   (do
-    (swap! eval-reply-handler wrap-require-handler)
+    (swap! eval-reply-handler wrap-module-handler)
     (theme/init)
     (gevents/listen js/window
                     "load"
@@ -361,3 +362,5 @@
   ;; your application
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
 )
+
+(loader/set-loaded! :core)

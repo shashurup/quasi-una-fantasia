@@ -30,4 +30,4 @@
   [subj]
   (resp/hint (normalize-data subj) :geodata))
 
-(resp/client-require "shashurup.quf.ol")
+(resp/client-module :ol)

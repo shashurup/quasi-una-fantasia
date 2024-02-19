@@ -414,4 +414,4 @@
 
 (def mkdir create-dir)
 
-(resp/client-require "shashurup.quf.fs")
+(resp/client-module :fs)

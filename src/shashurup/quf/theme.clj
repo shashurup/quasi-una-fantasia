@@ -59,7 +59,7 @@
 (defn ls
   ([] (ls identity))
   ([pred]
-   (let [base16 (with-open [r (io/reader "resources/public/base16.edn")]
+   (let [base16 (with-open [r (io/reader "resources/base16.edn")]
                   (edn/read (java.io.PushbackReader. r)))
          match (cond
                  (fn? pred) pred
@@ -70,4 +70,4 @@
       (filter match (map from-base16 base16))
       [:list :shashurup.quf.theme/theme [:preview :name]]))))
 
-(resp/client-require "shashurup.quf.theme")
+(resp/client-module :theme)

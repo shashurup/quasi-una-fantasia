@@ -1,5 +1,6 @@
 (ns shashurup.quf.ol
-  (:require [shashurup.quf.render :refer [render]]
+  (:require [cljs.loader :as loader]
+            [shashurup.quf.render :refer [render]]
             [crate.core :as crate]
             [goog.dom :as gdom]
             [cljsjs.openlayers]))
@@ -53,3 +54,5 @@
     (let [c (crate/html [:div.quf-medium-sized])]
       (gdom/appendChild target c)
       (create-map-control c subj))))
+
+(loader/set-loaded! :ol)

@@ -46,4 +46,4 @@
           (sort-by first)
           bar))))
 
-(resp/client-require "shashurup.quf.chartjs")
+(resp/client-module :chartjs)

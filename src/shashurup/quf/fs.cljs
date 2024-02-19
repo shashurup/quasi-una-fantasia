@@ -1,5 +1,6 @@
 (ns shashurup.quf.fs
-  (:require [clojure.string :as s]
+  (:require [cljs.loader :as loader]
+            [clojure.string :as s]
             [shashurup.quf.desc :as desc]
             [shashurup.quf.utils :as u]))
 
@@ -60,3 +61,5 @@
 
 (defonce startup-dummy
   (u/add-style-ref "css/fs.css"))
+
+(loader/set-loaded! :fs)

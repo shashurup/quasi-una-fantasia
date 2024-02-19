@@ -17,5 +17,5 @@
 (defn report-progress [message value max]
   (print-with-hint [message value max] :progress))
 
-(defn client-require [ns]
-  (print-with-hint [ns] :require))
+(defn client-module [module]
+  (print-with-hint [module] :module))
