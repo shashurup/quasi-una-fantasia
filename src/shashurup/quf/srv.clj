@@ -62,10 +62,19 @@
   (GET "/fs/*" {{path :*} :params}
        (u/file-response (str "/" path)))
 
+  (GET "/" [] (->  (u/resource-response "index.html"
+                                        {:root "public"})
+                   (u/content-type "text/html; charset=utf-8")))
+  
   (route/not-found "<h1>Page not found</h1>"))
 
 (defn start-server [join?]
-  (j/run-jetty (d/wrap-defaults app d/site-defaults)
+  (j/run-jetty (d/wrap-defaults app
+                                (-> d/site-defaults
+                                    ;; site defaults uses cookie-store
+                                    ;; which we don't need
+                                    (update :session dissoc :store)
+                                    (update :security dissoc :anti-forgery)))
                {:port 9500 :join? join?}))
 
 (defn -main [& args]

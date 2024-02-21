@@ -27,11 +27,11 @@ To clean all compiled files:
 
 	lein clean
 
-To create a production build run:
+To create a production uberjar run
 
 	lein clean
-	lein fig:min
-
+	lein fig:uber
+    lein uberjar
 
 ## License
 
