@@ -211,8 +211,8 @@
                (gdom/getTextContent selected)
                (text-at-point))]
     (if (empty? (gdom/getTextContent root))
-      (nrepl/send-eval (str "(clojure.repl/doc " subj ")")
-                       #(show-doc id %))
+      (nrepl/send-eval-aux (str "(clojure.repl/doc " subj ")")
+                           #(show-doc id %))
       (gdom/removeChildren root))))
 
 (defmulti handle-input-change #(assistant-content-class (get-root-element %)))

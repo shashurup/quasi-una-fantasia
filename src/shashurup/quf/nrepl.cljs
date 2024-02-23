@@ -93,22 +93,26 @@
   (when (pending-callbacks?)
     (receive-messages handle-replies)))
 
-(defn send-op [op callback]
-  (let [id (new-id)
-        op (-> op
-               (assoc :id id)
-               (merge (select-keys @state [:session])))]
-    (if (empty? (:callbacks (add-callback id callback)))
-      (send-message op handle-replies :wait-reply 1)
-      (send-message op nil))
-    id))
+(defn send-op
+  ([op callback] (send-op op callback :session))
+  ([op callback slot]
+   (let [id (new-id)
+         op (-> op
+                (assoc :id id)
+                (merge {:session (slot @state)}))]
+     (if (empty? (:callbacks (add-callback id callback)))
+       (send-message op handle-replies :wait-reply 1)
+       (send-message op nil))
+     id)))
 
-(defn send-clone [callback]
-  (send-op {:op "clone"}
-           (fn [{:keys [new-session]}]
-             (swap! state assoc :session new-session)
-             (when callback
-               (callback new-session)))))
+(defn send-clone
+  ([callback] (send-clone callback :session))
+  ([callback slot]
+   (send-op {:op "clone"}
+            (fn [{:keys [new-session]}]
+              (swap! state assoc slot new-session)
+              (when callback
+                (callback new-session))))))
 
 (defn read-values [subj keys]
   (reduce (fn [m k]
@@ -132,6 +136,19 @@
                   (swap! state assoc :ns ns))
                 (when callback
                   (callback reply)))))))
+
+(defn send-eval-aux [expr callback]
+  (if (:aux-session @state)
+    (send-op {:op "eval"
+              :code expr} callback :aux-session)
+    (send-clone (fn [_]
+                  (send-op {:op "eval"
+                            :code "(require 'clojure.repl)"}
+                           (fn [{status :status}]
+                             (when (terminated? status)
+                               (send-eval-aux expr callback)))
+                           :aux-session))
+                :aux-session)))
 
 (defn send-interrupt [id]
   (send-op {:op "interrupt"} nil))
