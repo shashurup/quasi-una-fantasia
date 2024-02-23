@@ -94,9 +94,10 @@
                     "resize"
                     (fn [_]
                       (let [[cols rows] (terminal-dimensions)]
-                        (.resize terminal cols rows)
-                        (when (get @terminals id)
-                          (send-command :resize [cols rows])))))
+                        (if (get @terminals id)
+                          (do (.resize terminal cols rows)
+                              (send-command :resize [cols rows]))
+                          (.resize terminal cols (.-rows terminal))))))
     (.open terminal el)
     (.onKey terminal handle-key)
     (.focus terminal)))
@@ -145,7 +146,11 @@
   (do
     (swap! eval-reply-handler wrap-terminal-handler)
     (gevents/listen js/window "resize" handle-resize)
-    (send-terminal-dimensions)
+    ;; Postpone updating *terminal-dimensions* var
+    ;; to avoid race condition modifying session local value
+    (gevents/listenOnce js/document
+                        "evalComplete"
+                        send-terminal-dimensions)
     (u/add-style-ref "css/xterm.css")))
 
 (loader/set-loaded! :terminal)

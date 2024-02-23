@@ -210,6 +210,7 @@
     (.scrollIntoView (get-cell-element id))
     (.requestIdleCallback js/window update-title)
     (.requestIdleCallback js/window store-cell-exprs)
+    (.dispatchEvent js/document (js/Event. "evalComplete"))
     (when (and go-next
                (.hasChildNodes
                 (get-result-element id)))
