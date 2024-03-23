@@ -1,5 +1,6 @@
 (ns shashurup.quf.theme
-  (:require [clojure.string :as s]
+  (:require [cljs.loader :as loader]
+            [clojure.string :as s]
             [cljs.tools.reader :refer [read-string]]
             [shashurup.quf.desc :as desc]
             [shashurup.quf.editor :as editor]
@@ -81,3 +82,5 @@
                                 :render render-preview}}})
 
 (swap! desc/object-types assoc ::theme theme)
+
+(loader/set-loaded! :terminal)
