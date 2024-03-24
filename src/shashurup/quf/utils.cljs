@@ -20,6 +20,11 @@
    (first (gdom/getElementsByTagName "head"))
    (crate/html [:link {:href ref :rel "stylesheet" :type "text/css"}])))
 
+(defn add-script [src]
+  (gdom/appendChild 
+   (first (gdom/getElementsByTagName "head"))
+   (crate/html [:script {:src src}])))
+
 (defn take-until [pred coll]
   (->> coll
        (partition-by pred)

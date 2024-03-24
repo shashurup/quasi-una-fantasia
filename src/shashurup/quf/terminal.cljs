@@ -8,8 +8,7 @@
             [shashurup.quf.nrepl :as nrepl]
             [shashurup.quf.render :refer [eval-reply-handler]]
             [shashurup.quf.theme :as theme]
-            [shashurup.quf.utils :as u]
-            [xterm]))
+            [shashurup.quf.utils :as u]))
 
 (defn create-theme []
   (let [t (theme/get-theme)]
@@ -84,10 +83,10 @@
 (defn plug-terminal [id]
   (let [el (get-out-element id)
         [cols rows] (terminal-dimensions)
-        terminal (xterm/Terminal. (clj->js {:convertEol true
-                                            :fontFamily (first font)
-                                            :fontSize (second font)
-                                            :theme (create-theme)}))]
+        terminal (js/Terminal. (clj->js {:convertEol true
+                                         :fontFamily (first font)
+                                         :fontSize (second font)
+                                         :theme (create-theme)}))]
     (swap! terminals assoc id terminal)
     (.resize terminal cols rows)
     (gevents/listen js/window
@@ -151,6 +150,7 @@
     (gevents/listenOnce js/document
                         "evalComplete"
                         send-terminal-dimensions)
-    (u/add-style-ref "css/xterm.css")))
+    (u/add-style-ref "css/xterm.css")
+    (u/add-script "js/xterm.js")))
 
 (loader/set-loaded! :terminal)

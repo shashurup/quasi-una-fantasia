@@ -4,13 +4,10 @@
    }
 {:modules {:core {:entries #{shashurup.quf.core}}
            :fs {:entries #{shashurup.quf.fs}}
-           :charjs {:entries #{shashurup.quf.chartjs}}
+           :chartjs {:entries #{shashurup.quf.chartjs}}
            :ol {:entries #{shashurup.quf.ol}}
            :terminal {:entries #{shashurup.quf.terminal}}
            :theme {:entries #{shashurup.quf.theme}}
            }
  :output-to "dummy.js"
-
- :npm-deps {"xterm" "5.1.0"}
- :install-deps true
 }

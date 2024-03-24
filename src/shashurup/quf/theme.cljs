@@ -83,4 +83,4 @@
 
 (swap! desc/object-types assoc ::theme theme)
 
-(loader/set-loaded! :terminal)
+(loader/set-loaded! :theme)

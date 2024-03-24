@@ -38,7 +38,7 @@
   :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
             "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
             "fig:uber" ["trampoline" "run" "-m" "figwheel.main"
-                        "-O" "none" "-fwo" "{:target-dir \"cljs\"}" "-bo" "dev"]
+                        "-O" "simple" "-fwo" "{:target-dir \"cljs\"}" "-bo" "dev"]
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
             "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "shashurup.quf.test-runner"]
             "base16"    ["run" "-m" "shashurup.quf.base16" "resources/base16.edn"]}
@@ -49,6 +49,7 @@
                    
                    :resource-paths ["target"]
                    ;; need to add the compiled assets to the :clean-targets
-                   :clean-targets ^{:protect false} ["target"]}
-             :uberjar {:resource-paths ["cljs"]}})
+                   :clean-targets ^{:protect false} ["target" "cljs"]}
+             :uberjar {:resource-paths ["cljs"]
+                       :auto-clean false}})
 
