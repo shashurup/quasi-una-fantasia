@@ -9,6 +9,20 @@ Quasi uan fantasia is a graphical lisp shell prototype.
  
 The ideas behind the project has been stirring in the back of my head for quite a while already. To blend some things I like, such as shell, REPL and Lisp. To add some ideas on top of that, such as handling structured data in pipelines and breaking the limits of text only data representation modern shells only offer.
 
+## Prerequisites
+
+### xterm.js
+
+Download xterm.js component with
+
+    ./install-xterm.js.sh
+
+### Base16 themes
+
+Download and build base16 themes
+
+    lein base16
+
 ## Development
 
 To get an interactive development environment run:
@@ -29,8 +43,6 @@ To clean all compiled files:
 
 To create a production uberjar run
 
-	lein clean
-	lein fig:uber
     lein uberjar
 
 ## License

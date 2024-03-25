@@ -37,8 +37,8 @@
 
   :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
             "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
-            "fig:uber" ["trampoline" "run" "-m" "figwheel.main"
-                        "-O" "simple" "-fwo" "{:target-dir \"cljs\"}" "-bo" "dev"]
+            "fig:uber"  ["trampoline" "run" "-m" "figwheel.main"
+                         "-O" "simple" "-fwo" "{:target-dir \"ubercljs\"}" "-bo" "dev"]
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
             "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "shashurup.quf.test-runner"]
             "base16"    ["run" "-m" "shashurup.quf.base16" "resources/base16.edn"]}
@@ -49,7 +49,8 @@
                    
                    :resource-paths ["target"]
                    ;; need to add the compiled assets to the :clean-targets
-                   :clean-targets ^{:protect false} ["target" "cljs"]}
-             :uberjar {:resource-paths ["cljs"]
-                       :auto-clean false}})
+                   :clean-targets ^{:protect false} ["target" "ubercljs"]}
+             :uberjar {:resource-paths ["ubercljs"]
+                       :prep-tasks [["with-profile" "dev" "run" "-m" "figwheel.main"
+                                     "-O" "simple" "-fwo" "{:target-dir \"ubercljs\"}" "-bo" "dev"]]}})
 
