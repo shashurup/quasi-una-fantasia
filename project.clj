@@ -1,4 +1,4 @@
-(defproject quasi-una-fantasia "0.12"
+(defproject quasi-una-fantasia "0.13-SNAPSHOT"
   :description "Quasi una fantasia is a graphical lisp shell prototype"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
