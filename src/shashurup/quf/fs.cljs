@@ -1,8 +1,9 @@
 (ns shashurup.quf.fs
-  (:require [cljs.loader :as loader]
-            [clojure.string :as s]
+  (:require [clojure.string :as s]
             [shashurup.quf.desc :as desc]
             [shashurup.quf.utils :as u]))
+
+(u/begin-module-load! :fs)
 
 (defn- local-class [subj]
   (str "quf-fs-" subj))
@@ -62,4 +63,4 @@
 (defonce startup-dummy
   (u/add-style-ref "css/fs.css"))
 
-(loader/set-loaded! :fs)
+(u/set-module-loaded!)

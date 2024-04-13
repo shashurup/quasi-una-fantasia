@@ -1,11 +1,12 @@
 (ns shashurup.quf.theme
-  (:require [cljs.loader :as loader]
-            [clojure.string :as s]
+  (:require [clojure.string :as s]
             [cljs.tools.reader :refer [read-string]]
             [shashurup.quf.desc :as desc]
             [shashurup.quf.editor :as editor]
             [shashurup.quf.markup :as markup]
             [shashurup.quf.utils :as u]))
+
+(u/begin-module-load! :theme)
 
 (def colors [:bg :sel-bg :alt-bg :fg
              :symbol :literal :string :keyword
@@ -83,4 +84,4 @@
 
 (swap! desc/object-types assoc ::theme theme)
 
-(loader/set-loaded! :theme)
+(u/set-module-loaded!)

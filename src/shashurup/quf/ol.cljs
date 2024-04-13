@@ -1,9 +1,11 @@
 (ns shashurup.quf.ol
-  (:require [cljs.loader :as loader]
-            [shashurup.quf.render :refer [render]]
+  (:require [shashurup.quf.render :refer [render]]
+            [shashurup.quf.utils :as u]
             [crate.core :as crate]
             [goog.dom :as gdom]
             [cljsjs.openlayers]))
+
+(u/begin-module-load! :ol)
 
 (def colors ["#009" "#900" "#090" "#099" "#909" "#990"
              "#00f" "#f00" "#0f0" "#0ff" "#f0f" "#ff0" "#f80" "#f08"])
@@ -55,4 +57,4 @@
       (gdom/appendChild target c)
       (create-map-control c subj))))
 
-(loader/set-loaded! :ol)
+(u/set-module-loaded!)

@@ -1,5 +1,6 @@
 (ns shashurup.quf.utils
   (:require [clojure.set :as set]
+            [cljs.loader :as loader]
             [crate.core :as crate]
             [goog.dom :as gdom]
             [goog.dom.classes :as gcls]))
@@ -46,3 +47,20 @@
 (defn call [name]
   (let [f (@fns name)]
     (f)))
+
+;; cljs.loader seems to be a bit broken
+;; cljs.loader/load is asynchronous but doesn't allow
+;; loading more than one module at time
+;; and while goog.ModuleManager is capable of queueing
+;; cljs.loader prevents this by calling beforeLoadModuleCode()
+;; to early
+(defn begin-module-load! [subj]
+  (let [mname (-> subj name munge)]
+    (.beforeLoadModuleCode loader/*module-manager* mname)))
+
+(defn set-module-loaded! []
+  (.setLoaded loader/*module-manager*))
+
+(defn load-module [subj]
+  (let [mname (-> subj name munge)]
+    (.load loader/*module-manager* mname)))

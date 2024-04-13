@@ -1,6 +1,5 @@
 (ns shashurup.quf.terminal
-  (:require [cljs.loader :as loader]
-            [clojure.math :refer [ceil round]]
+  (:require [clojure.math :refer [ceil round]]
             [clojure.string :refer [join]]
             [crate.core :as crate]
             [goog.dom :as gdom]
@@ -9,6 +8,8 @@
             [shashurup.quf.render :refer [eval-reply-handler]]
             [shashurup.quf.theme :as theme]
             [shashurup.quf.utils :as u]))
+
+(u/begin-module-load! :terminal)
 
 (defn create-theme []
   (let [t (theme/get-theme)]
@@ -153,4 +154,4 @@
     (u/add-style-ref "css/xterm.css")
     (u/add-script "js/xterm.js")))
 
-(loader/set-loaded! :terminal)
+(u/set-module-loaded!)

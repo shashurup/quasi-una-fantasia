@@ -1,9 +1,11 @@
 (ns shashurup.quf.chartjs
-  (:require [cljs.loader :as loader]
-            [shashurup.quf.render :refer [render]]
+  (:require [shashurup.quf.render :refer [render]]
+            [shashurup.quf.utils :as u]
             [crate.core :as crate]
             [goog.dom :as gdom]
             [cljsjs.chartjs :as chart]))
+
+(u/begin-module-load! :chartjs)
 
 (def colors ["#114b5f" "#1a936f" "#744253"
              "#70798c" "#aec3b0" "#b36a5e"
@@ -53,4 +55,4 @@
       (gdom/appendChild target c)
       (create-chart-control (gdom/getFirstElementChild c) subj))))
 
-(loader/set-loaded! :chartjs)
+(u/set-module-loaded!)

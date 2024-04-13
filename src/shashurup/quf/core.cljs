@@ -15,9 +15,10 @@
    [goog.style :as gst]
    [crate.core :as crate]
    [clojure.string :as s]
-   [cljs.loader :as loader]
    [cljs.pprint :as pp]
    [cljs.tools.reader :refer [read-string]]))
+
+(u/begin-module-load! :core)
 
 (defonce app-state (atom {}))
 
@@ -186,30 +187,11 @@
 (defn remove-progress-bar [id]
   (gdom/removeNode (get-progress-element id)))
 
-;; cljs.loader/load is asynchronous but doesn't allow
-;; loading more than one module at time
-;; so there seems to be no way to overcome this
-;; other than involving this queue
-(defonce module-queue (atom []))
-
-(defn load-module-when-idle [ns f]
-  (.log js/console "Scheduling" ns)
-  (.requestIdleCallback js/window
-                        #(loader/load ns f)))
-
-(defn module-queue-changed [_ _ _ n]
-  (.log js/console "Module queue changed" (pr-str n))
-  (when (= 1 (count n))
-    (let [ns (first n)]
-      (load-module-when-idle ns #(swap! module-queue subvec 1)))))
-
-(add-watch module-queue "akey" module-queue-changed)
-
 (defn wrap-module-handler [handler]
   (fn [id {:keys [out] :as reply}]
     (let [data (nrepl/try-read-value-with-meta out)]
       (if (= (:shashurup.quf/hint (meta data)) :module)
-        (doseq [ns data] (swap! module-queue conj ns))
+        (doseq [ns data] (u/load-module ns))
         (handler id reply)))))
 
 (defonce title (.-textContent (first (gdom/getElementsByTagName "title"))))
@@ -383,4 +365,4 @@
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
 )
 
-(loader/set-loaded! :core)
+(u/set-module-loaded!)
