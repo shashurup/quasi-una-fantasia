@@ -3,7 +3,7 @@
             [clojure.zip :as z]))
 
 (defn non-word? [ch]
-  (or (#{\[ \] \{ \} \( \) \,} ch)
+  (or (#{\[ \] \{ \} \( \) \, \;} ch)
       (re-matches #"\s" ch)))
 
 (defn word? [ch]
@@ -29,6 +29,7 @@
                :other (when-let [in (condp = ch
                                            \" {:in :string}
                                            \# {:in :dispatch}
+                                           \; {:in :comment}
                                            (when (word? ch)
                                              {:in :word}))]
                              (assoc in :start pos
@@ -42,10 +43,13 @@
                :dispatch (if (= ch \")
                            {:in :string :start (dec pos)}
                            {:in :other :start (dec pos)})
+               :comment (when (= ch \newline) {:in :other
+                                               :start pos
+                                               :layout (conj layout [start pos :comment])})
                (when (non-word? ch) {:in :other
-                                       :hint nil
-                                       :start pos
-                                       :layout (conj layout [start pos in])}))))))
+                                     :hint nil
+                                     :start pos
+                                     :layout (conj layout [start pos in])}))))))
 
 (def opening-parens #{\( \[ \{})
 
@@ -108,3 +112,10 @@
          (map handle-item)
          (apply concat)
          build-tree)))
+
+(defn top-level-forms [subj]
+  (->> (parse subj)
+       (remove #(= :whitespace (second %)))
+       (map #(->> (flatten %)
+                  (remove keyword?)
+                  (apply str)))))
