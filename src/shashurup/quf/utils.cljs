@@ -64,3 +64,6 @@
 (defn load-module [subj]
   (let [mname (-> subj name munge)]
     (.load loader/*module-manager* mname)))
+
+(defn module? [subj]
+  (contains? loader/module-infos subj))
