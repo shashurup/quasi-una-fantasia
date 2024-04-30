@@ -1,0 +1,39 @@
+{:mvn/repos {"jcenter" {:url "https://jcenter.bintray.com/"}}
+
+ :deps {org.clojure/clojure {:mvn/version "1.11.3"}
+        ring/ring-core {:mvn/version "1.11.0"}
+        ring/ring-jetty-adapter {:mvn/version "1.9.1"}
+        ;; 0.4.0 by default uses cookie-store we don't need
+        ring/ring-defaults {:mvn/version "0.3.4"}
+        nrepl/nrepl {:mvn/version "1.1.1"}
+        compojure/compojure {:mvn/version "1.7.1"}}
+
+ :paths ["src" "resources" "target" "test"]
+
+ :aliases {:extra {:extra-deps {cheshire/cheshire {:mvn/version "5.12.0"}
+                                org.clojure/data.csv {:mvn/version "1.0.1"}
+                                org.clojure/java.jdbc {:mvn/version "0.7.12"}
+                                de.swiesend/secret-service {:mvn/version "1.8.1-jdk17"}
+                                org.postgresql/postgresql {:mvn/version "42.7.1"}
+                                com.novemberain/monger {:mvn/version "3.6.0"}
+                                org.apache.tika/tika-core {:mvn/version "2.9.1"}
+                                org.apache.tika/tika-parsers-standard-package {:mvn/version "2.9.1"}
+                                org.jetbrains.pty4j/pty4j {:mvn/version "0.12.25"}
+                                clj-commons/clj-yaml {:mvn/version "1.0.27"}}
+                   :extra-paths ["extra/src" "extra/resources"]}
+           :fig {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}
+                              com.bhauman/figwheel-main {:mvn/version "0.2.18"}
+                              crate/crate {:mvn/version "0.2.5"}
+                              cljsjs/openlayers {:mvn/version "7.5.2-0"}
+                              cljsjs/chartjs {:mvn/version "3.9.1-0"}}}
+           :dev {:main-opts ["-m" "figwheel.main" "-b" "dev" "-r"]}
+           :slim {:main-opts ["-m" "figwheel.main" "-b" "slim"]}
+           :fat {:main-opts ["-m" "figwheel.main" "-b" "fat"]}
+           :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.1"}
+                          org.clojure/clojurescript {:mvn/version "1.11.132"}
+                          com.bhauman/figwheel-main {:mvn/version "0.2.18"}
+                          crate/crate {:mvn/version "0.2.5"}
+                          cljsjs/openlayers {:mvn/version "7.5.2-0"}
+                          cljsjs/chartjs {:mvn/version "3.9.1-0"}}
+                   :ns-default build}}
+ }

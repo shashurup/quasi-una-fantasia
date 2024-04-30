@@ -1,0 +1,3 @@
+^{:open-url "http://[[server-hostname]]:[[server-port]]/slim.html"}
+{:main shashurup.quf.core
+ :optimizations :advanced}

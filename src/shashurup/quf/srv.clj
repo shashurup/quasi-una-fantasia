@@ -68,14 +68,14 @@
   
   (route/not-found "<h1>Page not found</h1>"))
 
-(defn start-server [join?]
+(defn start-server [port join?]
   (j/run-jetty (d/wrap-defaults app
                                 (-> d/site-defaults
                                     ;; site defaults uses cookie-store
                                     ;; which we don't need
                                     (update :session dissoc :store)
                                     (update :security dissoc :anti-forgery)))
-               {:port 9500 :join? join?}))
+               {:port port :join? join?}))
 
 (defn -main [& args]
-  (start-server true))
+  (start-server 9500 true))

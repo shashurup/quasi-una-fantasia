@@ -29,7 +29,9 @@
 
   :repositories [["JCenter" "https://jcenter.bintray.com/"]]
   
-  :source-paths ["src"]
+  :source-paths ["src" "extra/src"]
+
+  :resource-path ["resources" "extra/resources"]
 
   :main shashurup.quf.srv
 

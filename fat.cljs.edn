@@ -1,7 +1,4 @@
-^{:watch-dirs ["test" "src" "extra/src"]
-  :css-dirs ["resources/public/css"
-             "extra/resources/public/css"]
-  :auto-testing true}
+^{:open-url "http://[[server-hostname]]:[[server-port]]/fat.html"}
 {:modules {:core {:entries #{shashurup.quf.core}}
            :fs {:entries #{shashurup.quf.fs}}
            :chartjs {:entries #{shashurup.quf.chartjs}}
@@ -9,6 +6,7 @@
            :terminal {:entries #{shashurup.quf.terminal}}
            :theme {:entries #{shashurup.quf.theme}}
            }
+ :optimizations :simple
  :output-to "dummy.js"
  :externs ["xtermjs-externs.js"]
 }

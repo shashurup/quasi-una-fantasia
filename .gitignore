@@ -5,6 +5,8 @@ pom.xml
 /out/
 /target/
 /cljs/
+/base16/
+/ubercljs/
 .lein-deps-sum
 .lein-repl-history
 .lein-plugins/
