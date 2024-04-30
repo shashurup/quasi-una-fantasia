@@ -28,12 +28,8 @@
                               cljsjs/chartjs {:mvn/version "3.9.1-0"}}}
            :dev {:main-opts ["-m" "figwheel.main" "-b" "dev" "-r"]}
            :slim {:main-opts ["-m" "figwheel.main" "-b" "slim"]}
+           :slim-bo {:main-opts ["-m" "figwheel.main" "-bo" "slim"]}
            :fat {:main-opts ["-m" "figwheel.main" "-b" "fat"]}
-           :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.1"}
-                          org.clojure/clojurescript {:mvn/version "1.11.132"}
-                          com.bhauman/figwheel-main {:mvn/version "0.2.18"}
-                          crate/crate {:mvn/version "0.2.5"}
-                          cljsjs/openlayers {:mvn/version "7.5.2-0"}
-                          cljsjs/chartjs {:mvn/version "3.9.1-0"}}
-                   :ns-default build}}
- }
+           :fat-bo {:main-opts ["-m" "figwheel.main" "-bo" "fat"]}
+           :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.1"}}
+                   :ns-default build}}}

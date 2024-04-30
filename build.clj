@@ -13,11 +13,10 @@
   (b/delete {:path target}))
 
 (defn slim-jar [_]
+  (b/process {:command-args ["clj" "-M:fig:slim-bo"]})
   (b/write-pom {:class-dir slim-jar-dir
                 :lib lib
                 :version version
-                ; :src-dirs ["src"]
-                ; :resource-dirs ["resources"]
                 :basis (b/create-basis)})
   (b/copy-dir {:src-dirs ["src"]
                :include "**/*.clj"
