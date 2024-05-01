@@ -1,6 +1,5 @@
 (ns shashurup.quf.base16
-  (:require [cheshire.core :as json]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [clojure.java.shell :refer [sh]]
             [clojure.string :refer [split-lines]]
             [clj-yaml.core :as yaml]))

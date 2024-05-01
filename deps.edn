@@ -32,5 +32,8 @@
            :slim-bo {:main-opts ["-m" "figwheel.main" "-bo" "slim"]}
            :fat {:main-opts ["-m" "figwheel.main" "-b" "fat"]}
            :fat-bo {:main-opts ["-m" "figwheel.main" "-bo" "fat"]}
+           :base16 {:extra-deps {clj-commons/clj-yaml {:mvn/version "1.0.27"}}
+                    :extra-paths ["extra/src"]
+                    :main-opts ["-m" "shashurup.quf.base16" "extra/resources/base16.edn"]}
            :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.1"}}
                    :ns-default build}}}

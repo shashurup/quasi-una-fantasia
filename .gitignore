@@ -1,19 +1,17 @@
 pom.xml
 *jar
-/lib/
-/classes/
-/out/
 /target/
-/cljs/
 /base16/
-/ubercljs/
-.lein-deps-sum
-.lein-repl-history
-.lein-plugins/
+/node_modules/
 .repl
 .nrepl-port
 .cpcache/
 .rebel_readline_history
-resources/public/cljs-out/
 .clj-kondo/.cache
+package.json
+package-lock.json
+test.py
+base16.edn
+xterm.js
+xterm.css
 

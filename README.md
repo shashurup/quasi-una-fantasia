@@ -21,13 +21,13 @@ Download xterm.js component with
 
 Download and build base16 themes
 
-    lein base16
+    clj -M:base16
 
 ## Development
 
 To get an interactive development environment run:
 
-    lein fig:build
+    clj -M:extra:cljs:dev
 
 This will auto compile and send all changes to the browser without the
 need to reload. After the compilation process is complete, you will
@@ -37,13 +37,27 @@ get a Browser Connected REPL. An easy way to try it is:
 
 and you should see an alert in the browser window.
 
+If you use cider please eval 
+
+    (setq  cider-clojure-cli-aliases ":extra:cljs:dev")
+
+somewhere in your emacs so that cider-jack-in-cljs work smoothly.
+
 To clean all compiled files:
 
-	lein clean
+	clj -T:build clean
 
 To create a production uberjar run
 
-    lein uberjar
+    clj -T:build uber
+
+To create a jar to integrate into your application run
+
+    clj -T:build slim-jar
+
+To install it into your local repo
+
+    clj -T:build install-slim-jar
 
 ## License
 
