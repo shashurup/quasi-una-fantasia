@@ -21,11 +21,12 @@
                                 org.jetbrains.pty4j/pty4j {:mvn/version "0.12.25"}
                                 clj-commons/clj-yaml {:mvn/version "1.0.27"}}
                    :extra-paths ["extra/src" "extra/resources"]}
-           :fig {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}
-                              com.bhauman/figwheel-main {:mvn/version "0.2.18"}
-                              crate/crate {:mvn/version "0.2.5"}
-                              cljsjs/openlayers {:mvn/version "7.5.2-0"}
-                              cljsjs/chartjs {:mvn/version "3.9.1-0"}}}
+           :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}
+                               com.bhauman/figwheel-main {:mvn/version "0.2.18"}
+                               crate/crate {:mvn/version "0.2.5"}
+                               cljsjs/openlayers {:mvn/version "7.5.2-0"}
+                               cljsjs/chartjs {:mvn/version "3.9.1-0"}}}
+           :fig {:main-opts ["-m" "figwheel.main"]}
            :dev {:main-opts ["-m" "figwheel.main" "-b" "dev" "-r"]}
            :slim {:main-opts ["-m" "figwheel.main" "-b" "slim"]}
            :slim-bo {:main-opts ["-m" "figwheel.main" "-bo" "slim"]}

@@ -1,4 +1,7 @@
-^{:open-url "http://[[server-hostname]]:[[server-port]]/fat.html"}
+^{:open-url "http://[[server-hostname]]:[[server-port]]/fat.html"
+  :watch-dirs ["src" "extra/src"]
+  :css-dirs ["resources/public/css"
+             "extra/resources/public/css"]}
 {:modules {:core {:entries #{shashurup.quf.core}}
            :fs {:entries #{shashurup.quf.fs}}
            :chartjs {:entries #{shashurup.quf.chartjs}}
