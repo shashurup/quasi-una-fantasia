@@ -414,4 +414,6 @@
 
 (def mkdir create-dir)
 
+(defonce _dummy (c "~"))
+
 (resp/client-module :fs)
