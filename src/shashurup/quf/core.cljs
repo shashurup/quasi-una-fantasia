@@ -58,6 +58,53 @@
                               'update-selection
                               [id nil false]]])))
 
+(defn nearest-cell-selection
+  "Checked items from the nearest upper cell with checkboxes"
+  [input-node]
+  (->> (.-parentElement input-node)
+       (iterate #(.-previousElementSibling %))
+       (take-while identity)
+       rest
+       (filter #(gdom/getElementByClass "quf-check" %))
+       first
+       (gdom/getElementsByClass "quf-check")
+       (filter #(.-checked %))
+       (map #(.-value %))
+       vec))
+
+(defn all-cells-selection
+  "All checked items"
+  [_]
+  (->> (gdom/getElementsByClass "quf-check")
+       (filter #(.-checked %))
+       (map #(.-value %))
+       vec))
+
+(defn all-cell-exprs
+  "Vector of all cell expressions"
+  [_]
+  (->> (gdom/getElementsByClass "quf-input")
+       (map #(.-textContent %))
+       vec))
+
+(def client-vars {"s" nearest-cell-selection
+                  "s-all" all-cells-selection
+                  "cells" all-cell-exprs})
+
+(defn replace-var [text node]
+  (let [var (s/trim text)]
+    (if-let [f (and (s/starts-with? var "$$")
+                    (get client-vars (subs var 2)))]
+      (s/replace-first text var (f node))
+      text)))
+
+(defn replace-client-vars [node]
+  (->> node
+       editor/text-node-seq
+       (map #(.-textContent %))
+       (map #(replace-var % node))
+       (apply str)))
+
 (defn create-cell [id ns]
   (crate/html [:div.quf-cell {:id (str "cell-" id)}
                [:span.quf-prompt (str ns "=> ")]
@@ -226,7 +273,7 @@
    (doto (get-out-element id)
      (gdom/removeChildren))
    (let [expr (-> (get-input-element id)
-                  .-textContent
+                  replace-client-vars
                   (s/replace \u00a0 " "))]
      (.requestIdleCallback js/window
                            #(history/log expr))
