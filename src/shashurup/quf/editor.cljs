@@ -501,6 +501,7 @@
                      :char "quf-char"
                      :number "quf-number"
                      :keyword "quf-keyword"
+                     :client-var "quf-client-var"
                      :symbol "quf-symbol"
                      :bool "quf-bool"
                      :nil "quf-nil"

@@ -9,7 +9,7 @@
 (u/begin-module-load! :theme)
 
 (def colors [:bg :sel-bg :alt-bg :fg
-             :symbol :literal :string :keyword
+             :symbol :literal :string :keyword :client-var
              :error])
 
 (defn- var-name [color-key]

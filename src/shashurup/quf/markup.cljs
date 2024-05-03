@@ -71,6 +71,7 @@
     :word (cond
             (s/starts-with? value ":")  [[value :keyword]]
             (s/starts-with? value "\\") [[value :char]]
+            (s/starts-with? value "$$") [[value :client-var]]
             (number-word? value)        [[value :number]]
             (#{"true" "false"} value)   [[value :bool]]
             (= "nil" value)             [[value :nil]]

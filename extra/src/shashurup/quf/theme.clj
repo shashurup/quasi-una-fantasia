@@ -51,6 +51,7 @@
    :base09 :literal
    :base0B :string
    :base0D :keyword
+   :base0E :client-var
    :base0F :error})
 
 (defn from-base16 [subj]
@@ -59,7 +60,7 @@
 (defn ls
   ([] (ls identity))
   ([pred]
-   (let [base16 (with-open [r (io/reader "resources/base16.edn")]
+   (let [base16 (with-open [r (io/reader (io/resource "base16.edn"))]
                   (edn/read (java.io.PushbackReader. r)))
          match (cond
                  (fn? pred) pred

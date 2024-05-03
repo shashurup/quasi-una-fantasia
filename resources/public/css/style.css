@@ -9,6 +9,7 @@
     --color-literal: slateblue;
     --color-string: teal;
     --color-keyword: blue;
+    --color-client-var: darkgreen;
     --color-error: red;
 }
 
@@ -139,6 +140,10 @@ span.quf-closing-paren {
 
 .quf-bool {
     color: var(--color-literal);
+}
+
+.quf-client-var {
+    color: var(--color-client-var);
 }
 
 .quf-sexp-mode {
