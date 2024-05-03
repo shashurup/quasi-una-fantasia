@@ -105,6 +105,14 @@
        (map #(replace-var % node))
        (apply str)))
 
+(defn expand-client-vars [id]
+  (let [node (get-input-element id)]
+    (doseq [text-node (editor/text-node-seq node)]
+      (.replaceWith text-node
+                    (replace-var (.-textContent text-node)
+                                 node)))
+    (editor/restructure node)))
+
 (defn create-cell [id ns]
   (crate/html [:div.quf-cell {:id (str "cell-" id)}
                [:span.quf-prompt (str ns "=> ")]
@@ -353,6 +361,7 @@
                    "C-=" load-ns-dialog
                    "C-t" new-tab
                    "C-m" show-checkboxes
+                   "C-e" expand-client-vars
                    "C-;" editor/sexp-mode})
 
 (def completions-key-map {"Escape" assistant/clear-candidates
