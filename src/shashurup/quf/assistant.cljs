@@ -25,6 +25,9 @@
 (defn get-doc-root [id]
   (gdom/getElement (str "doc-" id)))
 
+(defn get-cell [id]
+  (gdom/getElement (str "cell-" id)))
+
 (defn container-at-point []
   (.-startContainer (.getRangeAt (js/getSelection) 0)))
 
@@ -152,7 +155,7 @@
        (.append target (render-candidate c class))
        (.append target " "))
      (.append target tail)
-     (.scrollIntoView (gdom/getElement (str "cell-" id)))
+     (.scrollIntoView (get-cell id))
      (select-candidate (gdom/getFirstElementChild target)))))
 
 (defn initiate-at-point [id]
@@ -202,7 +205,7 @@
 (defn show-doc [id doc]
   (let [root (get-doc-root id)]
     (gdom/append root (:out doc))
-    (.scrollIntoView root)))
+    (.scrollIntoView (get-cell id))))
 
 (defn toggle-doc [id]
   (let [root (get-doc-root id)
