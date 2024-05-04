@@ -70,7 +70,9 @@
       (let [id (new-cell-id)
             cell (create-cell id ns)
             keydown (fn [e]
+                      (.log js/console "Searching binding for " id (key-event->str e))
                       (when-let [f (find-key-binding id (key-event->str e))]
+                        (.log js/console "Found binding for " id (key-event->str e))
                         (f id)
                         (.preventDefault e)))]
         (condp = dir
@@ -260,11 +262,18 @@
                                                (get-result-element id))]
     (gcls/add container "quf-visible-checks")))
 
+(defn hide-input [id]
+  (let [input (get-input-element id)
+        prompt (.-previousElementSibling input)]
+    (gst/setElementShown input false)
+    (gst/setElementShown prompt false)))
+
 (def cell-key-map {"Enter" eval-cell
                    "C-Enter" eval-cell-and-stay
                    "Tab" assistant/attempt-complete
                    "C-Delete" delete-cell
                    "C-u" delete-cell
+                   "A-u" hide-input
                    "C-i" insert-cell-before
                    "C-o" insert-cell-after
                    "C-y" copy-cell-with-expr
