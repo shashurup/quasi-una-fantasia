@@ -41,23 +41,6 @@
 (defn get-out-element [id]
   (gdom/getElement (str "out-" id)))
 
-(defn checkbox-changed [event id]
-  (let [checkbox (.-target event)
-        upd [id (.-value checkbox) (.-checked checkbox)]]
-    (nrepl/send-update-vars [['*selection* 'update-selection upd]
-                             ['*s 'set-current-selection]])))
-
-(defn something-checked? [id]
-  (when-let [el (get-result-element id)]
-    (some (fn [ch] (.-checked ch))
-          (gdom/getElementsByClass "quf-check" el))))
-
-(defn uncheck-cell [id]
-  (when (something-checked? id)
-    (nrepl/send-update-vars [['*selection*
-                              'update-selection
-                              [id nil false]]])))
-
 (defn nearest-cell-selection
   "Checked items from the nearest upper cell with checkboxes"
   [input-node]
@@ -208,7 +191,6 @@
 (defn delete-cell [id]
   (let [next-input (find-next-input id)
         prev-input (find-prev-input id)]
-    (uncheck-cell id)
     (gdom/removeNode (get-cell-element id))
     (.requestIdleCallback js/window store-cell-exprs)
     (cond
@@ -222,10 +204,6 @@
               (map gdom/removeNode)))
   (.requestIdleCallback js/window store-cell-exprs)
   (append-cell))
-
-(defn hook-checkboxes [id]
-  (doall (map (fn [el] (.addEventListener el "click" #(checkbox-changed % id)))
-              (gdom/getElementsByClass "quf-check" (get-result-element id)))))
 
 (defn create-progress-bar [id]
   (let [handler-call (str "shashurup.quf.core.interrupt_eval(" id ")")]
@@ -261,7 +239,6 @@
     (handler id reply))
   (when (nrepl/terminated? status)
     (remove-progress-bar id)
-    (hook-checkboxes id)
     (.scrollIntoView (get-cell-element id))
     (.requestIdleCallback js/window update-title)
     (.requestIdleCallback js/window store-cell-exprs)
@@ -274,7 +251,6 @@
 (defn eval-cell
   ([id] (eval-cell id true))
   ([id go-next]
-   (uncheck-cell id)
    (doto (get-result-element id)
      (gdom/removeChildren)
      (gdom/appendChild (create-progress-bar id)))

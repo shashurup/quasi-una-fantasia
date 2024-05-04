@@ -3,22 +3,7 @@
             [nrepl.misc :as m]
             [nrepl.transport :as t]))
 
-(def ^:dynamic *selection* [{} nil])
-
-(def ^:dynamic *s [])
-
 (def ^:dynamic *term-dimensions* [80 24])
-
-(defn update-selection [[cell-map cur] [cell id add]]
-  (if add
-    [(update cell-map cell #(conj (or % #{}) id)) cell]
-    [(if id
-       (update cell-map cell disj id)
-       (dissoc cell-map cell)) cur]))
-
-(defn set-current-selection [_]
-  (when-let [current (second *selection*)]
-    (get (first *selection*) current)))
 
 (defn- find-sym [subj]
   ((ns-map 'shashurup.quf.vars) subj))
