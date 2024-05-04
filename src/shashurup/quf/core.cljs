@@ -5,6 +5,7 @@
    [shashurup.quf.assistant :as assistant]
    [shashurup.quf.editor :as editor]
    [shashurup.quf.history :as history]
+   [shashurup.quf.keymap :as keymap]
    [shashurup.quf.markup :as markup]
    [shashurup.quf.nrepl :as nrepl]
    [shashurup.quf.render :refer [eval-reply-handler render]]
@@ -94,18 +95,30 @@
 
 (defn append-cell [] (insert-cell nil nil nil))
 
-(defn insert-cell-before [before-id]
+(defn insert-cell-before
+  "Insert a cell above."
+  {:keymap/key :insert-cell-above}
+  [before-id]
   (insert-cell :before (get-cell-element before-id) nil))
 
-(defn insert-cell-after [after-id]
+(defn insert-cell-after
+  "Insert a cell below."
+  {:keymap/key :insert-cell-below}
+  [after-id]
   (insert-cell :after (get-cell-element after-id) nil))
 
-(defn copy-cell-with-expr [cell-id]
+(defn copy-cell-with-expr
+  "Copy current cells input into a new cell below."
+  {:keymap/key :copy-cell-with-expr}
+  [cell-id]
   (insert-cell :after
                (get-cell-element cell-id)
                (gdom/getTextContent (get-input-element cell-id))))
 
-(defn append-cell-with-expr [cell-id]
+(defn append-cell-with-expr
+  "Copy current cells input into a new cell at the end."
+  {:keymap/key :append-cell-with-expr}
+  [cell-id]
   (insert-cell nil nil (.-textContent (get-input-element cell-id))))
 
 (defn find-next-input-by-node [cell-node]
@@ -128,12 +141,18 @@
 (defn find-prev-input [id]
   (find-prev-input-by-node (get-cell-element id)))
 
-(defn focus-next-cell [id]
+(defn focus-next-cell
+  "Move to the cell below."
+  {:keymap/key :cell-below}
+  [id]
   (if-let [el (find-next-input id)]
     (.focus el)
     (append-cell)))
 
-(defn focus-prev-cell [id]
+(defn focus-prev-cell
+  "Move to the cell above."
+  {:keymap/key :cell-above}
+  [id]
   (if-let [el (find-prev-input id)]
     (.focus el)
     (insert-cell-before id)))
@@ -146,7 +165,10 @@
                                    (map #(.-textContent %))
                                    (remove empty?))))))
 
-(defn delete-cell [id]
+(defn delete-cell
+  "Delete a cell."
+  {:keymap/key :delete-cell}
+  [id]
   (let [next-input (find-next-input id)
         prev-input (find-prev-input id)]
     (gdom/removeNode (get-cell-element id))
@@ -156,7 +178,10 @@
       prev-input (.focus prev-input)
       :else (append-cell))))
 
-(defn delete-all []
+(defn delete-all
+  "Delete all cells."
+  {:keymap/key :delete-all}
+  []
   (doall (->> (gdom/getElementsByClass "quf-cell")
               array-seq
               (map gdom/removeNode)))
@@ -207,6 +232,8 @@
       (focus-next-cell id))))
 
 (defn eval-cell
+  "Evaluate cell expression and display a result."
+  {:keymap/key :eval-cell}
   ([id] (eval-cell id true))
   ([id go-next]
    (doto (get-result-element id)
@@ -224,7 +251,11 @@
                                    (vars/read-pending-updates!))]
        (swap! app-state assoc-in [:requests (str id)] req-id)))))
 
-(defn eval-cell-and-stay [id] (eval-cell id false))
+(defn eval-cell-and-stay
+  "Evaluate cell expression, display a result and stay on the input field."
+  {:keymap/key :eval-cell-and-stay}
+  [id]
+  (eval-cell id false))
 
 (defn interrupt-eval [id]
   (nrepl/send-interrupt (get-in @app-state [:requests (str id)])))
@@ -233,13 +264,19 @@
                           "quf-result-tall" "quf-result-collapsed"
                           "quf-result-collapsed" ""})
 
-(defn cycle-result-height [id]
+(defn cycle-result-height
+  "Cycles result height between full/medium/short"
+  {:keymap/key :cycle-result-height}
+  [id]
   (u/cycle-style (get-result-element id) result-height-cycle))
 
 (defn populate-cells [exprs]
   (doseq [expr exprs] (insert-cell nil nil expr)))
 
-(defn load-ns-dialog []
+(defn load-ns-dialog
+  "Show stored namespace list dialog and populate cells."
+  {:keymap/key :load-ns-dialog}
+  []
   (let [dialog (crate/html [:dialog.ns-dialog
                             "Select a namespace"
                             [:select#ns-selector {:autofocus true}
@@ -264,15 +301,24 @@
     (populate-cells exprs)
     [:span.quf (str (count exprs) " cells loaded")]))
 
-(defn new-tab []
+(defn new-tab
+  "Open a new tab."
+  {:keymap/key :new-tab}
+  []
   (.open js/window (.-location js/window)))
 
-(defn show-checkboxes [id]
+(defn show-checkboxes
+  "Show checkboxes on cell's result items."
+  {:keymap/key :show-checkboxes}
+  [id]
   (when-let [container (gdom/getElementByClass "quf-container"
                                                (get-result-element id))]
     (gcls/add container "quf-visible-checks")))
 
-(defn hide-input [id]
+(defn hide-input
+  "Hide the prompt and the input field of the cell."
+  {:keymap/key :hide-input}
+  [id]
   (let [input (get-input-element id)
         prompt (.-previousElementSibling input)]
     (gst/setElementShown input false)
@@ -346,6 +392,7 @@
     (swap! eval-reply-handler wrap-module-handler)
     (when (u/module? :theme)
       (u/load-module :theme))
+    (keymap/register-fns!)
     (gevents/listen js/window
                     "load"
                     (fn [_] (append-cell)))))

@@ -256,13 +256,22 @@
 (defn sexp-mode? [id]
   (gcls/contains (get-input-element id) "quf-sexp-mode"))
 
-(defn sexp-mode [id]
+(defn sexp-mode
+  "Turn on sexp mode - vim like mode for input expressions editing."
+  {:keymap/key :sexp-mode}
+  [id]
   (gcls/add (get-input-element id) "quf-sexp-mode"))
 
-(defn insert-mode [id]
+(defn insert-mode
+  "Return back into insert mode."
+  {:keymap/key :insert-mode}
+  [id]
   (gcls/remove (get-input-element id) "quf-sexp-mode"))
 
-(defn prev-element [id]
+(defn prev-element
+  "Move to the beginning of the previous s-expression element."
+  {:keymap/key :prev-element}
+  [id]
   (when-let [sel (get-selection)]
     (if (collapsed? sel)
       ;; move cursor backwards
@@ -288,33 +297,57 @@
         (when-let [node (first (sibling-elements-after end))]
           (.setEndAfter (get-range-0 sel) node))))))
 
-(defn next-element-begin [id]
+(defn next-element-begin
+  "Move to the beginning of the next s-expression element."
+  {:keymap/key :next-element-begin}
+  [id]
   (next-element id set-position!))
 
-(defn next-element-end [id]
+(defn next-element-end
+  "Move to the end of the next s-expression element."
+  {:keymap/key :next-element-end}
+  [id]
   (next-element id set-position-at-end!))
 
-(defn move-forward [id]
+(defn move-forward
+  "Move forward a character."
+  {:keymap/key :move-forward}
+  [id]
   (when-let [sel (get-selection)]
     (.modify sel "move" "forward" "character")))
 
-(defn move-back [id]
+(defn move-back
+  "Move backwards a character."
+  {:keymap/key :move-back}
+  [id]
   (when-let [sel (get-selection)]
     (.modify sel "move" "backward" "character")))
 
-(defn move-up [id]
+(defn move-up
+  "Move up a line."
+  {:keymap/key :move-up}
+  [id]
   (when-let [sel (get-selection)]
     (.modify sel "move" "backward" "line")))
 
-(defn move-down [id]
+(defn move-down
+  "Move down a line."
+  {:keymap/key :move-down}
+  [id]
   (when-let [sel (get-selection)]
     (.modify sel "move" "forward" "line")))
 
-(defn move-start [id]
+(defn move-start
+  "Move to the start of the input field."
+  {:keymap/key :move-start}
+  [id]
   (when-let [sel (get-selection)]
     (set-position! sel (first (text-node-seq (get-input-element id))))))
 
-(defn move-end [id]
+(defn move-end
+  "Move to the end of the input field."
+  {:keymap/key :move-end}
+  [id]
   (when-let [sel (get-selection)]
     (.setEndAfter (get-range-0 sel)
                   (last (text-node-seq (get-input-element id))))
@@ -370,7 +403,10 @@
          (remove paren?)
          first)))
 
-(defn extend-selection [id]
+(defn extend-selection
+  "Extends current selection to the enclosing element/container."
+  {:keymap/key :extend-selection}
+  [id]
   (fix-selection! (get-selection))
   (when-let [sel (get-selection)]
     (condp = (selection-state sel)
@@ -398,19 +434,34 @@
     (set-position! sel open-node 1)
     (restructure (get-input-element id))))
 
-(defn wrap-with-a-paren [id]
+(defn wrap-with-a-paren
+  "Wrap current selection with parens."
+  {:keymap/key :wrap-with-a-paren}
+  [id]
   (wrap id "("))
 
-(defn wrap-with-a-bracket [id]
+(defn wrap-with-a-bracket
+  "Wrap current selection with square brackets."
+  {:keymap/key :wrap-with-a-bracket}
+  [id]
   (wrap id "["))
 
-(defn wrap-with-a-brace [id]
+(defn wrap-with-a-brace
+  "Wrap current selection with curly braces."
+  {:keymap/key :wrap-with-a-brace}
+  [id]
   (wrap id "{"))
 
-(defn wrap-with-quotes [id]
+(defn wrap-with-quotes
+  "Wrap current selection with double quotes."
+  {:keymap/key :wrap-with-quotes}
+  [id]
   (wrap id "\""))
 
-(defn unwrap [id]
+(defn unwrap
+  "Unwrap nearest enclosing container."
+  {:keymap/key :unwrap}
+  [id]
   (when-let [sel (get-selection)]
     (when-let [sexp (enclosing-sexp sel)]
       (->> (children sexp)
@@ -420,7 +471,10 @@
            doall)
       (restructure (get-input-element id)))))
 
-(defn forward-slurp [id]
+(defn forward-slurp
+  "Move nearest closing brace one element forward."
+  {:keymap/key :forward-slurp}
+  [id]
   (when-let [sel (get-selection)]
     (when-let [sexp (enclosing-sexp sel)]
       (->> (nodes-after sexp)
@@ -428,7 +482,10 @@
            (map #(.insertBefore sexp % (.-lastChild sexp)))
            doall))))
 
-(defn backward-slurp [id]
+(defn backward-slurp
+  "Move nearest opening brace one element backwards."
+  {:keymap/key :backward-slurp}
+  [id]
   (when-let [sel (get-selection)]
     (when-let [sexp (enclosing-sexp sel)]
       (->> (nodes-before sexp)
@@ -436,7 +493,10 @@
            (map #(.insertBefore sexp % (.-nextSibling (.-firstChild sexp))))
            doall))) )
 
-(defn forward-barf [id]
+(defn forward-barf
+  "Move nearest closing brace one element backwards."
+  {:keymap/key :forward-barf}
+  [id]
   (when-let [sel (get-selection)]
     (when-let [sexp (enclosing-sexp sel)]
       (->> (nodes-before (.-lastChild sexp))
@@ -446,7 +506,10 @@
                                 (next-sibling sexp)))
            doall))))
 
-(defn backward-barf [id]
+(defn backward-barf
+  "Move nearest opening brace one element forward."
+  {:keymap/key :backward-barf}
+  [id]
   (when-let [sel (get-selection)]
     (when-let [sexp (enclosing-sexp sel)]
       (->> (nodes-after (.-firstChild sexp))
@@ -454,12 +517,18 @@
            (map #(.insertBefore (.-parentElement sexp) % sexp))
            doall))))
 
-(defn change [id]
- (when-let [sel (js/getSelection)]
-   (.deleteFromDocument sel))
- (insert-mode id))
+(defn change
+  "Change selected text - vim terminology - delete and turn insert mode."
+  {:keymap/key :change-selection}
+  [id]
+  (when-let [sel (js/getSelection)]
+    (.deleteFromDocument sel))
+  (insert-mode id))
 
-(defn delete [id]
+(defn delete
+  "Delete selected text."
+  {:keymap/key :delete-selection}
+  [id]
   (when-let [sel (js/getSelection)]
     (.deleteFromDocument sel)))
 

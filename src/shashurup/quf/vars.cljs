@@ -73,7 +73,10 @@
        (map #(replace-var % node))
        (apply str)))
 
-(defn expand-client-vars [id]
+(defn expand-client-vars
+  "Replace all the client vars in the input with their values."
+  {:keymap/key :expand-client-vars}
+  [id]
   (let [node (get-input-element id)]
     (doseq [text-node (editor/text-node-seq node)]
       (.replaceWith text-node

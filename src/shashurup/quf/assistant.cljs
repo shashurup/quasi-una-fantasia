@@ -69,7 +69,10 @@
 (defn select-prev-candidate [id]
   (move-selection id gdom/getPreviousElementSibling))
 
-(defn clear-candidates [id]
+(defn clear-candidates
+  "Hide completion candidates."
+  {:keymap/key :hide-completion-candidates}
+  [id]
   (let [parent (get-root-element id)
         doc-root (get-doc-root id)]
     (gcls/set parent "quf-candidates")
@@ -112,10 +115,16 @@
       (gcls/set parent "quf-candidates")
       (gdom/removeChildren parent))))
 
-(defn use-next-candidate [id]
+(defn use-next-candidate
+  "Choose next completion candidate."
+  {:keymap/key :use-next-candidate}
+  [id]
   (apply-candidate id (select-next-candidate id)))
 
-(defn use-prev-candidate [id]
+(defn use-prev-candidate
+  "Choose previous completion candidate."
+  {:keymap/key :use-prev-candidate}
+  [id]
   (apply-candidate id (select-prev-candidate id)))
 
 (defn find-first-matching-candidate [parent substring]
@@ -164,7 +173,10 @@
     (nrepl/send-completions (text-at-point) #(show id % "quf-at-point"))
     (show id [] nil)))
 
-(defn initiate-history [id]
+(defn initiate-history
+  "Initiate a search through the history."
+  {:keymap/key :search-history}
+  [id]
   (cancel)
   (let [candidates (->> (words-at-cell-input id)
                         history/search
@@ -185,7 +197,10 @@
     (replace-text-at-point completion))
   (show id candidates class))
 
-(defmulti attempt-complete #(assistant-content-class (get-root-element %)))
+(defmulti attempt-complete
+  "Attempt complete the sumbol under cursor."
+  {:keymap/key :attempt-complete}
+  #(assistant-content-class (get-root-element %)))
 
 (defn attempt-complete-at-point [id]
   (cancel)
@@ -207,7 +222,10 @@
     (gdom/append root (:out doc))
     (.scrollIntoView (get-cell id))))
 
-(defn toggle-doc [id]
+(defn toggle-doc
+  "Show/hide a documentation for the symbol under cursor."
+  {:keymap/key :toggle-doc}
+  [id]
   (let [root (get-doc-root id)
         selected (find-selected-candidate (get-root-element id))
         subj (if selected
