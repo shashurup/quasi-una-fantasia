@@ -7,7 +7,8 @@
             [shashurup.quf.nrepl :as nrepl]
             [shashurup.quf.render :refer [eval-reply-handler]]
             [shashurup.quf.theme :as theme]
-            [shashurup.quf.utils :as u]))
+            [shashurup.quf.utils :as u]
+            [shashurup.quf.vars :as vars]))
 
 (u/begin-module-load! :terminal)
 
@@ -59,7 +60,7 @@
     [(quot W w) (quot H h)]))
 
 (defn send-terminal-dimensions []
-  (nrepl/send-update-vars [['*term-dimensions* nil (terminal-dimensions)]]))
+  (vars/push-server-updates! '*term-dimensions* (terminal-dimensions)))
 
 (defn get-out-element [id]
   (gdom/getElement (str "out-" id)))

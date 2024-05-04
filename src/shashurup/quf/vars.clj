@@ -18,14 +18,13 @@
                 session))) session updates))
 
 (defn wrap-update-vars [h]
-  (fn [{:keys [op session updates transport] :as msg}]
-    (if (= op "update-vars")
-      (do
-        (swap! session apply-updates (read-string updates))
-        (t/send transport (m/response-for msg :status :done)))
-      (h msg))))
+  (fn [{:keys [op session var-updates transport] :as msg}]
+    (when (and (= op "eval") var-updates)
+        (swap! session apply-updates (read-string var-updates)))
+    (h msg)))
 
 (mwre/set-descriptor! #'wrap-update-vars
-                      {:require #{"clone"}
+                      {:requires #{"session"}
+                       :expects #{"eval"}
                        :handles {"update-vars" {:doc "Updates session vars bindings"
                                                 :requires {"updates" "list of updates/new values"}}}})

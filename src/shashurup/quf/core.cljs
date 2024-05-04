@@ -8,6 +8,7 @@
    [shashurup.quf.nrepl :as nrepl]
    [shashurup.quf.render :refer [eval-reply-handler]]
    [shashurup.quf.utils :as u]
+   [shashurup.quf.vars :as vars]
    [goog.dom :as gdom]
    [goog.dom.classlist :as gcls]
    [goog.events :as gevents]
@@ -40,61 +41,6 @@
 
 (defn get-out-element [id]
   (gdom/getElement (str "out-" id)))
-
-(defn nearest-cell-selection
-  "Checked items from the nearest upper cell with checkboxes"
-  [input-node]
-  (->> (.-parentElement input-node)
-       (iterate #(.-previousElementSibling %))
-       (take-while identity)
-       rest
-       (filter #(gdom/getElementByClass "quf-check" %))
-       first
-       (gdom/getElementsByClass "quf-check")
-       (filter #(.-checked %))
-       (map #(.-value %))
-       vec))
-
-(defn all-cells-selection
-  "All checked items"
-  [_]
-  (->> (gdom/getElementsByClass "quf-check")
-       (filter #(.-checked %))
-       (map #(.-value %))
-       vec))
-
-(defn all-cell-exprs
-  "Vector of all cell expressions"
-  [_]
-  (->> (gdom/getElementsByClass "quf-input")
-       (map #(.-textContent %))
-       vec))
-
-(def client-vars {"s" nearest-cell-selection
-                  "s-all" all-cells-selection
-                  "cells" all-cell-exprs})
-
-(defn replace-var [text node]
-  (let [var (s/trim text)]
-    (if-let [f (and (s/starts-with? var "$$")
-                    (get client-vars (subs var 2)))]
-      (s/replace-first text var (f node))
-      text)))
-
-(defn replace-client-vars [node]
-  (->> node
-       editor/text-node-seq
-       (map #(.-textContent %))
-       (map #(replace-var % node))
-       (apply str)))
-
-(defn expand-client-vars [id]
-  (let [node (get-input-element id)]
-    (doseq [text-node (editor/text-node-seq node)]
-      (.replaceWith text-node
-                    (replace-var (.-textContent text-node)
-                                 node)))
-    (editor/restructure node)))
 
 (defn create-cell [id ns]
   (crate/html [:div.quf-cell {:id (str "cell-" id)}
@@ -257,12 +203,13 @@
    (doto (get-out-element id)
      (gdom/removeChildren))
    (let [expr (-> (get-input-element id)
-                  replace-client-vars
+                  vars/replace-client-vars
                   (s/replace \u00a0 " "))]
      (.requestIdleCallback js/window
                            #(history/log expr))
      (let [req-id (nrepl/send-eval expr
-                                   #(handle-eval-reply id % go-next))]
+                                   #(handle-eval-reply id % go-next)
+                                   (vars/read-pending-updates!))]
        (swap! app-state assoc-in [:requests (str id)] req-id)))))
 
 (defn eval-cell-and-stay [id] (eval-cell id false))
@@ -337,7 +284,7 @@
                    "C-=" load-ns-dialog
                    "C-t" new-tab
                    "C-m" show-checkboxes
-                   "C-e" expand-client-vars
+                   "C-e" vars/expand-client-vars
                    "C-;" editor/sexp-mode})
 
 (def completions-key-map {"Escape" assistant/clear-candidates
