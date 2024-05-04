@@ -98,7 +98,7 @@
 
 (defn create-cell [id ns]
   (crate/html [:div.quf-cell {:id (str "cell-" id)}
-               [:span.quf-prompt (str ns "=> ")]
+               [:span.quf-prompt (str id "|" ns "=> ")]
                [:div {:id (str "expr-" id)
                       :class "quf-input"
                       :spellcheck "false"
