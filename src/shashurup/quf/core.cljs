@@ -108,15 +108,25 @@
 (defn append-cell-with-expr [cell-id]
   (insert-cell nil nil (.-textContent (get-input-element cell-id))))
 
+(defn find-next-input-by-node [cell-node]
+  (when-let [next (gdom/getNextElementSibling cell-node)]
+    (when-let [target (gdom/getElementByClass "quf-input" next)]
+      (if (gst/isElementShown target)
+        target
+        (find-next-input-by-node next)))))
+
+(defn find-prev-input-by-node [cell-node]
+  (when-let [prev (gdom/getPreviousElementSibling cell-node)]
+    (when-let [target (gdom/getElementByClass "quf-input" prev)]
+      (if (gst/isElementShown target)
+        target
+        (find-prev-input-by-node prev)))))
+
 (defn find-next-input [id]
-  (when-let [this (get-cell-element id)]
-    (when-let [next (gdom/getNextElementSibling this)]
-      (gdom/getElementByClass "quf-input" next))))
+  (find-next-input-by-node (get-cell-element id)))
 
 (defn find-prev-input [id]
-  (when-let [this (get-cell-element id)]
-    (when-let [next (gdom/getPreviousElementSibling this)]
-      (gdom/getElementByClass "quf-input" next))))
+  (find-prev-input-by-node (get-cell-element id)))
 
 (defn focus-next-cell [id]
   (if-let [el (find-next-input id)]
