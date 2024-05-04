@@ -287,8 +287,8 @@
                    "C-i" insert-cell-before
                    "C-o" insert-cell-after
                    "C-y" copy-cell-with-expr
-                   "C-S-Y" append-cell-with-expr
-                   "C-S-L" delete-all
+                   "A-y" append-cell-with-expr
+                   "A-C-l" delete-all
                    "C-j" focus-next-cell
                    "C-k" focus-prev-cell
                    "C-r" assistant/initiate-history
