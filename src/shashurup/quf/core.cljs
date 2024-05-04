@@ -5,8 +5,10 @@
    [shashurup.quf.assistant :as assistant]
    [shashurup.quf.editor :as editor]
    [shashurup.quf.history :as history]
+   [shashurup.quf.markup :as markup]
    [shashurup.quf.nrepl :as nrepl]
-   [shashurup.quf.render :refer [eval-reply-handler]]
+   [shashurup.quf.render :refer [eval-reply-handler render]]
+   [shashurup.quf.storage :as storage]
    [shashurup.quf.utils :as u]
    [shashurup.quf.vars :as vars]
    [goog.dom :as gdom]
@@ -15,8 +17,7 @@
    [goog.style :as gst]
    [crate.core :as crate]
    [clojure.string :as s]
-   [cljs.pprint :as pp]
-   [cljs.tools.reader :refer [read-string]]))
+   [cljs.pprint :as pp]))
 
 (u/begin-module-load! :core)
 
@@ -128,11 +129,10 @@
 (defn store-cell-exprs []
   (let [name (:ns @nrepl/state)]
     (when (not= name "user")
-      (.setItem (.-localStorage js/window)
-                (str "ns." name)
-                (pr-str (->> (gdom/getElementsByClass "quf-input")
-                             (map #(.-textContent %))
-                             (remove empty?)))))))
+      (storage/store-ns-exprs name
+                              (->> (gdom/getElementsByClass "quf-input")
+                                   (map #(.-textContent %))
+                                   (remove empty?))))))
 
 (defn delete-cell [id]
   (let [next-input (find-next-input id)
@@ -224,19 +224,6 @@
 (defn cycle-result-height [id]
   (u/cycle-style (get-result-element id) result-height-cycle))
 
-(defn stored-nses []
-  (->> (range)
-       (map #(.key (.-localStorage js/window) %))
-       (take-while identity)
-       (filter #(s/starts-with? % "ns."))
-       (map #(subs % 3))))
-
-(defn load-ns-exprs [name]
-  (-> (.-localStorage js/window)
-      (.getItem (str "ns." name))
-      read-string
-      (or [])))
-
 (defn populate-cells [exprs]
   (doseq [expr exprs] (insert-cell nil nil expr)))
 
@@ -244,19 +231,26 @@
   (let [dialog (crate/html [:dialog.ns-dialog
                             "Select a namespace"
                             [:select#ns-selector {:autofocus true}
-                             (for [n (stored-nses)]
-                               [:option n])]
+                             (for [n (storage/stored-nses)]
+                               [:option (str n)])]
                             [:button#ok-ns "Ok"]
                             [:button#cancel-ns "Cancel"]])]
     (.append (.-body js/document) dialog)
     (gevents/listen dialog "close" #(.remove dialog))
     (gevents/listen (gdom/getElement "ok-ns")
                     "click" #(let [choice (.-value (gdom/getElement "ns-selector"))]
-                               (populate-cells (load-ns-exprs choice))
+                               (populate-cells (storage/load-ns-exprs choice))
                                (.close dialog)))
     (gevents/listen (gdom/getElement "cancel-ns")
                     "click" #(.close dialog))
     (.showModal dialog)))
+
+(defmethod render :cells [subj]
+  (let [exprs (if (symbol? subj)
+                (storage/load-ns-exprs subj)
+                (markup/top-level-forms (first subj)))]
+    (populate-cells exprs)
+    [:span.quf (str (count exprs) " cells loaded")]))
 
 (defn new-tab []
   (.open js/window (.-location js/window)))
