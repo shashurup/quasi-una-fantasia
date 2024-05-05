@@ -318,7 +318,10 @@
     (swap! eval-reply-handler wrap-module-handler)
     (when (u/module? :theme)
       (u/load-module :theme))
-    (keymap/register-fns!)
+    (keymap/register-fns! [(ns-interns 'shashurup.quf.core)
+                           (ns-interns 'shashurup.quf.assistant)
+                           (ns-interns 'shashurup.quf.editor)
+                           (ns-interns 'shashurup.quf.vars)])
     (gevents/listen js/window
                     "load"
                     (fn [_] (append-cell)))))

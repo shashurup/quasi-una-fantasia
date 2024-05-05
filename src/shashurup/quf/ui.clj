@@ -13,3 +13,7 @@
 (defn table [subj] (r/hint subj :table))
 
 (defn html [subj] (r/hint subj :html))
+
+(defn keymap [subj] (r/hint subj :keymap))
+
+(defn raw [subj] (vary-meta subj dissoc :shashurup.quf/hint))

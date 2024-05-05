@@ -1,6 +1,7 @@
 (ns shashurup.quf.keymap
   (:require [shashurup.quf.assistant :as assistant]
-            [shashurup.quf.editor :as editor]))
+            [shashurup.quf.editor :as editor]
+            [shashurup.quf.render :refer [render]]))
 
 (defonce keymap (atom {:base {"Enter" :eval-cell
                               "C-Enter" :eval-cell-and-stay
@@ -52,18 +53,15 @@
 
 (defonce fn-map (atom {}))
 
-(defn- keymap-fns []
+(defn- keymap-fns [ns-maps]
   (apply concat
-         (for [m [(ns-interns 'shashurup.quf.core)
-                  (ns-interns 'shashurup.quf.assistant)
-                  (ns-interns 'shashurup.quf.editor)
-                  (ns-interns 'shashurup.quf.vars)]]
+         (for [m ns-maps]
            (->> m
                 vals
                 (filter #(:keymap/key (meta %)))))))
 
-(defn register-fns! []
-  (reset! fn-map (into {} (->> (keymap-fns)
+(defn register-fns! [ns-maps]
+  (reset! fn-map (into {} (->> (keymap-fns ns-maps)
                                (map #(vector (:keymap/key (meta %)) %))))))
 
 (defn- key-event->str [e]
@@ -77,6 +75,7 @@
     (get @fn-map fn-key)))
 
 (defn- find-handler [id key]
+  (.log js/console "Searching " key)
   (or (when (editor/sexp-mode? id)
         (handler-fn :sexp-mode key))
       (when (assistant/active id)
@@ -88,5 +87,23 @@
 (defn keydown-handler-for [id]
   (fn [e]
     (when-let [f (find-handler id (key-event->str e))]
+      (.log js/console "found")
       (f id)
       (.preventDefault e))))
+
+(defn- render-mode [mode title]
+  [:div
+   [:h3 title]
+   [:table.quf
+    [:tr.quf [:th.quf "Key"] [:th.quf "Function"] [:th.quf "Description"]]
+    (for [[key fn-key] (get @keymap mode)]
+      [:tr.quf
+       [:td.quf.quf-string key]
+       [:td.quf.quf-keyword fn-key]
+       [:td.quf (:doc (meta (@fn-map fn-key)))]])]])
+
+(defmethod render :keymap [subj]
+  [:div
+   (render-mode :base "Basic")
+   (render-mode :completions "Completions mode")
+   (render-mode :sexp-mode "Sexp mode")])

@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as s]
    [shashurup.quf.editor :as editor]
+   [shashurup.quf.keymap :as keymap]
    [shashurup.quf.storage :as storage]
    [goog.dom :as gdom]))
 
@@ -54,10 +55,15 @@
   "Namespaces stored in browser's local storage"
   [_] (storage/stored-nses))
 
+(defn active-keymap
+  "Currently active keymap"
+  [_] @keymap/keymap)
+
 (def client-vars {"s" nearest-cell-selection
                   "s-all" all-cells-selection
                   "cells" all-cell-exprs
-                  "stored" stored-namespaces})
+                  "stored" stored-namespaces
+                  "keymap" (fn [_] @keymap/keymap)})
 
 (defn replace-var [text node]
   (let [var (s/trim text)]
