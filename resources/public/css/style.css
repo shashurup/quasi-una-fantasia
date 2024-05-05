@@ -294,3 +294,7 @@ td.quf .quf-tall {
 .ns-dialog > * {
     margin: 1em;
 }
+
+button.quf {
+    margin: 1em;
+}
