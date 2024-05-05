@@ -56,13 +56,6 @@
                [:div {:id (str "out-" id)}]
                [:div.quf-result {:id (str "result-" id)}]]))
 
-(defn key-event->str [e]
-  (str (when (.-altKey e) "A-")
-       (when (.-ctrlKey e) "C-")
-       (when (.-shiftKey e) "S-")
-       (.-key e)))
-
-(declare find-key-binding)
 (declare append-cell)
 
 (defn insert-cell [dir el expr-text]
@@ -70,12 +63,7 @@
     (if ns
       (let [id (new-cell-id)
             cell (create-cell id ns)
-            keydown (fn [e]
-                      (.log js/console "Searching binding for " id (key-event->str e))
-                      (when-let [f (find-key-binding id (key-event->str e))]
-                        (.log js/console "Found binding for " id (key-event->str e))
-                        (f id)
-                        (.preventDefault e)))]
+            keydown (keymap/keydown-handler-for id)]
         (condp = dir
           :before (gdom/insertSiblingBefore cell el)
           :after (gdom/insertSiblingAfter cell el)
@@ -322,70 +310,8 @@
   (let [input (get-input-element id)
         prompt (.-previousElementSibling input)]
     (gst/setElementShown input false)
-    (gst/setElementShown prompt false)))
-
-(def cell-key-map {"Enter" eval-cell
-                   "C-Enter" eval-cell-and-stay
-                   "Tab" assistant/attempt-complete
-                   "C-Delete" delete-cell
-                   "C-u" delete-cell
-                   "A-u" hide-input
-                   "C-i" insert-cell-before
-                   "C-o" insert-cell-after
-                   "C-y" copy-cell-with-expr
-                   "A-y" append-cell-with-expr
-                   "A-C-l" delete-all
-                   "C-j" focus-next-cell
-                   "C-k" focus-prev-cell
-                   "C-r" assistant/initiate-history
-                   "C-h" assistant/toggle-doc
-                   "C-s" cycle-result-height
-                   "C-=" load-ns-dialog
-                   "C-t" new-tab
-                   "C-m" show-checkboxes
-                   "C-e" vars/expand-client-vars
-                   "C-;" editor/sexp-mode})
-
-(def completions-key-map {"Escape" assistant/clear-candidates
-                          "C-j" assistant/use-next-candidate
-                          "C-k" assistant/use-prev-candidate})
-
-(def sexp-mode-key-map {"i" editor/insert-mode
-                        "d" editor/delete
-                        "c" editor/change
-                        "h" editor/move-back
-                        "l" editor/move-forward
-                        "j" editor/move-down
-                        "k" editor/move-up
-                        "w" editor/next-element-begin
-                        "e" editor/next-element-end
-                        "b" editor/prev-element
-                        "v" editor/extend-selection
-                        "S-(" editor/wrap-with-a-paren
-                        "[" editor/wrap-with-a-bracket
-                        "S-{" editor/wrap-with-a-brace
-                        "S-\"" editor/wrap-with-quotes
-                        "u" editor/unwrap
-                        "f" editor/forward-slurp
-                        "S-F" editor/forward-barf
-                        "a" editor/backward-slurp
-                        "S-A" editor/backward-barf
-                        "S-^" editor/move-start
-                        "S-$" editor/move-end
-                        "0" editor/move-start
-                        ;; "u" #(.execCommand js/document "undo")
-                        ;; "y" #(.execCommand js/document "copy")
-                        ;; "p" #(.execCommand js/document "paste")
-                        })
-
-(defn find-key-binding [id key]
-  (or (when (editor/sexp-mode? id)
-        (sexp-mode-key-map key))
-      (when (assistant/active id)
-        (completions-key-map key))
-      (cell-key-map key)
-      (when (editor/sexp-mode? id)
-        identity)))
+    (gst/setElementShown prompt false)
+    (focus-next-cell id)))
 
 (defonce startup-dummy
   (do

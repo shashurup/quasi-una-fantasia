@@ -1,9 +1,11 @@
-(ns shashurup.quf.keymap)
+(ns shashurup.quf.keymap
+  (:require [shashurup.quf.assistant :as assistant]
+            [shashurup.quf.editor :as editor]))
 
 (defonce keymap (atom {:base {"Enter" :eval-cell
                               "C-Enter" :eval-cell-and-stay
                               "Tab" :attempt-complete
-                              "C-delete" :delete-cell
+                              "C-Delete" :delete-cell
                               "C-u" :delete-cell
                               "A-u" :hide-input
                               "A-C-l" :delete-all
@@ -63,3 +65,28 @@
 (defn register-fns! []
   (reset! fn-map (into {} (->> (keymap-fns)
                                (map #(vector (:keymap/key (meta %)) %))))))
+
+(defn- key-event->str [e]
+  (str (when (.-altKey e) "A-")
+       (when (.-ctrlKey e) "C-")
+       (when (.-shiftKey e) "S-")
+       (.-key e)))
+
+(defn- handler-fn [mode key]
+  (when-let [fn-key (get-in @keymap [mode key])]
+    (get @fn-map fn-key)))
+
+(defn- find-handler [id key]
+  (or (when (editor/sexp-mode? id)
+        (handler-fn :sexp-mode key))
+      (when (assistant/active id)
+        (handler-fn :completions key))
+      (handler-fn :base key)
+      (when (editor/sexp-mode? id)
+        identity)))
+
+(defn keydown-handler-for [id]
+  (fn [e]
+    (when-let [f (find-handler id (key-event->str e))]
+      (f id)
+      (.preventDefault e))))
