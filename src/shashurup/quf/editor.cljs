@@ -651,10 +651,10 @@
 
 ;; autoident
 
-(defn indent-reference [anchor-node sexp]
+(defn indent-reference [atom sexp]
   (let [open (first (filter paren? (.-childNodes sexp)))
         call? (= (.-textContent open) "(")
-        atoms (reverse (sibling-elements-before anchor-node))
+        atoms (reverse (sibling-elements-before atom))
         atom-count (count atoms)]
     (if (= 0 atom-count)
       [open 3]
@@ -665,22 +665,22 @@
         [(first atoms) 0]))))
 
 (defn indent-column [node]
-  (let [[head tail] (->>  (iterate prev-leaf-node node)
-                            (rest)
-                            (take-while identity)
-                            (map #(.-textContent %))
-                            (split-with #(not (s/includes? % "\n"))))]
+  (let [[head tail] (->> (iterate prev-leaf-node node)
+                         (rest)
+                         (take-while identity)
+                         (map #(.-textContent %))
+                         (split-with #(not (s/includes? % "\n"))))]
     (+ (apply + (map count head))
        (when tail
          (count (last (s/split-lines (first tail))))))))
 
 (defn indent []
   (let [sel (get-selection)
-        node (get-anchor-node sel)]
-    (when-let [sexp (->> (parent-nodes node)
-                         (filter sexp?)
-                         first)]
-      (let [[ref-node offset] (indent-reference node sexp)
+        node (get-anchor-node sel)
+        parent (.-parentNode node)
+        atom (if (sexp? parent) node parent)]
+    (when-let [sexp (->> (parent-nodes node) (filter sexp?) first)]
+      (let [[ref-node offset] (indent-reference atom sexp)
             column (indent-column ref-node)
             pos (get-anchor-offset sel)]
         (.insertData node pos (.repeat " " (+ column offset)))
