@@ -21,9 +21,6 @@
 (defn var-value [var-name]
   (.getPropertyValue (computed-style) var-name))
 
-(defn local-storage []
-  (.-localStorage js/window))
-
 (defn get-theme []
   (into {} (map #(vector % (var-value (var-name %))) colors)))
 
@@ -31,10 +28,11 @@
   (doseq [[k v] theme]
     (.setProperty (.-style (.-documentElement js/document))
                   (var-name k)
-                  v))
-  (.setItem (local-storage)
-            "quf-theme"
-            theme))
+                  v)))
+
+(defn set-theme-and-store [theme]
+  (set-theme theme)
+  (u/store-item "quf-theme" theme))
 
 (def preview-text "
 (defn function1 [data]
@@ -69,7 +67,7 @@
                     padding: 2em;"
                    (render-theme theme))]
     [:div {:style style
-           :onclick (u/gen-js-call #(set-theme theme))}
+           :onclick (u/gen-js-call #(set-theme-and-store theme))}
      (->> preview-text
           s/trim
           markup/parse
@@ -80,7 +78,7 @@
 
 (swap! desc/object-types assoc ::theme theme)
 
-(when-let [item (.getItem (local-storage) "quf-theme")]
-    (set-theme (read-string item)))
+(when-let [theme (u/load-item "quf-theme")]
+    (set-theme theme))
 
 (u/set-module-loaded!)

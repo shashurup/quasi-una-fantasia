@@ -1,6 +1,7 @@
 (ns shashurup.quf.utils
   (:require [clojure.set :as set]
             [cljs.loader :as loader]
+            [cljs.tools.reader :refer [read-string]]
             [crate.core :as crate]
             [goog.dom :as gdom]
             [goog.dom.classes :as gcls]))
@@ -67,3 +68,16 @@
 
 (defn module? [subj]
   (contains? loader/module-infos subj))
+
+(defn local-storage []
+  (.-localStorage js/window))
+
+(defn store-item [name subj]
+  (.setItem (local-storage) name (pr-str subj)))
+
+(defn load-item [name]
+  (when-let [item (.getItem (local-storage) name)]
+    (read-string item)))
+
+(defn remove-item [name]
+  (.removeItem (local-storage) name))

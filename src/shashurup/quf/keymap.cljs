@@ -1,56 +1,59 @@
 (ns shashurup.quf.keymap
-  (:require [shashurup.quf.assistant :as assistant]
+  (:require [cljs.tools.reader :refer [read-string]]
+            [shashurup.quf.assistant :as assistant]
             [shashurup.quf.editor :as editor]
             [shashurup.quf.render :refer [render]]
             [shashurup.quf.utils :as u]))
 
-(defonce keymap (atom {:base {"Enter" :eval-cell
-                              "C-Enter" :eval-cell-and-stay
-                              "Tab" :attempt-complete
-                              "C-Delete" :delete-cell
-                              "C-u" :delete-cell
-                              "A-u" :hide-input
-                              "A-C-l" :delete-all
-                              "C-i" :insert-cell-above
-                              "C-o" :insert-cell-below
-                              "C-y" :copy-cell-with-expr
-                              "A-y" :append-cell-with-expr
-                              "C-j" :cell-below
-                              "C-k" :cell-above
-                              "C-r" :search-history
-                              "C-h" :toggle-doc
-                              "C-s" :cycle-result-height
-                              "C-=" :load-ns-dialog
-                              "C-t" :new-tab
-                              "C-m" :show-checkboxes
-                              "C-e" :expand-client-vars
-                              "C-;" :sexp-mode}
-                       :completions {"C-j" :use-next-candidate
-                                     "C-k" :use-prev-candidate
-                                     "Escape" :hide-completion-candidates}
-                       :sexp-mode {"i" :insert-mode
-                                   "d" :delete-selection
-                                   "c" :change-selection
-                                   "h" :move-back
-                                   "l" :move-forward
-                                   "j" :move-down
-                                   "k" :move-up
-                                   "w" :next-element-begin
-                                   "e" :next-element-end
-                                   "b" :prev-element
-                                   "v" :extend-selection
-                                   "S-(" :wrap-with-a-paren
-                                   "[" :wrap-with-a-bracket
-                                   "S-{" :wrap-with-a-brace
-                                   "S-\"" :wrap-with-quotes
-                                   "u" :unwrap
-                                   "f" :forward-slurp
-                                   "S-F" :forward-barf
-                                   "a" :backward-slurp
-                                   "S-A" :backward-barf
-                                   "S-^" :move-start
-                                   "S-$" :move-end
-                                   "0" :move-start}}))
+(def default-keymap {:base {"Enter" :eval-cell
+                            "C-Enter" :eval-cell-and-stay
+                            "Tab" :attempt-complete
+                            "C-Delete" :delete-cell
+                            "C-u" :delete-cell
+                            "A-u" :hide-input
+                            "A-C-l" :delete-all
+                            "C-i" :insert-cell-above
+                            "C-o" :insert-cell-below
+                            "C-y" :copy-cell-with-expr
+                            "A-y" :append-cell-with-expr
+                            "C-j" :cell-below
+                            "C-k" :cell-above
+                            "C-r" :search-history
+                            "C-h" :toggle-doc
+                            "C-s" :cycle-result-height
+                            "C-=" :load-ns-dialog
+                            "C-t" :new-tab
+                            "C-m" :show-checkboxes
+                            "C-e" :expand-client-vars
+                            "C-;" :sexp-mode}
+                     :completions {"C-j" :use-next-candidate
+                                   "C-k" :use-prev-candidate
+                                   "Escape" :hide-completion-candidates}
+                     :sexp-mode {"i" :insert-mode
+                                 "d" :delete-selection
+                                 "c" :change-selection
+                                 "h" :move-back
+                                 "l" :move-forward
+                                 "j" :move-down
+                                 "k" :move-up
+                                 "w" :next-element-begin
+                                 "e" :next-element-end
+                                 "b" :prev-element
+                                 "v" :extend-selection
+                                 "S-(" :wrap-with-a-paren
+                                 "[" :wrap-with-a-bracket
+                                 "S-{" :wrap-with-a-brace
+                                 "S-\"" :wrap-with-quotes
+                                 "u" :unwrap
+                                 "f" :forward-slurp
+                                 "S-F" :forward-barf
+                                 "a" :backward-slurp
+                                 "S-A" :backward-barf
+                                 "S-^" :move-start
+                                 "S-$" :move-end
+                                 "0" :move-start}})
+
+(defonce keymap (atom default-keymap))
 
 (defonce fn-map (atom {}))
 
@@ -92,11 +95,13 @@
       (f id)
       (.preventDefault e))))
 
+(def item-name "quf-keymap")
+
 (defn merge-keymap! [subj]
-  (swap! keymap #(merge-with merge % subj)))
+  (u/store-item item-name (swap! keymap #(merge-with merge % subj))))
 
 (defn replace-keymap! [subj]
-  (reset! keymap subj))
+  (u/store-item item-name (reset! keymap subj)))
 
 (def mode-names {:base "Basic"
                  :completions "Completions mode"
@@ -107,7 +112,7 @@
    [:h3 (mode-names mode)]
    [:table.quf
     [:tr.quf [:th.quf "Key"] [:th.quf "Function"] [:th.quf "Description"]]
-    (for [[key fn-key] (get keymap mode)]
+    (for [[key fn-key] (sort (get keymap mode))]
       [:tr.quf
        [:td.quf.quf-string key]
        [:td.quf.quf-keyword fn-key]
@@ -121,3 +126,8 @@
        (render-mode subj mode))
      [:button.quf {:onclick merge-fn} "Merge"]
      [:button.quf {:onclick replace-fn} "Replace"]]))
+
+(defn init [ns-maps]
+  (register-fns! ns-maps)
+  (when-let [km (u/load-item item-name)]
+    (replace-keymap! km)))
