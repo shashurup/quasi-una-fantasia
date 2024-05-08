@@ -9,7 +9,6 @@
    [shashurup.quf.markup :as markup]
    [shashurup.quf.nrepl :as nrepl]
    [shashurup.quf.render :refer [eval-reply-handler render]]
-   [shashurup.quf.storage :as storage]
    [shashurup.quf.utils :as u]
    [shashurup.quf.vars :as vars]
    [goog.dom :as gdom]
@@ -148,10 +147,9 @@
 (defn store-cell-exprs []
   (let [name (:ns @nrepl/state)]
     (when (not= name "user")
-      (storage/store-ns-exprs name
-                              (->> (gdom/getElementsByClass "quf-input")
-                                   (map #(.-textContent %))
-                                   (remove empty?))))))
+      (u/store-item "ns." name (->> (gdom/getElementsByClass "quf-input")
+                                    (map #(.-textContent %))
+                                    (remove empty?))))))
 
 (defn delete-cell
   "Delete a cell."
@@ -268,15 +266,15 @@
   (let [dialog (crate/html [:dialog.ns-dialog
                             "Select a namespace"
                             [:select#ns-selector {:autofocus true}
-                             (for [n (storage/stored-nses)]
-                               [:option (str n)])]
+                             (for [n (u/list-items "ns.")]
+                               [:option n])]
                             [:button#ok-ns "Ok"]
                             [:button#cancel-ns "Cancel"]])]
     (.append (.-body js/document) dialog)
     (gevents/listen dialog "close" #(.remove dialog))
     (gevents/listen (gdom/getElement "ok-ns")
                     "click" #(let [choice (.-value (gdom/getElement "ns-selector"))]
-                               (populate-cells (storage/load-ns-exprs choice))
+                               (populate-cells (u/load-item "ns." choice))
                                (.close dialog)))
     (gevents/listen (gdom/getElement "cancel-ns")
                     "click" #(.close dialog))
@@ -284,7 +282,7 @@
 
 (defmethod render :cells [subj]
   (let [exprs (if (symbol? subj)
-                (storage/load-ns-exprs subj)
+                (u/load-item "ns." subj)
                 (markup/top-level-forms (first subj)))]
     (populate-cells exprs)
     [:span.quf (str (count exprs) " cells loaded")]))

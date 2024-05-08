@@ -1,5 +1,6 @@
 (ns shashurup.quf.utils
   (:require [clojure.set :as set]
+            [clojure.string :as s]
             [cljs.loader :as loader]
             [cljs.tools.reader :refer [read-string]]
             [crate.core :as crate]
@@ -72,12 +73,27 @@
 (defn local-storage []
   (.-localStorage js/window))
 
-(defn store-item [name subj]
-  (.setItem (local-storage) name (pr-str subj)))
+(defn list-items
+  ([] (list-items ""))
+  ([prefix] (let [storage (local-storage)]
+              (->> (range)
+                   (map #(.key storage %))
+                   (take-while identity)
+                   (filter #(s/starts-with? % prefix))
+                   (mapv #(subs % (count prefix)))))))
 
-(defn load-item [name]
-  (when-let [item (.getItem (local-storage) name)]
-    (read-string item)))
+(defn store-item
+  ([name subj] (store-item "" name subj))
+  ([prefix name subj]
+   (.setItem (local-storage)
+             (str prefix name)
+             (pr-str subj))))
+
+(defn load-item
+  ([name] (load-item "" name))
+  ([prefix name]
+   (when-let [item (.getItem (local-storage) (str prefix name))]
+     (read-string item))))
 
 (defn remove-item [name]
   (.removeItem (local-storage) name))

@@ -180,6 +180,7 @@
    :n - to sort by name ascending,
    :N - to sort by name descending,
    :h - to show hidden files
+   :c - to show files as a list of thumbnails
   "
   [& args]
   (let [flags {:m [:cols [:size :modified :name-ex]]
