@@ -1,10 +1,13 @@
 (ns shashurup.quf.history
-  (:require [clojure.string :as s]
+  (:require [shashurup.quf.utils :as u]
+            [clojure.string :as s]
             [cljs.tools.reader :refer [read-string]]))
+
+(def hist-item "history")
 
 (defn read-local []
   (-> (.-localStorage js/window)
-      (.getItem "history")
+      (.getItem hist-item)
       read-string
       (or [])))
 
@@ -18,9 +21,7 @@
        distinct))
 
 (defn search [terms]
-  (matches (read-local) terms))
+  (matches (or (u/load-item hist-item) []) terms))
 
 (defn log [expr]
-  (.setItem (.-localStorage js/window)
-            "history"
-            (pr-str (conj (read-local) expr))))
+  (u/store-item hist-item (conj (u/load-item hist-item) expr)))

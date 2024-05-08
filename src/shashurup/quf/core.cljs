@@ -257,7 +257,12 @@
   (u/cycle-style (get-result-element id) result-height-cycle))
 
 (defn populate-cells [exprs]
-  (doseq [expr exprs] (insert-cell nil nil expr)))
+  (let [last-input (last (gdom/getElementsByClass "quf-input"))]
+    (if (empty? (s/trim (.-textContent last-input)))
+      (do
+        (gdom/setTextContent last-input (first exprs))
+        (doseq [expr (rest exprs)] (insert-cell nil nil expr)))
+      (doseq [expr exprs] (insert-cell nil nil expr)))))
 
 (defn load-ns-dialog
   "Show stored namespace list dialog and populate cells."

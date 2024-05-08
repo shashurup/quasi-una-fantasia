@@ -3,7 +3,7 @@
    [clojure.string :as s]
    [shashurup.quf.editor :as editor]
    [shashurup.quf.keymap :as keymap]
-   [shashurup.quf.storage :as storage]
+   [shashurup.quf.utils :as u]
    [goog.dom :as gdom]))
 
 (defonce server-vars (atom {}))
@@ -53,7 +53,7 @@
 
 (defn stored-namespaces
   "Namespaces stored in browser's local storage"
-  [_] (storage/stored-nses))
+  [_] (u/list-items "ns."))
 
 (defn active-keymap
   "Currently active keymap"
