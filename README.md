@@ -59,6 +59,10 @@ To install it into your local repo
 
     clj -T:build install-slim-jar
 
+## Features
+
+[Here](doc/doc.html)
+
 ## License
 
 Copyright © 2018 FIXME
