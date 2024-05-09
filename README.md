@@ -1,6 +1,6 @@
 # Quasi una fantasia
 
-Quasi uan fantasia is a graphical lisp shell prototype.
+Quasi una fantasia is a graphical lisp shell prototype.
 
 ## Overview
 
