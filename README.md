@@ -9,6 +9,8 @@ Quasi una fantasia is a graphical lisp shell prototype.
  
 The ideas behind the project have been stirring in the back of my head for quite a while already. To blend some things I like, such as shell pipelines, REPL and Lisp. To add some ideas on top of that, such as handling structured data in pipelines and breaking the limits of text only data representation modern shells only offer.
 
+I strongly recommend visiting this [intro](https://shashurup.github.io/quasi-una-fantasia/doc.html) to get an impression what it is.
+
 ## Prerequisites
 
 ### xterm.js
@@ -58,10 +60,6 @@ To create a jar to integrate into your application run
 To install it into your local repo
 
     clj -T:build install-slim-jar
-
-## Features
-
-I strongly recommend visiting this [intro](https://shashurup.github.io/quasi-una-fantasia/doc.html).
 
 ## License
 
