@@ -95,7 +95,7 @@
       (f id)
       (.preventDefault e))))
 
-(def item-name "quf-keymap")
+(def item-name "keymap")
 
 (defn merge-keymap! [subj]
   (u/store-item item-name (swap! keymap #(merge-with merge % subj))))

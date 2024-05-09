@@ -32,7 +32,7 @@
 
 (defn set-theme-and-store [theme]
   (set-theme theme)
-  (u/store-item "quf-theme" theme))
+  (u/store-item "theme" theme))
 
 (def preview-text "
 (defn function1 [data]
@@ -78,7 +78,7 @@
 
 (swap! desc/object-types assoc ::theme theme)
 
-(when-let [theme (u/load-item "quf-theme")]
+(when-let [theme (u/load-item "theme")]
     (set-theme theme))
 
 (u/set-module-loaded!)

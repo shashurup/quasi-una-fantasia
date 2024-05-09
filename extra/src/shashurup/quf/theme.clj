@@ -58,6 +58,11 @@
   (update-keys (select-keys subj (keys base16-map)) base16-map))
 
 (defn ls
+  "List themes, pred can be:
+   string - a substring to search
+   keyword - :dark or :light
+   function - custom theme matching function.
+   Click to apply."
   ([] (ls identity))
   ([pred]
    (let [base16 (with-open [r (io/reader (io/resource "base16.edn"))]
