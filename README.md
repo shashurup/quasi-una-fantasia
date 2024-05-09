@@ -61,7 +61,7 @@ To install it into your local repo
 
 ## Features
 
-[Here](doc/doc.html)
+I strongly recommend visiting this [intro](https://shashurup.github.io/quasi-una-fantasia/doc.html).
 
 ## License
 
