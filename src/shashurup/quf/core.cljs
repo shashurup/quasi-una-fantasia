@@ -43,9 +43,19 @@
 (defn get-out-element [id]
   (gdom/getElement (str "out-" id)))
 
+(defn get-prompt-element [id]
+  (gdom/getElement (str "prompt-" id)))
+
+(defn get-id [el]
+  (when-let [id (re-find #"\d+" (.-id el))]
+    (js/parseInt id)))
+
+(defn prompt [id ns]
+  (str id "|" ns "=> "))
+
 (defn create-cell [id ns]
   (crate/html [:div.quf-cell {:id (str "cell-" id)}
-               [:span.quf-prompt (str id "|" ns "=> ")]
+               [:span.quf-prompt {:id (str "prompt-" id)} (prompt id ns)]
                [:div {:id (str "expr-" id)
                       :class "quf-input"
                       :spellcheck "false"
@@ -74,7 +84,8 @@
             (.focus)
             (editor/plug)
             (assistant/plug id)
-            (.addEventListener "keydown" keydown))))
+            (.addEventListener "keydown" keydown))
+          expr-input))
       (nrepl/send-clone (fn [_]
                           (nrepl/send-eval "*ns*"
                                            #(when (:value %)
@@ -133,7 +144,7 @@
   {:keymap/key :cell-below}
   [id]
   (if-let [el (find-next-input id)]
-    (.focus el)
+    (do (.focus el) el)
     (append-cell)))
 
 (defn focus-prev-cell
@@ -141,7 +152,7 @@
   {:keymap/key :cell-above}
   [id]
   (if-let [el (find-prev-input id)]
-    (.focus el)
+    (do (.focus el) el)
     (insert-cell-before id)))
 
 (defn store-cell-exprs []
@@ -215,7 +226,9 @@
     (when (and go-next
                (.hasChildNodes
                 (get-result-element id)))
-      (focus-next-cell id))))
+      (let [next-id (get-id (focus-next-cell id))]
+        (gdom/setTextContent (get-prompt-element next-id)
+                             (prompt next-id (:ns @nrepl/state)))))))
 
 (defn eval-cell
   "Evaluate cell expression and display a result."
