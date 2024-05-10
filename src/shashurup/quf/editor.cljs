@@ -12,6 +12,8 @@
                       "{" "}"
                       "\"" "\""})
 
+(def ^:private closing (set (vals pairs)))
+
 (defn get-input-element [id]
   (gdom/getElement (str "expr-" id)))
 
@@ -77,6 +79,12 @@
        (= (.-nodeName node) "SPAN")
        (gcls/contains node "quf-paren")))
 
+(defn open-paren? [node]
+  (and (paren? node) (get pairs (s/trim (.-textContent node)))))
+
+(defn closing-paren? [node]
+  (and (paren? node) (not (open-paren? node))))
+
 (defn whitespace? [node]
   (and node
        (text-node? node)
@@ -125,9 +133,9 @@
 (defn siblings [node f]
   (rest (take-while identity (iterate f node))))
 
-(defn nodes-before [node] (siblings node #(.-previousSibling %)))
+(defn nodes-before [node] (siblings node previous-sibling))
 
-(defn nodes-after [node] (siblings node #(.-nextSibling %)))
+(defn nodes-after [node] (siblings node next-sibling))
 
 (defn nodes-between [begin end]
   (->> (nodes-after begin)
@@ -652,7 +660,7 @@
 ;; autoident
 
 (defn indent-reference [atom sexp]
-  (let [open (first (filter paren? (.-childNodes sexp)))
+  (let [open (first (filter open-paren? (.-childNodes sexp)))
         call? (= (.-textContent open) "(")
         atoms (reverse (sibling-elements-before atom))
         atom-count (count atoms)]
@@ -674,13 +682,30 @@
        (when tail
          (count (last (s/split-lines (first tail))))))))
 
+(defn find-indent-atom [sel]
+  (let [node (get-anchor-node sel)
+        parent (.-parentNode node)]
+    (cond
+      (whitespace? node) (if (or (some open-paren? (nodes-after node))
+                                 (some closing-paren? (nodes-before node)))
+                           parent  ;; enclosing sexp
+                           node)
+      (paren? parent) (let [text (.-textContent node)
+                            offset (get-anchor-offset sel)]
+                        (if  (or (pairs (first (s/trim (subs text offset))))
+                                 (closing (last (s/trim (subs text 0 offset)))))
+                          (.-parentNode parent)  ;; enclosing sexp
+                          parent))
+      (atom? parent) parent)))
+
 (defn indent []
   (let [sel (get-selection)
         node (get-anchor-node sel)
-        parent (.-parentNode node)
-        atom (if (sexp? parent) node parent)]
+        atom (find-indent-atom sel)]
     (. js/console debug "Indenting, node " (u/node-info node))
-    (when-let [sexp (->> (parent-nodes node) (filter sexp?) first)]
+    (. js/console debug "Indenting, parent " (u/node-info (.-parentNode node)))
+    (. js/console debug "Indenting, atom " (u/node-info atom))
+    (when-let [sexp (->> (parent-nodes atom) rest (filter sexp?) first)]
       (. js/console debug "Indenting, sexp " (u/node-info sexp))
       (let [[ref-node offset] (indent-reference atom sexp)
             column (indent-column ref-node)
