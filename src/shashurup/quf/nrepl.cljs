@@ -86,7 +86,7 @@
                   (try
                     (callback reply)
                     (catch js/Object ex
-                      (.log js/console ex))))
+                      (. js/console error ex))))
                 (when (and id (terminated? status))
                   (remove-callback id)))
               replies))

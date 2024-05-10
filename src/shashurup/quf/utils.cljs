@@ -97,3 +97,11 @@
 
 (defn remove-item [name]
   (.removeItem (local-storage) name))
+
+(defn node-info [node]
+  (when node
+    (if (coll? node)
+      (map node-info node)
+      (let [content (.-textContent node)
+            suffix (if (< (count content) 8) "" "...")]
+        (str (.-nodeName node) " " (subs content  0 8) suffix)))))

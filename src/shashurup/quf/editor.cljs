@@ -640,11 +640,11 @@
     (set-position! (get-selection) node (- pos start))))
 
 (defn restructure [el]
-  (.log js/console "Checking structure ...")
+  (. js/console debug "Checking structure ...")
   (let [text (.-textContent el)
         markup (markup/parse text)]
     (when (not= (skeleton markup) (skeleton el))
-      (.log js/console "Restructure!")
+      (. js/console debug "Changed, restructuring")
       (let [pos (get-cursor-position el)]
         (replace-content el (structure->html markup))
         (set-cursor-position! el pos)))))
@@ -679,7 +679,9 @@
         node (get-anchor-node sel)
         parent (.-parentNode node)
         atom (if (sexp? parent) node parent)]
+    (. js/console debug "Indenting, node " (u/node-info node))
     (when-let [sexp (->> (parent-nodes node) (filter sexp?) first)]
+      (. js/console debug "Indenting, sexp " (u/node-info sexp))
       (let [[ref-node offset] (indent-reference atom sexp)
             column (indent-column ref-node)
             pos (get-anchor-offset sel)]
@@ -700,12 +702,9 @@
 
 (defn- handle-input-change [e]
   ;(handle-pairs e)
-  (.log js/console "On input " (.-data e) (.-inputType e))
   (when (need-indent? e)
-    (.log js/console "Indenting")
     (indent))
-  (restructure (.-target e))
-  )
+  (restructure (.-target e)))
 
 (defn plug [input]
   (.addEventListener input "input" handle-input-change)

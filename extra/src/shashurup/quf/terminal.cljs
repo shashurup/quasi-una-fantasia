@@ -106,7 +106,6 @@
 (defn shrink-terminal [terminal amount]
   (let [cols (.-cols terminal)
         rows (.-rows terminal)]
-    (.log js/console "shrinking" cols rows amount)
     (when (> rows amount)
       (.resize terminal cols (- rows amount)))))
 

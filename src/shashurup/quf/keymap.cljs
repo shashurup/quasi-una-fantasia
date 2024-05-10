@@ -79,7 +79,7 @@
     (get @fn-map fn-key)))
 
 (defn- find-handler [id key]
-;  (.log js/console "Searching " key)
+  (. js/console debug "Searching a handler for " key)
   (or (when (editor/sexp-mode? id)
         (handler-fn :sexp-mode key))
       (when (assistant/active id)
@@ -91,7 +91,7 @@
 (defn keydown-handler-for [id]
   (fn [e]
     (when-let [f (find-handler id (key-event->str e))]
-      (.log js/console "found")
+      (. js/console debug "found a handler")
       (f id)
       (.preventDefault e))))
 
