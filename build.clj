@@ -3,7 +3,7 @@
             [clojure.pprint :refer [pprint]]))
 
 (def lib 'shashurup/quasi-una-fantasia)
-(def version "0.15")
+(def version "0.16-snapshot")
 
 (def target "target")
 (def slim-jar-dir (format "%s/slim-jar" target))
