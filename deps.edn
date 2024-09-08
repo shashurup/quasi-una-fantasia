@@ -1,4 +1,4 @@
-{:mvn/repos {"jcenter" {:url "https://jcenter.bintray.com/"}}
+{:mvn/repos {"jetbrains" {:url "https://packages.jetbrains.team/maven/p/ij/intellij-dependencies/"}}
 
  :deps {org.clojure/clojure {:mvn/version "1.11.3"}
         ring/ring-core {:mvn/version "1.11.0"}
