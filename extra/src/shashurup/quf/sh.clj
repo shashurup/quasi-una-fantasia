@@ -9,6 +9,8 @@
   (:import [java.lang ProcessBuilder ProcessBuilder$Redirect]
            [com.pty4j PtyProcessBuilder WinSize]))
 
+(def ^:dynamic *shell* (or  (System/getenv "SHELL") "/bin/sh"))
+
 ;; clojure.java.shell/sh always create a pipe for stdin
 ;; this ins't always what we need
 ;; for instance, ag thinks it needs to search stdin in this case
@@ -27,37 +29,29 @@
      :wait #(.waitFor p)}))
 
 (defn !>
-  "Launches a subprocess to cosume its output.
-  Subprocess is defined either by a single string:
+  "Launches a subprocess to consume its output.
 
     (!> \"ls -al\")
 
-  or by a list of strings:
-
-    (!> \"ls\" \"-al\")
-  
   Standard input may also be specified:
 
     (!> \"sort\" :input [\"def\" \"ghi\" \"abc\"])
 
   it could be a list of string or anything that can be
   copied with clojure.java.io/copy.
-  Output conversion can be specified with :output
+  By default the list of is returned. To change this
+  a conversion fn can be specified with :output
 
-    (!> \"\" :output from-json)
+    (!> \"echo [1, 2, 3]\" :output from-json)
 
-  The function takes an instance of java.io.Reader, the result
-  is used as ! result. shahsurup.quf.data/as-text is used by default.
+  (shahsurup.quf.data/as-text is a default conversion fn)
   Another option is :dir for a directory to use.
   Return value is a process output as a list of strings.
   Exception is thrown when exit code is non zero."
-  [& args]
-  (let [[cmd {:keys [input output dir]
-              :or {output d/as-text}}] (split-with string? args)
-        cmd (if (> (count cmd) 1)
-               cmd
-               (remove empty? (s/split (first cmd) #"\s")))]
-    (let [{:keys [in out err wait]} (start-process cmd
+  [cmdline & opts]
+  (let [{:keys [input output dir]
+         :or {output d/as-text}} opts]
+    (let [{:keys [in out err wait]} (start-process [*shell* "-c" cmdline]
                                                    (or dir fs/*cwd*)
                                                    input)]
       (when input
@@ -120,18 +114,12 @@
   "Launches a subprocess interactively.
   Subprocess is defined either by a single string:
 
-    (!> \"ls -al\")
+    (! \"ls -al\")
 
-  or by a list of strings:
-
-    (!> \"ls\" \"-al\")
-  
   Return value is a process return code."
-  [& args]
+  [cmdline]
   (resp/print-with-hint {} :terminal)
-  (let [args (if (> (count args) 1)
-               args
-               (remove empty? (s/split (first args) #"\s")))
+  (let [args [*shell* "-c" cmdline]
         {:keys [in out wait resize]} (start-process-with-pty args fs/*cwd*)]
     (let [in-handler (future (process-input *in* in resize))]
       (flushing-copy out *out*)
