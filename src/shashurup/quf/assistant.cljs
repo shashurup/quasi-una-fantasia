@@ -41,12 +41,12 @@
           expr-top-offset (.-offsetTop expr)
           expr-bottom  (.-bottom (.getBoundingClientRect expr))
           expr-top  (.-top (.getBoundingClientRect expr))]
-      (.log js/console
-            "vp-height" viewport-height
-            "height" height
-            "expr-top-offset" expr-top-offset
-            "expr-bottom" expr-bottom
-            "expr-top" expr-top)
+      (. js/console debug
+         "vp-height" viewport-height
+         "height" height
+         "expr-top-offset" expr-top-offset
+         "expr-bottom" expr-bottom
+         "expr-top" expr-top)
       (set! (.-left style) (str expr-left-offset "px"))
       (if (> (+ expr-bottom height) viewport-height)
         (set! (.-top style) (str (- expr-top-offset height) "px"))
@@ -189,21 +189,23 @@
 
 (defmethod render-candidate :special-form [subj class] (render-candidate (:candidate subj) class))
 
+(defmethod render-candidate :class [subj class] (render-candidate (:candidate subj) class))
+
 (def max-completions 16)
 
 (defn show-candidates [id candidates class]
- (let [tail (if (> (count candidates) max-completions) "..." "")
-       target (get-cand-root id)]
-   (gdom/removeChildren target)
-   (gcls/set target "quf-candidates")
-   (when (not-empty candidates)
-     (gcls/add target class)
-     (doseq [c (take max-completions candidates)]
-       (.append target (render-candidate c class))
-       (.append target " "))
-     (.append target tail)
-     (select-candidate (gdom/getFirstElementChild target)))
-   (update-visibility id)))
+  (let [tail (if (> (count candidates) max-completions) "..." "")
+        target (get-cand-root id)]
+    (gdom/removeChildren target)
+    (gcls/set target "quf-candidates")
+    (when (not-empty candidates)
+      (gcls/add target class)
+      (doseq [c (take max-completions candidates)]
+        (.append target (render-candidate c class))
+        (.append target " "))
+      (.append target tail)
+      (select-candidate (gdom/getFirstElementChild target)))
+    (update-visibility id)))
 
 (defn initiate-at-point [id]
   (cancel)
@@ -236,7 +238,7 @@
   (show-candidates id candidates class))
 
 (defmulti attempt-complete
-  "Attempt complete the sumbol under cursor."
+  "Attempt complete the symbol under cursor."
   {:keymap/key :attempt-complete}
   #(assistant-content-class (get-cand-root %)))
 
