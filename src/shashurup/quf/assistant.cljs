@@ -19,7 +19,10 @@
   (when-let [timer-id @completions-timer]
     (js/clearTimeout timer-id)))
 
-(defn get-root-element [id]
+(defn get-root [id]
+  (gdom/getElement (str "assistant-" id)))
+
+(defn get-cand-root [id]
   (gdom/getElement (str "cand-" id)))
 
 (defn get-doc-root [id]
@@ -27,6 +30,41 @@
 
 (defn get-cell [id]
   (gdom/getElement (str "cell-" id)))
+
+(defn show [id]
+  (when-let [root (get-root id)]
+    (let [style (.-style root)
+          viewport-height (.-clientHeight (.-documentElement js/document))
+          height (.-offsetHeight root)
+          expr (gdom/getElement (str "expr-" id))
+          expr-left-offset (.-offsetLeft expr)
+          expr-top-offset (.-offsetTop expr)
+          expr-bottom  (.-bottom (.getBoundingClientRect expr))
+          expr-top  (.-top (.getBoundingClientRect expr))]
+      (.log js/console
+            "vp-height" viewport-height
+            "height" height
+            "expr-top-offset" expr-top-offset
+            "expr-bottom" expr-bottom
+            "expr-top" expr-top)
+      (set! (.-left style) (str expr-left-offset "px"))
+      (if (> (+ expr-bottom height) viewport-height)
+        (set! (.-top style) (str (- expr-top-offset height) "px"))
+        (set! (.-top style) "auto"))
+      (set! (.-visibility style) "visible"))))
+
+(defn hide [id]
+  (when-let [root (get-root id)]
+    (set! (.-visibility (.-style root)) "hidden")))
+
+(defn update-visibility [id]
+  (when-let [root (get-root id)]
+    (let [cand (get-cand-root id)
+          doc (get-doc-root id)]
+      (if (or (.hasChildNodes cand)
+              (.hasChildNodes doc))
+        (show id)
+        (hide id)))))
 
 (defn container-at-point []
   (.-startContainer (.getRangeAt (js/getSelection) 0)))
@@ -53,10 +91,10 @@
   (gdom/getElementByClass "quf-selected" parent))
 
 (defn active [id]
-  (find-selected-candidate (get-root-element id)))
+  (find-selected-candidate (get-cand-root id)))
 
 (defn move-selection [id move-fn]
-  (when-let [parent (get-root-element id)]
+  (when-let [parent (get-cand-root id)]
     (when-let [current (find-selected-candidate parent)]
       (when-let [next (move-fn current)]
         (select-candidate next)
@@ -69,15 +107,16 @@
 (defn select-prev-candidate [id]
   (move-selection id gdom/getPreviousElementSibling))
 
-(defn clear-candidates
+(defn clear
   "Hide completion candidates."
   {:keymap/key :hide-completion-candidates}
   [id]
-  (let [parent (get-root-element id)
+  (let [parent (get-cand-root id)
         doc-root (get-doc-root id)]
     (gcls/set parent "quf-candidates")
     (gdom/removeChildren parent)
-    (gdom/removeChildren doc-root)))
+    (gdom/removeChildren doc-root)
+    (hide id)))
 
 (defn move-cursor-to-the-end-of [target]
   (.setStart (.getRangeAt (js/getSelection) 0)
@@ -109,7 +148,7 @@
     (move-cursor-to-the-end-of (rightmost-child input))))
 
 (defn use-candidate [id]
-  (when-let [parent (get-root-element id)]
+  (when-let [parent (get-cand-root id)]
     (when-let [selected (find-selected-candidate parent)]
       (apply-candidate id selected)
       (gcls/set parent "quf-candidates")
@@ -152,11 +191,10 @@
 
 (def max-completions 16)
 
-(defn show [id candidates class]
+(defn show-candidates [id candidates class]
  (let [tail (if (> (count candidates) max-completions) "..." "")
-       target (get-root-element id)]
+       target (get-cand-root id)]
    (gdom/removeChildren target)
-   (gdom/removeChildren (get-doc-root id))
    (gcls/set target "quf-candidates")
    (when (not-empty candidates)
      (gcls/add target class)
@@ -164,14 +202,14 @@
        (.append target (render-candidate c class))
        (.append target " "))
      (.append target tail)
-     (.scrollIntoView (get-cell id))
-     (select-candidate (gdom/getFirstElementChild target)))))
+     (select-candidate (gdom/getFirstElementChild target)))
+   (update-visibility id)))
 
 (defn initiate-at-point [id]
   (cancel)
   (if (sym-or-kwd-at-point?)
-    (nrepl/send-completions (text-at-point) #(show id % "quf-at-point"))
-    (show id [] nil)))
+    (nrepl/send-completions (text-at-point) #(show-candidates id % "quf-at-point"))
+    (show-candidates id [] nil)))
 
 (defn initiate-history
   "Initiate a search through the history."
@@ -181,7 +219,7 @@
   (let [candidates (->> (words-at-cell-input id)
                         history/search
                         (take max-completions))]
-    (show id candidates "quf-whole-expr")))
+    (show-candidates id candidates "quf-whole-expr")))
 
 (defn common-prefix [a b]
   (->> (range (inc (count a)))
@@ -195,12 +233,12 @@
 (defn complete-and-show [id candidates class]
   (let [completion (longest-prefix (map :candidate candidates))]
     (replace-text-at-point completion))
-  (show id candidates class))
+  (show-candidates id candidates class))
 
 (defmulti attempt-complete
   "Attempt complete the sumbol under cursor."
   {:keymap/key :attempt-complete}
-  #(assistant-content-class (get-root-element %)))
+  #(assistant-content-class (get-cand-root %)))
 
 (defn attempt-complete-at-point [id]
   (cancel)
@@ -217,33 +255,36 @@
 (defmethod attempt-complete "quf-whole-expr" [id]
   (use-candidate id))
 
-(defn show-doc [id doc]
-  (let [root (get-doc-root id)]
-    (gdom/append root (:out doc))
-    (.scrollIntoView (get-cell id))))
+(defn show-doc [id reply]
+  (when-let [doc (:out reply)]
+    (let [root (get-doc-root id)]
+      (gdom/append root doc)
+      (show id))))
 
 (defn toggle-doc
   "Show/hide a documentation for the symbol under cursor."
   {:keymap/key :toggle-doc}
   [id]
   (let [root (get-doc-root id)
-        selected (find-selected-candidate (get-root-element id))
+        selected (find-selected-candidate (get-cand-root id))
         subj (if selected
                (gdom/getTextContent selected)
                (text-at-point))]
     (if (empty? (gdom/getTextContent root))
       (nrepl/send-eval-aux (str "(clojure.repl/doc " subj ")")
                            #(show-doc id %))
-      (gdom/removeChildren root))))
+      (do
+        (gdom/removeChildren root)
+        (update-visibility id)))))
 
-(defmulti handle-input-change #(assistant-content-class (get-root-element %)))
+(defmulti handle-input-change #(assistant-content-class (get-cand-root %)))
 
 (defmethod handle-input-change :default [id]
   (schedule #(initiate-at-point id) 1000))
 
 (defmethod handle-input-change "quf-at-point" [id]
   (let [old-selected (active id)]
-    (if-let [new-selected (find-first-matching-candidate (get-root-element id)
+    (if-let [new-selected (find-first-matching-candidate (get-cand-root id)
                                                          (text-at-point))]
       (do 
         (deselect-candidate old-selected)
@@ -259,7 +300,7 @@
 
 (defn on-focus-out [id]
   (cancel)
-  (clear-candidates id))
+  (clear id))
 
 (defn plug [input id]
   (.addEventListener input "focusout" #(on-focus-out id))

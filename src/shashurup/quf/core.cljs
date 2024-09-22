@@ -60,8 +60,9 @@
                       :class "quf-input"
                       :spellcheck "false"
                       :contenteditable "true"}]
-               [:div.quf-candidates {:id (str "cand-" id)}]
-               [:div.quf-doc {:id (str "doc-" id)}]
+               [:div.quf-assistant {:id (str "assistant-" id)}
+                [:div.quf-candidates {:id (str "cand-" id)}]
+                [:div.quf-doc {:id (str "doc-" id)}]]
                [:div {:id (str "out-" id)}]
                [:div.quf-result {:id (str "result-" id)}]]))
 

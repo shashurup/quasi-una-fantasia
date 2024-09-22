@@ -41,6 +41,15 @@ div.quf-result-collapsed {
     max-width: 1ch;
 }
 
+div.quf-assistant {
+    position: absolute;
+    z-index: 1;
+    visibility: hidden;
+    border: 2px solid;
+    border-radius: 4px;
+    background-color: var(--color-bg);
+}
+
 div.quf-candidates {
     margin: 1em;
 }
