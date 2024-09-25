@@ -134,7 +134,7 @@
            (or (s/includes? subj "*")
                (s/includes? subj "?")))))
 
-(defn- mk-pattern [subj]
+(defn- build-regex [subj]
   (if (regex? subj)
     subj
     (re-pattern (-> subj
@@ -142,18 +142,48 @@
                     (s/replace "*" ".*")
                     (s/replace "?" ".")))))
 
-(defn- filename-matches? [pattern subj]
-  (if pattern
-    (re-matches pattern (:name subj))
-    true))
+(defn fit?
+  ([subj pattern] (fit? subj :name pattern))
+  ([subj field pattern]
+   (let [regex (build-regex pattern)]
+     (re-matches regex (field subj)))))
 
-(defn- mk-matcher [subj]
+(def time-units {:second 1000
+                 :minute (* 60 1000)
+                 :hour (* 60 60 1000)
+                 :day (* 24 60 60 1000)
+                 :week (* 7 24 60 60 1000)
+                 :month (* 30 24 60 60 1000)
+                 :year (* 365 24 60 60 1000)
+                 :today ChronoUnit/DAYS
+                 ;; this doesn't work :(
+                 ;; :this-week ChronoUnit/WEEKS
+                 ;; :this-month ChronoUnit/MONTHS
+                 ;; :this-year ChronoUnit/YEARS
+                 })
+
+(defn modified-in
+  ([{mod :modified} term]
+   (> mod (.toEpochMilli (.truncatedTo (Instant/now)
+                                       (get time-units term ChronoUnit/DAYS)))))
+  ([{mod :modified} amount unit]
+   (> mod (- (System/currentTimeMillis)
+             (* amount (get time-units unit :day))))))
+
+(defn- filter? [subj]
+  (or (fn? subj)
+      (keyword? subj)
+      (vector? subj)
+      (pattern? subj)))
+
+(defn- build-filter [subj]
   (cond
     (fn? subj) subj
-    (regex? subj) (fn [file] (filename-matches? subj file))
-    (string? subj) (let [pattern (mk-pattern subj)]
-                     (fn [file] (filename-matches? pattern file)))
-    :else (constantly true)))
+    (keyword? subj) subj
+    (vector? subj) (apply some-fn (map build-filter subj))
+    (regex? subj) #(fit? % subj)
+    (string? subj) #(fit? % subj)
+    :else any?))
 
 (defn- expand-flags [subj flags]
   (->> (sort-by flags subj)
@@ -170,6 +200,7 @@
   string - in this case it is treated as a directory to list files in (with cwd as a base directory),
   regex - used to filter files,
   pattern - a string with wildcards * or ? used to filter files,
+  vector - list of regexes or patterns to match
   flags - one of:
    :m - to show name, size and modification timestamp,
    :l - long format to show permissions, user, group, size, timestamp and a name,
@@ -198,8 +229,8 @@
                  cols [:name]
                  filter not-hidden?
                  sort old-fashioned-sort-key}}] (default-arg "." (expand-flags args flags))
-        [f filter2] (if (or (fn? arg) (pattern? arg))
-                      ["." (mk-matcher arg)]
+        [f filter2] (if (filter? arg)
+                      ["." (build-filter arg)]
                       [arg (constantly true)])
         path (resolve-path *cwd* f)
         [keyfn cmp] (if (vector? sort)
@@ -219,6 +250,7 @@
   string - a directory to search files in,
   regex - a regular expression to filter files,
   pattern - a string with wildcards * or ? used to filter files,
+  vector - list of regexes or patterns to match
   function - a function to filter files
   :skip regex|pattern|function - a condition to exclude files
   "
@@ -233,44 +265,15 @@
         exprs (take-while #(not (keyword? %)) rest-args)
         [& {skip :skip}] (drop-while #(not (keyword? %)) rest-args)
         skip-fn (if skip
-                  (complement (mk-matcher skip))
+                  (complement (build-filter skip))
                   (constantly true))
         filters (cons skip-fn
-                      (map mk-matcher exprs))]
+                      (map build-filter exprs))]
     (resp/hint
      (->> (rest (tree abs-path skip-fn))
           (filter (apply every-pred filters))
           (map #(assoc % :name (relative-path abs-path (:path %)))))
      [:table :shashurup.quf.fs/file [:name]])))
-
-(defn m-mtype [pattern]
-  (fn [{mt :mime-type}]
-    (when mt
-      (re-matches pattern mt))))
-
-(def time-units {:second 1000
-                 :minute (* 60 1000)
-                 :hour (* 60 60 1000)
-                 :day (* 24 60 60 1000)
-                 :week (* 7 24 60 60 1000)
-                 :month (* 30 24 60 60 1000)
-                 :year (* 365 24 60 60 1000)
-                 :today ChronoUnit/DAYS
-                 ;; this doesn't work :(
-                 ;; :this-week ChronoUnit/WEEKS
-                 ;; :this-month ChronoUnit/MONTHS
-                 ;; :this-year ChronoUnit/YEARS
-                 })
-
-(defn m-modified-in
-  ([term]
-   (fn [{mod :modified}]
-     (> mod (.toEpochMilli (.truncatedTo (Instant/now)
-                                         (get time-units term ChronoUnit/DAYS))))))
-  ([amount unit]
-   (fn [{mod :modified}]
-     (> mod (- (System/currentTimeMillis)
-               (* amount (get time-units unit :day)))))))
 
 (defn- add-trailing-slash [subj]
   (if (= (last subj) \/)
