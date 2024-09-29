@@ -176,6 +176,12 @@
       (vector? subj)
       (pattern? subj)))
 
+(defn- file-arg? [subj]
+  (and (string? subj) (not (filter? subj))))
+
+(defn- first-of [pred coll default]
+  (or (first (filter pred coll)) default))
+
 (defn- build-filter [subj]
   (cond
     (fn? subj) subj
@@ -185,15 +191,51 @@
     (string? subj) #(fit? % subj)
     :else any?))
 
-(defn- expand-flags [subj flags]
-  (->> (sort-by flags subj)
-       (mapcat #(get flags % [%]))))
+(defn- extract-flags [args singles paired]
+  (subvec (reduce (fn [[args flags cur] arg]
+                    (cond
+                      cur [args (assoc flags cur arg) nil]
+                      (singles arg) [args (assoc flags arg true) nil]
+                      (paired arg) [args flags arg]
+                      :else [(conj args arg) flags nil]))
+                  [[] {} nil]
+                  args) 0 2))
 
-(defn- default-arg [arg rest]
-  (if (or (empty? rest)
-          (keyword? (first rest)))
-    (cons arg rest)
-    rest))
+(defn fmt
+  "Formats file list as a table or thumb list.
+   flags - one of:
+   :1 - to show just a file name
+   :m - to show name, size and modification timestamp,
+   :l - long format to show permissions, user, group, size, timestamp and a name,
+   :c - to show files as a list of thumbnails"
+  ([subj] (fmt :1 subj))
+  ([flag subj]
+   (let [mode (if (= flag :c) :list  :table)
+         cols (get {:m [:size :modified :name-ex]
+                    :l [:permissions :user :group :size :modified :name-ex]
+                    :c [:content :name-ex]}
+                   flag [:name])]
+     (resp/hint subj [mode :shashurup.quf.fs/file cols]))))
+
+(defn ord
+  "Sorts file list.
+   :t - by modification timestamp ascending,
+   :T - by modification timestamp descending,
+   :s - by size ascending,
+   :S - by size descending,
+   :n - by name ascending,
+   :N - by name descending"
+  ([flag subj]
+   (let [[key cmp] (get {:t [:modified compare]
+                         :T [:modified #(- (compare %1 %2))]
+                         :s [:size compare]
+                         :S [:size #(- (compare %1 %2))]
+                         :n [:name compare]
+                         :N [:name #(- (compare %1 %2))]}
+                        flag
+                        [old-fashioned-sort-key compare])]
+     (sort-by key cmp subj)))
+  ([subj] (ord :dummy subj)))
 
 (defn l
   "Lists files in a directory, args can be:
@@ -214,36 +256,20 @@
    :c - to show files as a list of thumbnails
   "
   [& args]
-  (let [flags {:m [:cols [:size :modified :name-ex]]
-               :l [:cols [:permissions :user :group :size :modified :name-ex]]
-               :c [:cols [:content :name-ex] :mode :list]
-               :t [:sort :modified]
-               :T [:sort [:modified :rev]]
-               :s [:sort :size]
-               :S [:sort [:size :rev]]
-               :n [:sort name-key]
-               :N [:sort [name-key :rev]]
-               :h [:filter (constantly true)]}
-        [arg & {:keys [cols sort filter mode] :or
-                {mode :table
-                 cols [:name]
-                 filter not-hidden?
-                 sort old-fashioned-sort-key}}] (default-arg "." (expand-flags args flags))
-        [f filter2] (if (filter? arg)
-                      ["." (build-filter arg)]
-                      [arg (constantly true)])
-        path (resolve-path *cwd* f)
-        [keyfn cmp] (if (vector? sort)
-                      [(first sort) #(- (compare %1 %2))]
-                      [sort compare])]
-    (resp/hint (if (or filter2
-                       (:directory? (attrs path)))
-                 (->> (files path)
-                      (clojure.core/filter filter)
-                      (clojure.core/filter filter2)
-                      (sort-by keyfn cmp))
-                 [(attrs path)])
-               [mode :shashurup.quf.fs/file cols])))
+  (let [[args flags] (extract-flags args #{:m :l :c :t :T :s :S :n :N :h} #{})
+        path (resolve-path *cwd* (first-of file-arg? args "."))
+        fmt-flag (some #{:m :l :c} (keys flags))
+        ord-flag (some #{:t :T :s :S :n :N} (keys flags))
+        filter1 (if (:h flags) any? not-hidden?)
+        filter2 (build-filter (first-of filter? args any?))
+        file-attrs (attrs path)]
+    (if (:directory? file-attrs)
+      (->> (files path)
+           (filter filter1)
+           (filter filter2)
+           (ord ord-flag)
+           (fmt fmt-flag))
+      (fmt fmt-flag [file-attrs]))))
 
 (defn f
   "Find files, args can be:
@@ -253,27 +279,31 @@
   vector - list of regexes or patterns to match
   function - a function to filter files
   :skip regex|pattern|function - a condition to exclude files
+  flags - one of:
+   :m - to show name, size and modification timestamp,
+   :l - long format to show permissions, user, group, size, timestamp and a name,
+   :c - to show files as a list of thumbnails
+   :t - to sort by modification timestamp ascending,
+   :T - to sort by modification timestamp descending,
+   :s - to sort by size ascending,
+   :S - to sort by size descending,
+   :n - to sort by name ascending,
+   :N - to sort by name descending,
   "
   [& args]
-  (let [arg1 (first args)
-        args (if (and (string? arg1)
-                      (not (pattern? arg1)))
-               args
-               (cons "." args))
-        [path & rest-args] args
-        abs-path (resolve-path *cwd* path)
-        exprs (take-while #(not (keyword? %)) rest-args)
-        [& {skip :skip}] (drop-while #(not (keyword? %)) rest-args)
-        skip-fn (if skip
-                  (complement (build-filter skip))
-                  (constantly true))
-        filters (cons skip-fn
-                      (map build-filter exprs))]
-    (resp/hint
-     (->> (rest (tree abs-path skip-fn))
-          (filter (apply every-pred filters))
-          (map #(assoc % :name (relative-path abs-path (:path %)))))
-     [:table :shashurup.quf.fs/file [:name]])))
+  (let [[args flags] (extract-flags args #{:m :l :c :t :T :s :S :n :N} #{:skip})
+        path (resolve-path *cwd* (first-of file-arg? args "."))
+        fmt-flag (some #{:m :l :c} (keys flags))
+        ord-flag (some #{:t :T :s :S :n :N} (keys flags))
+        filter1 (complement (build-filter (:skip flags (constantly false))))
+        filter2 (build-filter (first-of filter? args any?))
+        ]
+    (->> (tree path filter1)
+         (filter filter1)
+         (filter filter2)
+         (map #(assoc % :name (relative-path path (:path %))))
+         (ord ord-flag)
+         (fmt fmt-flag))))
 
 (defn- add-trailing-slash [subj]
   (if (= (last subj) \/)
