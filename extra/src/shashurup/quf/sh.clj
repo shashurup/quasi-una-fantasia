@@ -62,14 +62,13 @@
             (with-open [in' in]
               (io/copy input in')))))
       (let [error (future (slurp err))
-            result (output out)
+            result (let [o (output out)]
+                     (if (coll? o) (doall o) o))
             exit (wait)]
         (when (not-empty @error)
           (print @error))
         (if (= exit 0)
-          (if (coll? result)
-            (doall result)
-            result)
+          result
           (throw (Exception. (str "Exit code " exit))))))))
 
 (defn- resize [process [cols rows]]
