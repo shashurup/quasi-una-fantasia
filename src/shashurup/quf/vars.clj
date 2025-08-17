@@ -19,12 +19,13 @@
 
 (defn wrap-update-vars [h]
   (fn [{:keys [op session var-updates transport] :as msg}]
+    (println op (class session) var-updates h)
     (when (and (= op "eval") var-updates)
         (swap! session apply-updates (read-string var-updates)))
     (h msg)))
 
 (mwre/set-descriptor! #'wrap-update-vars
-                      {:requires #{"session"}
-                       :expects #{"eval"}
+                      {:requires #{"eval"}
+                       :expects #{'mwre.session}
                        :handles {"update-vars" {:doc "Updates session vars bindings"
                                                 :requires {"updates" "list of updates/new values"}}}})
