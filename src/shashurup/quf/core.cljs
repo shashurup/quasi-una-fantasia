@@ -8,7 +8,7 @@
    [shashurup.quf.keymap :as keymap]
    [shashurup.quf.markup :as markup]
    [shashurup.quf.nrepl :as nrepl]
-   [shashurup.quf.render :refer [eval-reply-handler render]]
+   [shashurup.quf.render :refer [render-reply render]]
    [shashurup.quf.utils :as u]
    [shashurup.quf.vars :as vars]
    [goog.dom :as gdom]
@@ -200,24 +200,16 @@
 (defn remove-progress-bar [id]
   (gdom/removeNode (get-progress-element id)))
 
-(defn wrap-module-handler [handler]
-  (fn [id {:keys [out] :as reply}]
-    (let [data (nrepl/try-read-value-with-meta out)]
-      (if (= (:shashurup.quf/hint (meta data)) :module)
-        (doseq [ns data] (u/load-module ns))
-        (handler id reply)))))
-
 (defonce title (.-textContent (first (gdom/getElementsByTagName "title"))))
 
 (defn update-title []
   (when-let [title-el (first (gdom/getElementsByTagName "title"))]
     (gdom/setTextContent title-el (str (:ns @nrepl/state) " - " title))))
 
-(defn handle-eval-reply [id
-                         {:keys [x-data status] :as reply}
-                         go-next]
-  (let [handler @eval-reply-handler]
-    (handler id reply))
+(defn handle-eval-reply-inner [id
+                               {:keys [x-data status] :as reply}
+                               go-next]
+  (render-reply id reply)
   (when (nrepl/terminated? status)
     (remove-progress-bar id)
     (.scrollIntoView (get-cell-element id))
@@ -230,6 +222,49 @@
       (let [next-id (get-id (focus-next-cell id))]
         (gdom/setTextContent (get-prompt-element next-id)
                              (prompt next-id (:ns @nrepl/state)))))))
+
+(def impl-not-found-msg "implementation-not-found")
+
+(declare resume-reply-queue!)
+
+(defn handle-eval-reply [[id reply go-next]]
+  (try
+    (binding [u/not-found-hook #(throw (js/Error impl-not-found-msg))]
+      (handle-eval-reply-inner id reply go-next)
+      true)
+    (catch :default e
+      (if (= (ex-message e) impl-not-found-msg)
+        (do 
+          (. js/console debug "Reloading modules")
+          (u/reload-client-modules resume-reply-queue!)
+          false)
+        true))))
+
+;; the idea behind the queue is an ability
+;; to temporarily suspend nrepl reply queue processing
+;; and resume it upon module reload completion
+(defonce reply-queue (atom []))
+(defonce reply-queue-active? (atom true))
+
+(defn suspend-reply-queue []
+  (reset! reply-queue-active? nil))
+
+(defn process-replies! []
+  (when @reply-queue-active?
+    (doall (keep (fn [reply]
+                   (if (handle-eval-reply reply)
+                     (swap! reply-queue subvec 1)
+                     (suspend-reply-queue)))
+                 @reply-queue))))
+
+(defn push-reply! [subj]
+  (swap! reply-queue conj subj)
+  (when @reply-queue-active?
+    (process-replies!)))
+
+(defn resume-reply-queue! []
+  (reset! reply-queue-active? true)
+  (process-replies!))
 
 (defn eval-cell
   "Evaluate cell expression and display a result."
@@ -247,7 +282,7 @@
      (.requestIdleCallback js/window
                            #(history/log expr))
      (let [req-id (nrepl/send-eval expr
-                                   #(handle-eval-reply id % go-next)
+                                   #(push-reply! [id % go-next])
                                    (vars/read-pending-updates!))]
        (swap! app-state assoc-in [:requests (str id)] req-id)))))
 
@@ -332,7 +367,6 @@
 
 (defonce startup-dummy
   (do
-    (swap! eval-reply-handler wrap-module-handler)
     (when (u/module? :theme)
       (u/load-module :theme))
     (keymap/init [(ns-interns 'shashurup.quf.core)

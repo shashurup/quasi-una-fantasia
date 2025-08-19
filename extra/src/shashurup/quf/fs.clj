@@ -1,4 +1,6 @@
 (ns shashurup.quf.fs
+  "Files related functions"
+  {:shashurup.quf/client-module :fs}
   (:import [java.nio.file Files Paths LinkOption CopyOption]
            [java.nio.file.attribute PosixFilePermission FileAttribute]
            [java.time Instant]
@@ -449,5 +451,3 @@
 (def mkdir create-dir)
 
 (defonce _dummy (c "~"))
-
-(resp/client-module :fs)

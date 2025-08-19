@@ -5,7 +5,8 @@
             [goog.dom :as gdom]
             [goog.events :as gevents]
             [shashurup.quf.nrepl :as nrepl]
-            [shashurup.quf.render :refer [eval-reply-handler]]
+            [shashurup.quf.render :refer [cell-handlers
+                                          output-handlers]]
             [shashurup.quf.theme :as theme]
             [shashurup.quf.utils :as u]
             [shashurup.quf.vars :as vars]))
@@ -82,7 +83,12 @@
 
 (defonce terminals (atom {}))
 
-(defn plug-terminal [id]
+(defn write-terimnal [id {:keys [out err status] :as reply}]
+  (when-let [terminal (get @terminals id)]
+    (.write terminal (or out err))))
+
+(defn plug-terminal [id _]
+  (. js/console debug "plugging terminal" id)
   (let [el (get-out-element id)
         [cols rows] (terminal-dimensions)
         terminal (js/Terminal. (clj->js {:convertEol true
@@ -90,6 +96,7 @@
                                          :fontSize (second font)
                                          :theme (create-theme)}))]
     (swap! terminals assoc id terminal)
+    (swap! cell-handlers assoc id write-terimnal)
     (.resize terminal cols rows)
     (gevents/listen js/window
                     "resize"
@@ -121,6 +128,7 @@
          count
          (shrink-terminal terminal))))
 
+;; TODO handle terminal deactivation
 (defn deactivate-terminal [id]
   (let [terminal (get @terminals id)]
     (.onKey terminal nil)
@@ -129,22 +137,9 @@
     (js/setTimeout #(shrink-to-content terminal) 128)
     (swap! terminals dissoc id)))
 
-(defn wrap-terminal-handler [handler]
-  (fn [id {:keys [out err status] :as reply}]
-    (if-let [terminal (get @terminals id)]
-      (cond 
-        (or out err) (.write terminal (or out err))
-        (nrepl/terminated? status) (do (deactivate-terminal id)
-                                       (handler id reply))
-        :else (handler id reply))
-      (let [data (nrepl/try-read-value-with-meta out)]
-        (if (= (:shashurup.quf/hint (meta data)) :terminal)
-          (plug-terminal id)
-          (handler id reply))))))
-
 (defonce startup-dummy 
   (do
-    (swap! eval-reply-handler wrap-terminal-handler)
+    (swap! output-handlers assoc :terminal plug-terminal)
     (gevents/listen js/window "resize" handle-resize)
     ;; Postpone updating *terminal-dimensions* var
     ;; to avoid race condition modifying session local value

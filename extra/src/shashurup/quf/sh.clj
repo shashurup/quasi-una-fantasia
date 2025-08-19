@@ -1,4 +1,6 @@
 (ns shashurup.quf.sh
+  "Shell process launchers"
+  {:shashurup.quf/client-module :terminal}
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as s]
@@ -124,5 +126,3 @@
       (flushing-copy out *out*)
       (future-cancel in-handler))
     (wait)))
-
-(resp/client-module :terminal)

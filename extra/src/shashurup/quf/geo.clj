@@ -1,4 +1,6 @@
 (ns shashurup.quf.geo
+  "Geodata display"
+  {:shashurup.quf/client-module :ol}
   (:require [clojure.set :as set]
             [shashurup.quf.response :as resp]))
 
@@ -29,5 +31,3 @@
         a collection of vectors with [geometry label tag]"
   [subj]
   (resp/hint (normalize-data subj) :geodata))
-
-(resp/client-module :ol)

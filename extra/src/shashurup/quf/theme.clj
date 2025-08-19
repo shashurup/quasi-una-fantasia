@@ -1,4 +1,6 @@
 (ns shashurup.quf.theme
+  "Theme selector"
+  {:shashurup.quf/client-module :theme}
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :refer [includes?]]
@@ -75,5 +77,3 @@
      (resp/hint
       (filter match (map from-base16 base16))
       [:list :shashurup.quf.theme/theme [:preview :name]]))))
-
-(resp/client-module :theme)

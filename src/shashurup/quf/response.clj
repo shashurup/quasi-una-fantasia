@@ -17,5 +17,8 @@
 (defn report-progress [message value max]
   (print-with-hint [message value max] :progress))
 
-(defn client-module [module]
-  (print-with-hint [module] :module))
+(defn client-modules []
+  (->> (loaded-libs)
+       (map meta)
+       (map :shashurup.quf/client-module)
+       (filter identity)))

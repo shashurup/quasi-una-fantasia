@@ -1,5 +1,6 @@
 (ns shashurup.quf.desc
-  (:require [clojure.string :as s]))
+  (:require [clojure.string :as s]
+            [shashurup.quf.utils :as u]))
 
 (defonce field-types
   (atom {}))
@@ -95,9 +96,13 @@
   (let [m (cond
               (keyword? desc) {:type desc}
               (fn? desc)      {:convert desc}
-              :else           desc)]
+              :else           desc)
+        field-type (:type m)
+        type-desc (get @field-types field-type)]
+    (when (and field-type (nil? type-desc))
+      (u/not-found-hook))
     (merge (column-defaults key)
-           (get @field-types (:type m))
+           type-desc
            m)))
 
 (defn make-getter [key]
@@ -122,6 +127,8 @@
 (defn table-desc
   ([type-key columns]
    (let [desc (get @object-types type-key)]
+     (when (and type-key (nil? desc))
+       (u/not-found-hook))
      (pack-table-desc (for [col columns]
                         (canonize-column col (get-in desc [:columns col])))
                       (:key desc))))

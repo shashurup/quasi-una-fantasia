@@ -6,12 +6,14 @@
             [shashurup.quf.nrepl :as nrepl]
             [shashurup.quf.utils :as u]))
 
-(defmulti render (fn [subj]
-                   (if-let [hint (:shashurup.quf/hint (meta subj))]
-                     (if (keyword? hint)
-                       hint
-                       (first hint))
-                     (type subj))))
+(defn value-type [subj]
+  (if-let [hint (:shashurup.quf/hint (meta subj))]
+    (if (keyword? hint)
+      hint
+      (first hint))
+    (type subj)))
+
+(defmulti render value-type)
 
 (defn get-result-element [id]
   (gdom/getElement (str "result-" id)))
@@ -37,12 +39,21 @@
       (r target)
       (gdom/appendChild target (crate/html r)))))
 
-(defn default-eval-reply-handler [id {:keys [out err ex value status] :as reply}]
+(defonce cell-handlers (atom {}))
+(defonce output-handlers (atom {}))
+
+(defn render-reply [id {:keys [out err ex value status] :as reply}]
   (cond
     (contains? reply :value) (render-result value (get-result-element id))
-    (some reply out-keys) (gdom/append (get-out-element id) (make-out-line reply))))
-
-(defonce eval-reply-handler (atom default-eval-reply-handler))
+    (some reply out-keys) (if-let [cell-handler (get @cell-handlers id)]
+                            (cell-handler id reply)
+                            (let [data (nrepl/try-read-value-with-meta out)]
+                              (if-let [hint (:shashurup.quf/hint (meta data))]
+                                (if-let [out-handler (get @output-handlers hint)]
+                                  (out-handler id data)
+                                  (u/not-found-hook))
+                                (gdom/append (get-out-element id)
+                                             (make-out-line reply)))))))
 
 ;; Extra nrepl messages
 
@@ -60,13 +71,6 @@
                        (crate/html [:p message])
                        (.-firstChild progress-el))))))
 
-(defn wrap-progress-handler [handler]
-  (fn [id {:keys [out] :as reply}]
-    (let [data (nrepl/try-read-value-with-meta out)]
-      (if (= (:shashurup.quf/hint (meta data)) :progress)
-        (update-progress id data)
-        (handler id reply)))))
-
 ;; Tree
 
 (defonce check-id (atom 0))
@@ -78,6 +82,7 @@
   [:span {:class class} (pr-str val)])
 
 (defmethod render :default [subj]
+  (u/not-found-hook)
   [:span.quf (pr-str subj)])
 
 (defmethod render nil [subj]
@@ -266,4 +271,4 @@
     ((first rndrs) data)))
 
 (defonce startup-dummy
-  (swap! eval-reply-handler wrap-progress-handler))
+  (swap! output-handlers assoc :progress update-progress))

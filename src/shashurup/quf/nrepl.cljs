@@ -140,7 +140,11 @@
 (defn send-eval-aux [expr callback]
   (if (:aux-session @state)
     (send-op {:op "eval"
-              :code expr} callback :aux-session)
+              :code expr}
+             (fn [reply]
+               (when callback
+                 (callback (read-values reply [:value]))))
+             :aux-session)
     (send-clone (fn [_]
                   (send-op {:op "eval"
                             :code "(require 'clojure.repl)"}

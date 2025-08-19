@@ -2,6 +2,7 @@
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [cljs.loader :as loader]
+            [shashurup.quf.nrepl :as nrepl]
             [cljs.tools.reader :refer [read-string]]
             [crate.core :as crate]
             [goog.dom :as gdom]
@@ -63,9 +64,13 @@
 (defn set-module-loaded! []
   (.setLoaded loader/*module-manager*))
 
-(defn load-module [subj]
-  (let [mname (-> subj name munge)]
-    (.load loader/*module-manager* mname)))
+(defn load-module
+  ([subj] (load-module subj nil))
+  ([subj callback]
+   (let [mname (-> subj name munge)]
+     (when callback
+       (.execOnLoad loader/*module-manager* mname callback))
+     (.load loader/*module-manager* mname))))
 
 (defn module? [subj]
   (contains? loader/module-infos subj))
@@ -105,3 +110,19 @@
       (let [content (.-textContent node)
             suffix (if (< (count content) 8) "" "...")]
         (str (.-nodeName node) " " (subs content  0 8) suffix)))))
+
+(defn reload-client-modules [callback]
+  (nrepl/send-eval-aux "(shashurup.quf.response/client-modules)"
+                       (fn [{value :value}]
+                         (let [modules (set (filter module? value))
+                               loaded (atom #{})]
+                           (doseq [ns modules]
+                             (load-module ns (fn []
+                                               (. js/console debug "loaded: " (str ns))
+                                               (swap! loaded conj ns)
+                                               (when (= @loaded modules)
+                                                 (. js/console debug "All modules are here")
+                                                 (callback)))))))))
+
+(defn ^:dynamic not-found-hook []
+  (. js/console debug "renderer has not been found"))

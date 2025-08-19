@@ -1,4 +1,6 @@
 (ns shashurup.quf.chart
+  "Chart drawing library"
+  {:shashurup.quf/client-module :chartjs}
   (:require [clojure.math :as math]
             [shashurup.quf.response :as resp]))
 
@@ -45,5 +47,3 @@
           (map (fn [[k v]] [(+ start (* step k)) v]))
           (sort-by first)
           bar))))
-
-(resp/client-module :chartjs)
