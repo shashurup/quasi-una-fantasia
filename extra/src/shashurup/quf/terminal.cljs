@@ -83,33 +83,6 @@
 
 (defonce terminals (atom {}))
 
-(defn write-terimnal [id {:keys [out err status] :as reply}]
-  (when-let [terminal (get @terminals id)]
-    (.write terminal (or out err))))
-
-(defn plug-terminal [id _]
-  (. js/console debug "plugging terminal" id)
-  (let [el (get-out-element id)
-        [cols rows] (terminal-dimensions)
-        terminal (js/Terminal. (clj->js {:convertEol true
-                                         :fontFamily (first font)
-                                         :fontSize (second font)
-                                         :theme (create-theme)}))]
-    (swap! terminals assoc id terminal)
-    (swap! cell-handlers assoc id write-terimnal)
-    (.resize terminal cols rows)
-    (gevents/listen js/window
-                    "resize"
-                    (fn [_]
-                      (let [[cols rows] (terminal-dimensions)]
-                        (if (get @terminals id)
-                          (do (.resize terminal cols rows)
-                              (send-command :resize [cols rows]))
-                          (.resize terminal cols (.-rows terminal))))))
-    (.open terminal el)
-    (.onKey terminal handle-key)
-    (.focus terminal)))
-
 (defn shrink-terminal [terminal amount]
   (let [cols (.-cols terminal)
         rows (.-rows terminal)]
@@ -136,6 +109,35 @@
     ;; So we postpone shrinking
     (js/setTimeout #(shrink-to-content terminal) 128)
     (swap! terminals dissoc id)))
+
+(defn write-terimnal [id {:keys [out err status] :as reply}]
+  (when-let [terminal (get @terminals id)]
+    (if (nrepl/terminated? status)
+      (deactivate-terminal id)
+      (.write terminal (or out err)))))
+
+(defn plug-terminal [id _]
+  (. js/console debug "plugging terminal" id)
+  (let [el (get-out-element id)
+        [cols rows] (terminal-dimensions)
+        terminal (js/Terminal. (clj->js {:convertEol true
+                                         :fontFamily (first font)
+                                         :fontSize (second font)
+                                         :theme (create-theme)}))]
+    (swap! terminals assoc id terminal)
+    (swap! cell-handlers assoc id write-terimnal)
+    (.resize terminal cols rows)
+    (gevents/listen js/window
+                    "resize"
+                    (fn [_]
+                      (let [[cols rows] (terminal-dimensions)]
+                        (if (get @terminals id)
+                          (do (.resize terminal cols rows)
+                              (send-command :resize [cols rows]))
+                          (.resize terminal cols (.-rows terminal))))))
+    (.open terminal el)
+    (.onKey terminal handle-key)
+    (.focus terminal)))
 
 (defonce startup-dummy 
   (do

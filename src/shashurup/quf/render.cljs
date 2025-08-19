@@ -43,11 +43,11 @@
 (defonce output-handlers (atom {}))
 
 (defn render-reply [id {:keys [out err ex value status] :as reply}]
-  (cond
-    (contains? reply :value) (render-result value (get-result-element id))
-    (some reply out-keys) (if-let [cell-handler (get @cell-handlers id)]
-                            (cell-handler id reply)
-                            (let [data (nrepl/try-read-value-with-meta out)]
+  (let [cell-handler (get @cell-handlers id)]
+    (cond
+      (contains? reply :value) (render-result value (get-result-element id))
+      cell-handler (cell-handler id reply)
+      (some reply out-keys) (let [data (nrepl/try-read-value-with-meta out)]
                               (if-let [hint (:shashurup.quf/hint (meta data))]
                                 (if-let [out-handler (get @output-handlers hint)]
                                   (out-handler id data)
