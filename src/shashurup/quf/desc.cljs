@@ -78,9 +78,9 @@
       :else [:object.quf-tall {:type mime-type :data url}])))
 
 (defn- kw2s [subj]
-  (if (number? subj)
-    (str subj)
-    (s/capitalize (subs (str subj) 1))))
+  (if (keyword? subj)
+    (s/capitalize (subs (str subj) 1))
+    (str subj)))
 
 (defn- column-defaults [key]
   {:key key
@@ -106,13 +106,14 @@
            m)))
 
 (defn make-getter [key]
-  (cond
-    (keyword? key) #(get % key)
-    (number?  key) #(nth % key)
-    (vector?  key) (fn [row]
-                     (vec (for [k key]
-                            ((make-getter k) row))))
-    :else (fn [_] :broken-key)))
+  (if (vector? key)
+    (fn [row]
+      (let [f (if (map? row) get nth)]
+        (mapv #(f row %) key)))
+    (fn [row]
+      (if (map? row)
+        (get row key)
+        (nth row key)))))
 
 (defn make-renderer [column-desc]
   (comp (or (htmlize (:render column-desc)) identity)
