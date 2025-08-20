@@ -140,6 +140,7 @@
 (defn send-eval-aux [expr callback]
   (if (:aux-session @state)
     (send-op {:op "eval"
+              :ns (get-ns)
               :code expr}
              (fn [reply]
                (when callback
