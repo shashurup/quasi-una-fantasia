@@ -1,5 +1,7 @@
 * TODO need to do something with cljs reader
   edn reader is sometimes not enough to read repl output - ns-map по прежнему фигню показывает
+  не парсится тег #function[clojure.core/nary-inline/fn--5606] - второго слеша не переносит
+  cljs.tools.reader отличается от clojure.edn который вполне ест 2 слеша
 * DONE Change Ctrl+R and Ctrl+T shortcuts
   Ctrl+T - Ctrl+Alt+T duplicating current session
   Ctrl+R - probably Ctrl+P (like completions in Vim)
