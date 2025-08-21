@@ -35,8 +35,10 @@
                                    col-type (.getColumnTypeName rset-meta idx)]
                                {:key (dec idx)
                                 :title col-label
-                                :type (keyword "shashurup.quf.db"
-                                               (s/lower-case col-type))})))]}))
+                                ;; enable this when some types need special handling
+                                ;; :type (keyword "shashurup.quf.db"
+                                ;;                (s/lower-case col-type))
+                                })))]}))
 
 (defn- resolve-creds [db]
   (let [pwd (:password db)]
