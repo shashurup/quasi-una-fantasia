@@ -185,7 +185,11 @@
     (resp/hint
      (transform 
       (jdbc/with-db-metadata [m (resolve-creds db)]
-        (jdbc/metadata-query (.getTables m nil schema table nil)))
+        (jdbc/metadata-query (.getTables m
+                                         nil
+                                         schema
+                                         table
+                                         (into-array String ["TABLE" "VIEW"]))))
       {:table_type :type
        :table_schem :schema
        :table_name :table})
