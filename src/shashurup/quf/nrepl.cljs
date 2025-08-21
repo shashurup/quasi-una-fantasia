@@ -25,7 +25,7 @@
     (binding [cljs.tools.reader/*default-data-reader-fn* handle-tag]
       (read-string subj))
     (catch js/Object _
-      ^{:shashurup.quf/hint :shashurup.quf/text} [subj])))
+      ^{:shashurup.quf/hint :text} [subj])))
 
 (defn history-append [expr]
   (when-not (empty? expr)
