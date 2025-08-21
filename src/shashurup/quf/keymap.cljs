@@ -18,11 +18,11 @@
                             "A-y" :append-cell-with-expr
                             "C-j" :cell-below
                             "C-k" :cell-above
-                            "C-r" :search-history
+                            "C-p" :search-history
                             "C-h" :toggle-doc
                             "C-s" :cycle-result-height
                             "C-=" :load-ns-dialog
-                            "C-t" :new-tab
+                            "A-C-t" :new-tab
                             "C-m" :show-checkboxes
                             "C-e" :expand-client-vars
                             "C-;" :sexp-mode}
