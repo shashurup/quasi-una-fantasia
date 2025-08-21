@@ -5,7 +5,7 @@
 * DONE Change Ctrl+R and Ctrl+T shortcuts
   Ctrl+T - Ctrl+Alt+T duplicating current session
   Ctrl+R - probably Ctrl+P (like completions in Vim)
-* TODO db/dt - filter only tables and views
+* DONE db/dt - filter only tables and views
 * TODO db/dt - allow Ctrl+m
 * DONE ns prompt
 * DONE extensibility
