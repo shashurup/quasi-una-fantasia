@@ -128,6 +128,9 @@
 (defmethod render List [subj]
   (make-composite subj :list render))
 
+(defmethod render EmptyList [subj]
+  (make-composite subj :list render))
+
 (defmethod render PersistentHashSet [subj]
   (make-composite subj :set render))
 
