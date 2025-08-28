@@ -236,7 +236,10 @@
       (if (= (ex-message e) impl-not-found-msg)
         (do 
           (. js/console debug "Reloading modules")
-          (u/reload-client-modules resume-reply-queue!)
+          (u/reload-client-modules (fn []
+                                     (try
+                                       (handle-eval-reply-inner id reply go-next)
+                                       (finally (resume-reply-queue!)))))
           false)
         true))))
 
@@ -250,17 +253,14 @@
   (reset! reply-queue-active? nil))
 
 (defn process-replies! []
-  (when @reply-queue-active?
-    (doall (keep (fn [reply]
-                   (if (handle-eval-reply reply)
-                     (swap! reply-queue subvec 1)
-                     (suspend-reply-queue)))
-                 @reply-queue))))
+  (while (and @reply-queue-active? (not-empty @reply-queue))
+    (when-not (handle-eval-reply (first @reply-queue))
+      (suspend-reply-queue))
+    (swap! reply-queue subvec 1)))
 
 (defn push-reply! [subj]
   (swap! reply-queue conj subj)
-  (when @reply-queue-active?
-    (process-replies!)))
+  (process-replies!))
 
 (defn resume-reply-queue! []
   (reset! reply-queue-active? true)

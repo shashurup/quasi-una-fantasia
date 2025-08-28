@@ -113,16 +113,19 @@
 
 (defn reload-client-modules [callback]
   (nrepl/send-eval-aux "(shashurup.quf.response/client-modules)"
-                       (fn [{value :value}]
-                         (let [modules (set (filter module? value))
-                               loaded (atom #{})]
-                           (doseq [ns modules]
-                             (load-module ns (fn []
-                                               (. js/console debug "loaded: " (str ns))
-                                               (swap! loaded conj ns)
-                                               (when (= @loaded modules)
-                                                 (. js/console debug "All modules are here")
-                                                 (callback)))))))))
+                       (fn [{value :value status :status}]
+                         (when-not (nrepl/terminated? status)
+                           (let [modules (set (filter module? value))
+                                 loaded (atom #{})]
+                             (if (empty? modules)
+                               (callback)
+                               (doseq [ns modules]
+                                 (load-module ns (fn []
+                                                   (. js/console debug "loaded: " (str ns))
+                                                   (swap! loaded conj ns)
+                                                   (when (= @loaded modules)
+                                                     (. js/console debug "All modules are here")
+                                                     (callback)))))))))))
 
 (defn ^:dynamic not-found-hook []
   (. js/console debug "renderer has not been found"))
