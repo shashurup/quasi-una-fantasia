@@ -2,6 +2,7 @@
   (:gen-class)
   (:require [shashurup.quf.response :as response]
             [shashurup.quf.vars :as vars]
+            [shashurup.quf.pruner :as pruner]
             [compojure.core :refer :all]
             [compojure.route :as route]
             [compojure.coercions :refer [as-int]]
@@ -15,7 +16,8 @@
 
 (defn create-transport []
   (let [[client server] (t/piped-transports)]
-    (future (srv/handle (srv/default-handler #'vars/wrap-update-vars)
+    (future (srv/handle (srv/default-handler #'vars/wrap-update-vars
+                                             #'pruner/wrap-pruner)
                         server))
     client))
 
