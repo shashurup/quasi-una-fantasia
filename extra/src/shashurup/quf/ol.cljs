@@ -1,5 +1,5 @@
 (ns shashurup.quf.ol
-  (:require [shashurup.quf.render :refer [render]]
+  (:require [shashurup.quf.render :refer [render defer]]
             [shashurup.quf.utils :as u]
             [crate.core :as crate]
             [goog.dom :as gdom]
@@ -52,9 +52,8 @@
     (.fit view (.getExtent src))))
 
 (defmethod render :geodata [subj]
-  (fn [target]
-    (let [c (crate/html [:div.quf-medium-sized])]
-      (gdom/appendChild target c)
-      (create-map-control c subj))))
+  (let [mapdiv (crate/html [:div.quf-medium-sized])]
+    (defer #(create-map-control mapdiv subj))
+    mapdiv))
 
 (u/set-module-loaded!)

@@ -1,5 +1,5 @@
 (ns shashurup.quf.chartjs
-  (:require [shashurup.quf.render :refer [render]]
+  (:require [shashurup.quf.render :refer [render defer]]
             [shashurup.quf.utils :as u]
             [crate.core :as crate]
             [goog.dom :as gdom]
@@ -50,9 +50,8 @@
     (js/Chart. canvas (clj->js (chart-input data type)))))
 
 (defmethod render :chart [subj]
-  (fn [target]
-    (let [c (crate/html [:div.quf-medium-sized [:canvas]])]
-      (gdom/appendChild target c)
-      (create-chart-control (gdom/getFirstElementChild c) subj))))
+  (let [canvas (crate/html [:canvas])]
+    (defer #(create-chart-control canvas subj))
+    [:div.quf-medium-sized canvas]))
 
 (u/set-module-loaded!)

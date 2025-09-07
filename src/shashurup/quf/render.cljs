@@ -33,11 +33,14 @@
   (crate/html [:p {:class (some out-class-map (keys reply))}
                (some reply out-keys)]))
 
+(def ^:dynamic defer (fn [_]))
+
 (defn render-result [val target]
-  (let [r (render val)]
-    (if (fn? r)
-      (r target)
-      (gdom/appendChild target (crate/html r)))))
+  (let [deferred (atom [])]
+    (binding [defer #(swap! deferred conj %)]
+      (let [v (render val)]
+        (gdom/appendChild target (if (gdom/isElement v) v (crate/html v)))
+        (doseq [f @deferred] (f))))))
 
 (defonce cell-handlers (atom {}))
 (defonce output-handlers (atom {}))
