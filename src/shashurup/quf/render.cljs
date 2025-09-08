@@ -35,20 +35,25 @@
 
 (def ^:dynamic defer (fn [_]))
 
-(defn render-result [val target]
+(defn render-result [expr val target]
   (let [deferred (atom [])]
     (binding [defer #(swap! deferred conj %)]
-      (let [v (render val)]
-        (gdom/appendChild target (if (gdom/isElement v) v (crate/html v)))
+      (let [val (if (coll? val)
+                  (vary-meta val assoc ::expr expr)
+                  val)
+            result (render val)]
+        (gdom/appendChild target (if (gdom/isElement result)
+                                   result
+                                   (crate/html result)))
         (doseq [f @deferred] (f))))))
 
 (defonce cell-handlers (atom {}))
 (defonce output-handlers (atom {}))
 
-(defn render-reply [id {:keys [out err ex value status] :as reply}]
+(defn render-reply [id expr {:keys [out err ex value status] :as reply}]
   (let [cell-handler (get @cell-handlers id)]
     (cond
-      (contains? reply :value) (render-result value (get-result-element id))
+      (contains? reply :value) (render-result expr value (get-result-element id))
       cell-handler (cell-handler id reply)
       (some reply out-keys) (let [data (nrepl/try-read-value-with-meta out)]
                               (if-let [hint (:shashurup.quf/hint (meta data))]
@@ -111,8 +116,18 @@
                 :list   ["(" ")"]
                 :set    ["#{" "}"]})
 
+(defn add-context [subj [path expr] el]
+  (if (coll? subj)
+    (vary-meta subj merge {::path (conj (or path []) el)
+                           ::expr expr})
+    subj))
+
+(defn get-context [subj]
+  ((juxt ::path ::expr) (meta subj)))
+
 (defn make-composite [subj cont-type render-fn]
-  (let [check-id (new-check-id)
+  (let [ctx (get-context subj)
+        check-id (new-check-id)
         [prefix suffix] (get paren-map cont-type)]
     [:div.quf-composite-wrapper.quf-container
      [:label {:for check-id} prefix]
@@ -121,7 +136,7 @@
               :style "display: none"}]
      [:div {:class (str "quf-composite-body-"
                         (subs (str cont-type) 1))}
-      (for [node subj] (render-fn node))]
+      (map-indexed #(render-fn (add-context %2 ctx %1)) subj)]
      [:label.quf-ellipsis {:for check-id} "\u2026"] ;; ellipsis
      [:span.quf-closing-paren suffix]]))
 
@@ -137,8 +152,12 @@
 (defmethod render PersistentHashSet [subj]
   (make-composite subj :set render))
 
-(defn render-map-entry [[k v]]
-  [:div.quf-map-entry (render k) (render v)])
+(defn render-map-entry [entry]
+  (let [ctx (get-context entry)
+        [k v] entry]
+      [:div.quf-map-entry
+       (render k)
+       (render (add-context v ctx k))]))
 
 (defn make-map [subj]
   (make-composite subj :map render-map-entry))

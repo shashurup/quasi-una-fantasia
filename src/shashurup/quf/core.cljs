@@ -207,9 +207,10 @@
     (gdom/setTextContent title-el (str (:ns @nrepl/state) " - " title))))
 
 (defn handle-eval-reply-inner [id
+                               expr
                                {:keys [x-data status] :as reply}
                                go-next]
-  (render-reply id reply)
+  (render-reply id expr reply)
   (when (nrepl/terminated? status)
     (remove-progress-bar id)
     (.scrollIntoView (get-cell-element id))
@@ -227,10 +228,10 @@
 
 (declare resume-reply-queue!)
 
-(defn handle-eval-reply [[id reply go-next]]
+(defn handle-eval-reply [[id expr reply go-next]]
   (try
     (binding [u/not-found-hook #(throw (js/Error impl-not-found-msg))]
-      (handle-eval-reply-inner id reply go-next)
+      (handle-eval-reply-inner id expr reply go-next)
       true)
     (catch :default e
       (if (= (ex-message e) impl-not-found-msg)
@@ -238,7 +239,7 @@
           (. js/console debug "Reloading modules")
           (u/reload-client-modules (fn []
                                      (try
-                                       (handle-eval-reply-inner id reply go-next)
+                                       (handle-eval-reply-inner id expr reply go-next)
                                        (finally (resume-reply-queue!)))))
           false)
         true))))
@@ -282,7 +283,7 @@
      (.requestIdleCallback js/window
                            #(history/log expr))
      (let [req-id (nrepl/send-eval expr
-                                   #(push-reply! [id % go-next])
+                                   #(push-reply! [id expr % go-next])
                                    (vars/read-pending-updates!))]
        (swap! app-state assoc-in [:requests (str id)] req-id)))))
 
