@@ -44,6 +44,13 @@
                    merge (when more? {::range range})))
       subj)))
 
+(defn get-range [subj path from to]
+  (when-let [data (get-in subj path)]
+    (let [rem (drop (or from 0) data)]
+      (if to
+        (prune-tree rem (- to from))
+        (map #(prune-tree % 0) rem)))))
+
 (defn- pruning-transport [transport {quota ::quota
                                      path ::path
                                      {from :from to :to} ::range}]
@@ -55,6 +62,8 @@
         (cond
           quota (t/send transport
                         (update resp :value prune-tree quota))
+          path (t/send transport
+                       (update resp :value get-range path from to))
           :else (t/send transport resp))
         (t/send transport resp)))))
 
