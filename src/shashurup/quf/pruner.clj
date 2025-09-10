@@ -24,25 +24,27 @@
     [(take size items) (> (count items) size)]))
 
 (defn- prune-tree [subj size]
-  (if (map? subj)
-    (let [children-count (prunable-count subj)
-          remainder (- size children-count)
-          child-size (quot (if (neg? remainder) 0 remainder)
-                           (if (zero? children-count) 1 children-count))]
-      (map-map subj #(prune-tree % child-size)))
-    (if (prunable? subj)
-      (let [map-fn (if (vector? subj) mapv map)
-            [children more?] (consume-items size subj)
-            children-count (count children)
-            range (if (pos? children-count)
-                    {:from 0 :to (dec children-count)}
-                    :emtpy)
+  (let [original-meta (meta subj)]
+    (if (map? subj)
+      (let [children-count (prunable-count subj)
             remainder (- size children-count)
             child-size (quot (if (neg? remainder) 0 remainder)
                              (if (zero? children-count) 1 children-count))]
-        (vary-meta (map-fn #(prune-tree % child-size) children)
-                   merge (when more? {::range range})))
-      subj)))
+        (with-meta (map-map subj #(prune-tree % child-size))
+          original-meta))
+      (if (prunable? subj)
+        (let [map-fn (if (vector? subj) mapv map)
+              [children more?] (consume-items size subj)
+              children-count (count children)
+              range (if (pos? children-count)
+                      {:from 0 :to (dec children-count)}
+                      :emtpy)
+              remainder (- size children-count)
+              child-size (quot (if (neg? remainder) 0 remainder)
+                               (if (zero? children-count) 1 children-count))]
+          (with-meta (map-fn #(prune-tree % child-size) children)
+            (merge original-meta (when more? {::range range}))))
+        subj))))
 
 (defn- extract [subj path]
   (let [[k & rest] path]
