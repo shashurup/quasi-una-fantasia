@@ -23,7 +23,7 @@
   (let [items (take (inc size) subj)]
     [(take size items) (> (count items) size)]))
 
-(defn prune-tree [subj size]
+(defn- prune-tree [subj size]
   (if (map? subj)
     (let [children-count (prunable-count subj)
           remainder (- size children-count)
@@ -44,8 +44,16 @@
                    merge (when more? {::range range})))
       subj)))
 
-(defn get-range [subj path from to]
-  (when-let [data (get-in subj path)]
+(defn- extract [subj path]
+  (let [[k & rest] path]
+    (if (nil? k)
+      subj
+      (cond
+        (map? subj) (extract (get subj k) rest)
+        (coll? subj) (extract (nth subj k) rest)))))
+
+(defn- get-range [subj path from to]
+  (when-let [data (extract subj path)]
     (let [rem (drop (or from 0) data)]
       (if to
         (prune-tree rem (- to from))

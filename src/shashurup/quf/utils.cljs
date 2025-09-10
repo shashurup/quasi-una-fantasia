@@ -8,6 +8,10 @@
             [goog.dom :as gdom]
             [goog.dom.classes :as gcls]))
 
+(def pruner-quota 128)
+
+(def eval-extra {:shashurup.quf.pruner/quota pruner-quota})
+
 (defn parent-elements [subj]
   (iterate #(.-parentElement %) subj))
 
@@ -45,11 +49,11 @@
   ([f prefix]
    (let [name (str prefix (swap! fn-counter inc))]
      (swap! fns assoc name f)
-     (str "shashurup.quf.utils.call(\"" name "\");"))))
+     (str "shashurup.quf.utils.call(\"" name "\", event);"))))
 
-(defn call [name]
+(defn call [name event]
   (let [f (@fns name)]
-    (f)))
+    (f event)))
 
 ;; cljs.loader seems to be a bit broken
 ;; cljs.loader/load is asynchronous but doesn't allow

@@ -284,7 +284,8 @@
                            #(history/log expr))
      (let [req-id (nrepl/send-eval expr
                                    #(push-reply! [id expr % go-next])
-                                   (vars/read-pending-updates!))]
+                                   (merge (vars/read-pending-updates!)
+                                          u/eval-extra))]
        (swap! app-state assoc-in [:requests (str id)] req-id)))))
 
 (defn eval-cell-and-stay

@@ -125,6 +125,35 @@
 (defn get-context [subj]
   ((juxt ::path ::expr) (meta subj)))
 
+(declare retrieve-composite-fragment)
+
+(defn load-more-ellipsis [ctx]
+  [:span {:style "cursor: pointer"
+          :onclick (u/gen-js-call
+                    #(retrieve-composite-fragment % ctx))}
+   "\u2026"])
+
+(defn insert-composite-fragment [target ctx from resp]
+  (when (contains? resp :value)
+    (let [{value :value} resp
+          fragment (map-indexed #(render (add-context %2 ctx (+ %1 from)))
+                                value)
+          parent (.-parentElement target)]
+      (.remove target)
+      (doseq [el fragment] (.append parent (crate/html el)))
+      (when (:shashurup.quf.pruner/range (meta value))
+        (.append parent (crate/html (load-more-ellipsis ctx)))))))
+
+(defn retrieve-composite-fragment [e [path expr]]
+  (let [target (.-target  e)
+        from (dec (.-childElementCount (.-parentElement target)))
+        to (+ from u/pruner-quota)]
+    (nrepl/send-eval expr
+                     #(insert-composite-fragment target [path expr] from %)
+                     {:shashurup.quf.pruner/path path
+                      :shashurup.quf.pruner/range {:from from
+                                                   :to to}})))
+
 (defn make-composite [subj cont-type render-fn]
   (let [ctx (get-context subj)
         check-id (new-check-id)
@@ -136,7 +165,9 @@
               :style "display: none"}]
      [:div {:class (str "quf-composite-body-"
                         (subs (str cont-type) 1))}
-      (map-indexed #(render-fn (add-context %2 ctx %1)) subj)]
+      (map-indexed #(render-fn (add-context %2 ctx %1)) subj)
+      (when (:shashurup.quf.pruner/range (meta subj))
+        (load-more-ellipsis ctx))]
      [:label.quf-ellipsis {:for check-id} "\u2026"] ;; ellipsis
      [:span.quf-closing-paren suffix]]))
 
@@ -153,11 +184,11 @@
   (make-composite subj :set render))
 
 (defn render-map-entry [entry]
-  (let [ctx (get-context entry)
+  (let [[path expr] (get-context entry)
         [k v] entry]
       [:div.quf-map-entry
        (render k)
-       (render (add-context v ctx k))]))
+       (render (add-context v [(pop path) expr] k))]))
 
 (defn make-map [subj]
   (make-composite subj :map render-map-entry))
