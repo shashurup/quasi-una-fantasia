@@ -116,33 +116,36 @@
                 :list   ["(" ")"]
                 :set    ["#{" "}"]})
 
-(defn add-context [subj [path expr] el]
+(defn add-context [subj [path expr]]
   (if (coll? subj)
-    (vary-meta subj merge {::path (conj (or path []) el)
+    (vary-meta subj merge {::path (or path [])
                            ::expr expr})
     subj))
 
+(defn push-context [subj [path expr] el]
+  (add-context subj [(conj (or path []) el) expr]))
+
 (defn get-context [subj]
-  ((juxt ::path ::expr) (meta subj)))
+  (let [m (meta subj)]
+    [(or (::path m) []) (::expr m)]))
+
+(defn load-more-ellipsis [f]
+  [:span {:style "cursor: pointer"
+          :onclick (u/gen-js-call f)}
+   "\u2026"])
 
 (declare retrieve-composite-fragment)
-
-(defn load-more-ellipsis [ctx]
-  [:span {:style "cursor: pointer"
-          :onclick (u/gen-js-call
-                    #(retrieve-composite-fragment % ctx))}
-   "\u2026"])
 
 (defn insert-composite-fragment [target ctx from resp]
   (when (contains? resp :value)
     (let [{value :value} resp
-          fragment (map-indexed #(render (add-context %2 ctx (+ %1 from)))
+          fragment (map-indexed #(render (push-context %2 ctx (+ %1 from)))
                                 value)
           parent (.-parentElement target)]
       (.remove target)
       (doseq [el fragment] (.append parent (crate/html el)))
       (when (:shashurup.quf.pruner/range (meta value))
-        (.append parent (crate/html (load-more-ellipsis ctx)))))))
+        (.append parent (crate/html (load-more-ellipsis #(retrieve-composite-fragment % ctx))))))))
 
 (defn retrieve-composite-fragment [e [path expr]]
   (let [target (.-target  e)
@@ -165,9 +168,9 @@
               :style "display: none"}]
      [:div {:class (str "quf-composite-body-"
                         (subs (str cont-type) 1))}
-      (map-indexed #(render-fn (add-context %2 ctx %1)) subj)
+      (map-indexed #(render-fn (push-context %2 ctx %1)) subj)
       (when (:shashurup.quf.pruner/range (meta subj))
-        (load-more-ellipsis ctx))]
+        (load-more-ellipsis #(retrieve-composite-fragment % ctx)))]
      [:label.quf-ellipsis {:for check-id} "\u2026"] ;; ellipsis
      [:span.quf-closing-paren suffix]]))
 
@@ -188,7 +191,7 @@
         [k v] entry]
       [:div.quf-map-entry
        (render k)
-       (render (add-context v [(pop path) expr] k))]))
+       (render (push-context v [(pop path) expr] k))]))
 
 (defn make-map [subj]
   (make-composite subj :map render-map-entry))
@@ -275,8 +278,30 @@
         (desc/table-desc sec (nth subj 2))
         (desc/table-desc sec)))))
 
+(defn insert-table-fragment [target ctx resp]
+  (when (contains? resp :value)
+    (let [{value :value} resp
+          parent (.-parentElement target)
+          table (crate/html (render (add-context value ctx)))
+          tbody (first (.getElementsByTagName table "tbody"))]
+      (.remove target)
+      (doseq [el (.-children tbody)]
+        (.append parent el)))))
+
+(defn retrieve-table-fragment [e [path expr]]
+  (.log js/console "retrieve" e)
+  (let [target (.-parentElement (.-parentElement (.-target  e)))
+        from (dec (.-childElementCount (.-parentElement target)))
+        to (+ from u/pruner-quota)]
+    (nrepl/send-eval expr
+                     #(insert-table-fragment target [path expr] %)
+                     {:shashurup.quf.pruner/path path
+                      :shashurup.quf.pruner/range {:from from
+                                                   :to to}})))
+
 (defmethod render :table [data]
   (let [hint (:shashurup.quf/hint (meta data))
+        ctx (get-context data)
         [names rndrs get-key] (if (keyword? hint)
                                (desc/table-desc (guess-columns data))
                                (parse-hint hint))]
@@ -289,7 +314,9 @@
                [:tr
                 (when get-key [:td.quf-check-cell (render-checkbox (get-key row))])
                 (for [rndr rndrs]
-                  (render-cell (rndr row)))])]]))
+                  (render-cell (rndr row)))])
+      (when (:shashurup.quf.pruner/range (meta data))
+        [:tr [:td (load-more-ellipsis #(retrieve-table-fragment % ctx))]])]]))
 
 (defn render-obj [obj names rndrs show-attr-names get-key]
   [:div.quf-object 

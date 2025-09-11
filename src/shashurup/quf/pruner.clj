@@ -56,10 +56,12 @@
 
 (defn- get-range [subj path from to]
   (when-let [data (extract subj path)]
-    (let [rem (drop (or from 0) data)]
+    (let [rem (drop (or from 0) data)
+          original-meta (meta data)]
       (if to
-        (prune-tree rem (- to from))
-        (map #(prune-tree % 0) rem)))))
+        (prune-tree (with-meta rem original-meta) (- to from))
+        (with-meta
+          (map #(prune-tree % 0) rem) original-meta)))))
 
 (defn- pruning-transport [transport {quota ::quota
                                      path ::path
