@@ -285,7 +285,7 @@
           table (crate/html (render (add-context value ctx)))
           tbody (first (.getElementsByTagName table "tbody"))]
       (.remove target)
-      (doseq [el (.-children tbody)]
+      (doseq [el (vec (.-children tbody))]
         (.append parent el)))))
 
 (defn retrieve-table-fragment [e [path expr]]
@@ -330,12 +330,34 @@
          [:div.quf-object-attr val-el])))
    (when get-key (render-checkbox (get-key obj)))])
 
+(defn insert-list-fragment [target ctx resp]
+  (when (contains? resp :value)
+    (let [{value :value} resp
+          parent (.-parentElement target)
+          lst (crate/html (render (add-context value ctx)))]
+      (.remove target)
+      (doseq [el (vec (.-children lst))]
+        (.append parent el)))))
+
+(defn retrieve-list-fragment [e [path expr]]
+  (let [target (.-target  e)
+        from (dec (.-childElementCount (.-parentElement target)))
+        to (+ from u/pruner-quota)]
+    (nrepl/send-eval expr
+                     #(insert-list-fragment target [path expr] %)
+                     {:shashurup.quf.pruner/path path
+                      :shashurup.quf.pruner/range {:from from
+                                                   :to to}})))
+
 (defn render-list [data show-attr-names]
-  (let [hint (:shashurup.quf/hint (meta data))
+  (let [ctx (get-context data)
+        hint (:shashurup.quf/hint (meta data))
         [names rndrs get-key] (parse-hint hint)]
     [:div.quf-composite-body-list.quf-container
      (for [obj data]
-       (render-obj obj names rndrs show-attr-names get-key))]))
+       (render-obj obj names rndrs show-attr-names get-key))
+     (when (:shashurup.quf.pruner/range (meta data))
+       (load-more-ellipsis #(retrieve-list-fragment % ctx)))]))
 
 (defmethod render :list [data]
   (render-list data false))
