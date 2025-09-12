@@ -144,18 +144,18 @@
           parent (.-parentElement target)]
       (.remove target)
       (doseq [el fragment] (.append parent (crate/html el)))
-      (when (:shashurup.quf.pruner/range (meta value))
+      (when (:shashurup.quf/range (meta value))
         (.append parent (crate/html (load-more-ellipsis #(retrieve-composite-fragment % ctx))))))))
 
 (defn retrieve-composite-fragment [e [path expr]]
   (let [target (.-target  e)
         from (dec (.-childElementCount (.-parentElement target)))
-        to (+ from u/pruner-quota)]
+        to (+ from u/quota)]
     (nrepl/send-eval expr
                      #(insert-composite-fragment target [path expr] from %)
-                     {:shashurup.quf.pruner/path path
-                      :shashurup.quf.pruner/range {:from from
-                                                   :to to}})))
+                     {:shashurup.quf/path path
+                      :shashurup.quf/range {:from from
+                                            :to to}})))
 
 (defn make-composite [subj cont-type render-fn]
   (let [ctx (get-context subj)
@@ -169,7 +169,7 @@
      [:div {:class (str "quf-composite-body-"
                         (subs (str cont-type) 1))}
       (map-indexed #(render-fn (push-context %2 ctx %1)) subj)
-      (when (:shashurup.quf.pruner/range (meta subj))
+      (when (:shashurup.quf/range (meta subj))
         (load-more-ellipsis #(retrieve-composite-fragment % ctx)))]
      [:label.quf-ellipsis {:for check-id} "\u2026"] ;; ellipsis
      [:span.quf-closing-paren suffix]]))
@@ -292,12 +292,12 @@
   (.log js/console "retrieve" e)
   (let [target (.-parentElement (.-parentElement (.-target  e)))
         from (dec (.-childElementCount (.-parentElement target)))
-        to (+ from u/pruner-quota)]
+        to (+ from u/quota)]
     (nrepl/send-eval expr
                      #(insert-table-fragment target [path expr] %)
-                     {:shashurup.quf.pruner/path path
-                      :shashurup.quf.pruner/range {:from from
-                                                   :to to}})))
+                     {:shashurup.quf/path path
+                      :shashurup.quf/range {:from from
+                                            :to to}})))
 
 (defmethod render :table [data]
   (let [hint (:shashurup.quf/hint (meta data))
@@ -315,7 +315,7 @@
                 (when get-key [:td.quf-check-cell (render-checkbox (get-key row))])
                 (for [rndr rndrs]
                   (render-cell (rndr row)))])
-      (when (:shashurup.quf.pruner/range (meta data))
+      (when (:shashurup.quf/range (meta data))
         [:tr [:td (load-more-ellipsis #(retrieve-table-fragment % ctx))]])]]))
 
 (defn render-obj [obj names rndrs show-attr-names get-key]
@@ -342,12 +342,12 @@
 (defn retrieve-list-fragment [e [path expr]]
   (let [target (.-target  e)
         from (dec (.-childElementCount (.-parentElement target)))
-        to (+ from u/pruner-quota)]
+        to (+ from u/quota)]
     (nrepl/send-eval expr
                      #(insert-list-fragment target [path expr] %)
-                     {:shashurup.quf.pruner/path path
-                      :shashurup.quf.pruner/range {:from from
-                                                   :to to}})))
+                     {:shashurup.quf/path path
+                      :shashurup.quf/range {:from from
+                                            :to to}})))
 
 (defn render-list [data show-attr-names]
   (let [ctx (get-context data)
@@ -356,7 +356,7 @@
     [:div.quf-composite-body-list.quf-container
      (for [obj data]
        (render-obj obj names rndrs show-attr-names get-key))
-     (when (:shashurup.quf.pruner/range (meta data))
+     (when (:shashurup.quf/range (meta data))
        (load-more-ellipsis #(retrieve-list-fragment % ctx)))]))
 
 (defmethod render :list [data]

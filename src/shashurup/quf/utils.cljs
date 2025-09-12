@@ -8,9 +8,9 @@
             [goog.dom :as gdom]
             [goog.dom.classes :as gcls]))
 
-(def pruner-quota 128)
+(def quota 128)
 
-(def eval-extra {:shashurup.quf.pruner/quota pruner-quota})
+(def eval-extra {:shashurup.quf/quota quota})
 
 (defn parent-elements [subj]
   (iterate #(.-parentElement %) subj))

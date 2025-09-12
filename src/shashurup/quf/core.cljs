@@ -375,7 +375,7 @@
                   (ns-interns 'shashurup.quf.assistant)
                   (ns-interns 'shashurup.quf.editor)
                   (ns-interns 'shashurup.quf.vars)])
-    (vars/push-server-updates! '*quota* u/pruner-quota)
+    (vars/push-server-updates! '*quota* u/quota)
     (gevents/listen js/window
                     "load"
                     (fn [_] (append-cell)))))

@@ -43,7 +43,7 @@
               child-size (quot (if (neg? remainder) 0 remainder)
                                (if (zero? children-count) 1 children-count))]
           (with-meta (map-fn #(prune-tree % child-size) children)
-            (merge original-meta (when more? {::range range}))))
+            (merge original-meta (when more? {:shashurup.quf/range range}))))
         subj))))
 
 (defn- extract [subj path]
@@ -63,9 +63,9 @@
         (with-meta
           (map #(prune-tree % 0) rem) original-meta)))))
 
-(defn- pruning-transport [transport {quota ::quota
-                                     path ::path
-                                     {from :from to :to} ::range}]
+(defn- pruning-transport [transport {quota :shashurup.quf/quota
+                                     path :shashurup.quf/path
+                                     {from :from to :to} :shashurup.quf/range}]
   (reify Transport
     (recv [_] (t/recv transport))
     (recv [_ timeout] (t/recv transport timeout))
@@ -81,7 +81,9 @@
 
 (defn wrap-pruner [h]
   (fn [{:keys [transport] :as msg}]
-    (let [opts (select-keys msg [::quota ::path ::range])]
+    (let [opts (select-keys msg [:shashurup.quf/quota
+                                 :shashurup.quf/path
+                                 :shashurup.quf/range])]
       (if opts
         (h (assoc msg :transport (pruning-transport transport opts)))
         (h msg)))))
