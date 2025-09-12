@@ -3,6 +3,7 @@
             [nrepl.middleware.session :refer [session]]))
 
 (def ^:dynamic *term-dimensions* [80 24])
+(def ^:dynamic *quota* nil)
 
 (defn- find-sym [subj]
   ((ns-map 'shashurup.quf.vars) subj))
