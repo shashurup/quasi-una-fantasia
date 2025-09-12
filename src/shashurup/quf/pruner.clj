@@ -25,14 +25,18 @@
 
 (defn- prune-tree [subj size]
   (let [original-meta (meta subj)]
-    (if (map? subj)
-      (let [children-count (prunable-count subj)
-            remainder (- size children-count)
-            child-size (quot (if (neg? remainder) 0 remainder)
-                             (if (zero? children-count) 1 children-count))]
-        (with-meta (map-map subj #(prune-tree % child-size))
-          original-meta))
-      (if (prunable? subj)
+    (cond
+      (:shashurup.quf/range original-meta) subj
+
+      (map? subj)
+        (let [children-count (prunable-count subj)
+              remainder (- size children-count)
+              child-size (quot (if (neg? remainder) 0 remainder)
+                               (if (zero? children-count) 1 children-count))]
+          (with-meta (map-map subj #(prune-tree % child-size))
+            original-meta))
+
+      (prunable? subj)
         (let [map-fn (if (vector? subj) mapv map)
               [children more?] (consume-items size subj)
               children-count (count children)
@@ -44,7 +48,8 @@
                                (if (zero? children-count) 1 children-count))]
           (with-meta (map-fn #(prune-tree % child-size) children)
             (merge original-meta (when more? {:shashurup.quf/range range}))))
-        subj))))
+
+      :else subj)))
 
 (defn- extract [subj path]
   (let [[k & rest] path]
