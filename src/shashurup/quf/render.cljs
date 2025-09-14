@@ -122,8 +122,8 @@
                            ::expr expr})
     subj))
 
-(defn push-context [subj [path expr] el]
-  (add-context subj [(conj (or path []) el) expr]))
+(defn push-context [subj [path expr] & els]
+  (add-context subj [(into (or path []) els) expr]))
 
 (defn get-context [subj]
   (let [m (meta subj)]
@@ -289,7 +289,6 @@
         (.append parent el)))))
 
 (defn retrieve-table-fragment [e [path expr]]
-  (.log js/console "retrieve" e)
   (let [target (.-parentElement (.-parentElement (.-target  e)))
         from (dec (.-childElementCount (.-parentElement target)))
         to (+ from u/quota)]
@@ -374,6 +373,90 @@
   (let [hint (:shashurup.quf/hint (meta data))
         [_ rndrs _] (desc/table-desc (second hint) [(nth hint 2)])]
     ((first rndrs) data)))
+
+;; Tree
+
+(def cur-tree-id (atom 0))
+
+(declare render-tree-level)
+
+(defn insert-tree-level [resp target params more]
+  (when (contains? resp :value)
+    (.append target
+             (crate/html (render-tree-level (add-context (:value resp)
+                                                         [nil more])
+                                            params)))))
+
+(defn load-tree-level [e params more]
+  (let [target-div (.-parentElement (.-target e))]
+    (when (zero? (.-length (.getElementsByTagName target-div "div")))
+      (nrepl/send-eval more
+                       #(insert-tree-level % target-div params more)
+                       u/eval-extra))))
+
+(defn insert-tree-fragment [target ctx from params resp]
+  (when (contains? resp :value)
+    (let [{value :value} resp
+          parent (.-parentElement target)
+          div (crate/html (render-tree-level (add-context value ctx) params))]
+      (.remove target)
+      (doseq [el (vec (.-children div))]
+        (.append parent el)))))
+
+(defn retrieve-tree-fragment [e [path expr] params]
+  (let [target (.-target  e)
+        from (dec (.-childElementCount (.-parentElement target)))
+        to (+ from u/quota)]
+    (nrepl/send-eval expr
+                     #(insert-tree-fragment target
+                                            [path expr]
+                                            from 
+                                            params
+                                            %)
+                     {:shashurup.quf/path path
+                      :shashurup.quf/range {:from from
+                                            :to to}})))
+
+(defn render-tree-level [data [name-key children-key tree-id :as params]]
+  (let [ctx (get-context data)]
+    [:div.quf-tree
+     (for [[idx item] (map-indexed vector data)]
+       (let [id (str "tree-item-" (swap! cur-tree-id inc))
+             b-id (str id "-b")
+             r-id (str id "-r")
+             has-children (contains? item children-key)
+             children (children-key item)
+             more (and has-children
+                       (empty? children)
+                       (:shashurup.quf/more (meta children)))
+             onchange (when more (u/gen-js-call
+                                  #(load-tree-level % params more)))]
+         [:div.quf-tree-item {:aria-expanded "false"}
+          (if has-children
+            (list
+             [:input.quf-tree-button (merge {:id b-id
+                                             :type "checkbox"}
+                                            (when onchange
+                                              {:onchange onchange}))]
+             [:label {:for b-id} ""])
+            [:span.quf-tree-button-space])
+          [:input.quf-tree-item {:id r-id
+                                 :name tree-id
+                                 :type "radio"}]
+          [:label.quf-tree-item {:for r-id} (name-key item)]
+          (when-let [children (not-empty children)]
+            (render-tree-level (push-context children ctx idx children-key)
+                               params))]))
+     (when (:shashurup.quf/range (meta data))
+       (load-more-ellipsis #(retrieve-tree-fragment % ctx params)))]))
+
+(defmethod render :tree [data]
+  (let [hint (:shashurup.quf/hint (meta data))
+        [name-key children-key] (if (and (coll? hint) (> 1 (count hint)))
+                                  (rest hint)
+                                  [:name :children])
+        tree-id (str "tree-" (swap! cur-tree-id inc))]
+    (render-tree-level data [name-key children-key tree-id])))
 
 (defonce startup-dummy
   (swap! output-handlers assoc :progress update-progress))

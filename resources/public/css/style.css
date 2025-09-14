@@ -307,3 +307,47 @@ td.quf .quf-tall {
 button.quf {
     margin: 1em;
 }
+
+div.quf-tree div.quf-tree {
+    margin-left: 2ch;
+}
+
+input.quf-tree-button {
+    display: none;
+}
+
+input.quf-tree-button:checked + label:before {
+    content: "-";
+    display: inline-block;
+    min-width: 1ch;
+}
+
+input.quf-tree-button:not(:checked) + label:before {
+    content: "+";
+    display: inline-block;
+    min-width: 1ch;
+}
+
+span.quf-tree-button-space {
+    display: inline-block;
+    min-width: 1ch;
+}
+
+input.quf-tree-button:not(:checked) ~ div.quf-tree {
+    display: none;
+}
+
+div.quf-tree-item {
+    padding: 2px;
+}
+
+label.quf-tree-item {
+    padding: 2px;
+}
+
+input.quf-tree-item {
+    display: none;
+}
+input.quf-tree-item:checked + label {
+    border: solid;
+}
