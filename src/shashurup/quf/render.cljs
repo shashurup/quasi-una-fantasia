@@ -161,7 +161,11 @@
           ins (fn [resp]
                 (when (contains? resp :value)
                   (let [value (push-context subj (:value resp))
-                        fragment (fragment-fn (crate/html (render value)))]
+                        fragment (-> value
+                                     render-fn
+                                     crate/html
+                                     fragment-fn)]
+                    (.log js/console fragment)
                     (.remove target)
                     (doseq [el (vec (.-children fragment))]
                       (.append parent el)))))]
@@ -399,77 +403,45 @@
 
 (def cur-tree-id (atom 0))
 
-(declare render-tree-level)
-
-(defn insert-tree-level [resp target params more]
-  (when (contains? resp :value)
-    (.append target
-             (crate/html (render-tree-level (add-context (:value resp)
-                                                         [nil more])
-                                            params)))))
-
-(defn load-tree-level [e params more]
-  (let [target-div (.-parentElement (.-target e))]
-    (when (zero? (.-length (.getElementsByTagName target-div "div")))
-      (nrepl/send-eval more
-                       #(insert-tree-level % target-div params more)
-                       u/eval-extra))))
-
-(defn insert-tree-fragment [target ctx from params resp]
-  (when (contains? resp :value)
-    (let [{value :value} resp
-          parent (.-parentElement target)
-          div (crate/html (render-tree-level (add-context value ctx) params))]
-      (.remove target)
-      (doseq [el (vec (.-children div))]
-        (.append parent el)))))
-
-(defn retrieve-tree-fragment [e [path expr] params]
-  (let [target (.-target  e)
-        from (dec (.-childElementCount (.-parentElement target)))
-        to (+ from u/quota)]
-    (nrepl/send-eval expr
-                     #(insert-tree-fragment target
-                                            [path expr]
-                                            from 
-                                            params
-                                            %)
-                     {:shashurup.quf/path path
-                      :shashurup.quf/range {:from from
-                                            :to to}})))
-
 (defn render-tree-level [data [name-key children-key tree-id :as params]]
-  (let [ctx (get-context data)]
-    [:div.quf-tree
-     (for [[idx item] (map-indexed vector data)]
-       (let [id (str "tree-item-" (swap! cur-tree-id inc))
-             b-id (str id "-b")
-             r-id (str id "-r")
-             has-children (contains? item children-key)
-             children (children-key item)
-             more (and has-children
-                       (empty? children)
-                       (:shashurup.quf/more (meta children)))
-             onchange (when more (u/gen-js-call
-                                  #(load-tree-level % params more)))]
-         [:div.quf-tree-item {:aria-expanded "false"}
-          (if has-children
-            (list
-             [:input.quf-tree-button (merge {:id b-id
-                                             :type "checkbox"}
-                                            (when onchange
-                                              {:onchange onchange}))]
-             [:label {:for b-id} ""])
-            [:span.quf-tree-button-space])
-          [:input.quf-tree-item {:id r-id
-                                 :name tree-id
-                                 :type "radio"}]
-          [:label.quf-tree-item {:for r-id} (name-key item)]
-          (when-let [children (not-empty children)]
-            (render-tree-level (push-context data children idx children-key)
-                               params))]))
-     (when (:shashurup.quf/range (meta data))
-       (load-more-ellipsis #(retrieve-tree-fragment % ctx params)))]))
+  [:div.quf-tree
+   (for [[idx item] (map-indexed vector data)]
+     (let [id (str "tree-item-" (swap! cur-tree-id inc))
+           b-id (str id "-b")
+           r-id (str id "-r")
+           has-children (contains? item children-key)
+           children (children-key item)
+           more (and has-children
+                     (empty? children)
+                     (get-in (meta children) [:shashurup.quf/range :more?]))
+           onchange (when more (u/gen-js-call
+                                (more-handler children
+                                              identity
+                                              #(render-tree-level % params)
+                                              identity)))
+           ]
+       [:div.quf-tree-item {:aria-expanded "false"}
+        (if has-children
+          (list
+           [:input.quf-tree-button (merge {:id b-id
+                                           :type "checkbox"}
+                                          (when onchange
+                                            {:onchange onchange}))]
+           [:label {:for b-id} ""])
+          [:span.quf-tree-button-space])
+        [:input.quf-tree-item {:id r-id
+                               :name tree-id
+                               :type "radio"}]
+        [:label.quf-tree-item {:for r-id} (name-key item)]
+        (when-let [children (not-empty children)]
+          (render-tree-level (push-context data children idx children-key)
+                             params))]))
+   (when (more-items? data)
+     (load-more-ellipsis
+      (more-handler data
+                    identity
+                    #(render-tree-level % params)
+                    identity)))])
 
 (defmethod render :tree [data]
   (let [hint (:shashurup.quf/hint (meta data))
