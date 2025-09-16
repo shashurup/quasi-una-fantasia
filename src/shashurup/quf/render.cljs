@@ -122,51 +122,60 @@
                            ::expr expr})
     subj))
 
-(defn push-context [subj [path expr] & els]
-  (add-context subj [(into (or path []) els) expr]))
-
 (defn get-context [subj]
   (let [m (meta subj)]
     [(or (::path m) []) (::expr m)]))
+
+(defn more-items? [subj]
+  (get-in (meta subj) [:shashurup.quf/range :more?]))
+
+(defn push-context [parent child & args]
+  (if (coll? child)
+    (let [{path ::path
+           expr ::expr
+           {from :from} :shashurup.quf/range
+           more :shashurup.quf/more} (meta parent)
+          fix #(if (number? %) (+ from %) %)]
+      (vary-meta child merge {::path (into (if more [] (or path []))
+                                           (map fix args))
+                              ::expr (or more expr)}))
+    child))
+
+(defn pop-context [subj]
+  (vary-meta subj update ::path pop))
 
 (defn load-more-ellipsis [f]
   [:span {:style "cursor: pointer"
           :onclick (u/gen-js-call f)}
    "\u2026"])
 
-(declare retrieve-composite-fragment)
-
-(defn insert-composite-fragment [target ctx from resp]
-  (when (contains? resp :value)
-    (let [{value :value} resp
-          fragment (map-indexed #(render (push-context %2 ctx (+ %1 from)))
-                                value)
-          parent (.-parentElement target)]
-      (.remove target)
-      (doseq [el fragment] (.append parent (crate/html el)))
-      (when (:shashurup.quf/range (meta value))
-        (.append parent (crate/html (load-more-ellipsis #(retrieve-composite-fragment % ctx))))))))
-
-(defn retrieve-composite-fragment [e [path expr] more]
-  (let [target (.-target  e)
-        from (dec (.-childElementCount (.-parentElement target)))
-        to (+ from u/quota)
-        expr (or more expr)
-        ctx (if more [[] more] [path expr])]
-    (nrepl/send-eval expr
-                     #(insert-composite-fragment target ctx from %)
-                     (if more
-                       u/eval-extra
-                       {:shashurup.quf/path path
-                        :shashurup.quf/range {:from from
-                                              :to to}}))))
+(defn more-handler [subj el-fn render-fn fragment-fn]
+  (fn [e]
+    (let [{path ::path
+           expr ::expr
+           {to :to
+            more? :more?} :shashurup.quf/range
+           more :shashurup.quf/more} (meta subj)
+          target (el-fn (.-target e))
+          parent (.-parentElement target)
+          ins (fn [resp]
+                (when (contains? resp :value)
+                  (let [value (push-context subj (:value resp))
+                        fragment (fragment-fn (crate/html (render value)))]
+                    (.remove target)
+                    (doseq [el (vec (.-children fragment))]
+                      (.append parent el)))))]
+      (nrepl/send-eval (or more expr)
+                       ins
+                       (if more
+                         u/eval-extra
+                         {:shashurup.quf/path path
+                          :shashurup.quf/range {:from to
+                                                :to (+ to u/quota)}})))))
 
 (defn make-composite [subj cont-type render-fn]
-  (let [ctx (get-context subj)
-        check-id (new-check-id)
-        [prefix suffix] (get paren-map cont-type)
-        {range :shashurup.quf/range
-         more  :shashurup.quf/more} (meta subj)]
+  (let [check-id (new-check-id)
+        [prefix suffix] (get paren-map cont-type)]
     [:div.quf-composite-wrapper.quf-container
      [:label {:for check-id} prefix]
      [:input {:id check-id
@@ -174,9 +183,15 @@
               :style "display: none"}]
      [:div {:class (str "quf-composite-body-"
                         (subs (str cont-type) 1))}
-      (map-indexed #(render-fn (push-context %2 ctx %1)) subj)
-      (when (or range more)
-        (load-more-ellipsis #(retrieve-composite-fragment % ctx more)))]
+      (for [[idx item] (map-indexed vector subj)
+            :let [item (push-context subj item idx)]]
+        (render-fn item))
+      (when (more-items? subj)
+        (load-more-ellipsis
+         (more-handler subj
+                       identity
+                       render
+                       #(first (.getElementsByTagName % "div")))))]
      [:label.quf-ellipsis {:for check-id} "\u2026"] ;; ellipsis
      [:span.quf-closing-paren suffix]]))
 
@@ -193,11 +208,11 @@
   (make-composite subj :set render))
 
 (defn render-map-entry [entry]
-  (let [[path expr] (get-context entry)
-        [k v] entry]
+  (let [[k v] entry
+        v (push-context (pop-context entry) v k)]
       [:div.quf-map-entry
        (render k)
-       (render (push-context v [(pop path) expr] k))]))
+       (render v)]))
 
 (defn make-map [subj]
   (make-composite subj :map render-map-entry))
@@ -451,7 +466,7 @@
                                  :type "radio"}]
           [:label.quf-tree-item {:for r-id} (name-key item)]
           (when-let [children (not-empty children)]
-            (render-tree-level (push-context children ctx idx children-key)
+            (render-tree-level (push-context data children idx children-key)
                                params))]))
      (when (:shashurup.quf/range (meta data))
        (load-more-ellipsis #(retrieve-tree-fragment % ctx params)))]))

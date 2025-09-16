@@ -23,33 +23,35 @@
   (let [items (take (inc size) subj)]
     [(take size items) (> (count items) size)]))
 
-(defn- prune-tree [subj size]
-  (let [original-meta (meta subj)]
-    (cond
-      (:shashurup.quf/range original-meta) subj
+(defn- prune-tree
+  ([subj size] (prune-tree subj size 0))
+  ([subj size from]
+   (let [original-meta (meta subj)]
+     (cond
+       (:shashurup.quf/range original-meta) subj
 
-      (map? subj)
-        (let [children-count (prunable-count subj)
-              remainder (- size children-count)
-              child-size (quot (if (neg? remainder) 0 remainder)
-                               (if (zero? children-count) 1 children-count))]
-          (with-meta (map-map subj #(prune-tree % child-size))
-            original-meta))
+       (map? subj)
+       (let [children-count (prunable-count subj)
+             remainder (- size children-count)
+             child-size (quot (if (neg? remainder) 0 remainder)
+                              (if (zero? children-count) 1 children-count))]
+         (with-meta (map-map subj #(prune-tree % child-size))
+           original-meta))
 
-      (prunable? subj)
-        (let [map-fn (if (vector? subj) mapv map)
-              [children more?] (consume-items size subj)
-              children-count (count children)
-              range (if (pos? children-count)
-                      {:from 0 :to (dec children-count)}
-                      :emtpy)
-              remainder (- size children-count)
-              child-size (quot (if (neg? remainder) 0 remainder)
-                               (if (zero? children-count) 1 children-count))]
-          (with-meta (map-fn #(prune-tree % child-size) children)
-            (merge original-meta (when more? {:shashurup.quf/range range}))))
+       (prunable? subj)
+       (let [map-fn (if (vector? subj) mapv map)
+             [children more?] (consume-items size subj)
+             children-count (count children)
+             range {:from from
+                    :to (+ from children-count)
+                    :more? more?}
+             remainder (- size children-count)
+             child-size (quot (if (neg? remainder) 0 remainder)
+                              (if (zero? children-count) 1 children-count))]
+         (with-meta (map-fn #(prune-tree % child-size) children)
+           (merge original-meta {:shashurup.quf/range range})))
 
-      :else subj)))
+       :else subj))))
 
 (defn- extract [subj path]
   (let [[k & rest] path]
@@ -64,7 +66,7 @@
     (let [rem (drop (or from 0) data)
           original-meta (meta data)]
       (if to
-        (prune-tree (with-meta rem original-meta) (- to from))
+        (prune-tree (with-meta rem original-meta) (- to from) from)
         (with-meta
           (map #(prune-tree % 0) rem) original-meta)))))
 
