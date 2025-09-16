@@ -116,16 +116,6 @@
                 :list   ["(" ")"]
                 :set    ["#{" "}"]})
 
-(defn add-context [subj [path expr]]
-  (if (coll? subj)
-    (vary-meta subj merge {::path (or path [])
-                           ::expr expr})
-    subj))
-
-(defn get-context [subj]
-  (let [m (meta subj)]
-    [(or (::path m) []) (::expr m)]))
-
 (defn more-items? [subj]
   (get-in (meta subj) [:shashurup.quf/range :more?]))
 
@@ -165,7 +155,6 @@
                                      render-fn
                                      crate/html
                                      fragment-fn)]
-                    (.log js/console fragment)
                     (.remove target)
                     (doseq [el (vec (.-children fragment))]
                       (.append parent el)))))]
@@ -173,7 +162,7 @@
                        ins
                        (if more
                          u/eval-extra
-                         {:shashurup.quf/path path
+                         {:shashurup.quf/path (or path [])
                           :shashurup.quf/range {:from to
                                                 :to (+ to u/quota)}})))))
 
@@ -303,29 +292,8 @@
         (desc/table-desc sec (nth subj 2))
         (desc/table-desc sec)))))
 
-(defn insert-table-fragment [target ctx resp]
-  (when (contains? resp :value)
-    (let [{value :value} resp
-          parent (.-parentElement target)
-          table (crate/html (render (add-context value ctx)))
-          tbody (first (.getElementsByTagName table "tbody"))]
-      (.remove target)
-      (doseq [el (vec (.-children tbody))]
-        (.append parent el)))))
-
-(defn retrieve-table-fragment [e [path expr]]
-  (let [target (.-parentElement (.-parentElement (.-target  e)))
-        from (dec (.-childElementCount (.-parentElement target)))
-        to (+ from u/quota)]
-    (nrepl/send-eval expr
-                     #(insert-table-fragment target [path expr] %)
-                     {:shashurup.quf/path path
-                      :shashurup.quf/range {:from from
-                                            :to to}})))
-
 (defmethod render :table [data]
   (let [hint (:shashurup.quf/hint (meta data))
-        ctx (get-context data)
         [names rndrs get-key] (if (keyword? hint)
                                (desc/table-desc (guess-columns data))
                                (parse-hint hint))]
@@ -339,8 +307,14 @@
                 (when get-key [:td.quf-check-cell (render-checkbox (get-key row))])
                 (for [rndr rndrs]
                   (render-cell (rndr row)))])
-      (when (:shashurup.quf/range (meta data))
-        [:tr [:td (load-more-ellipsis #(retrieve-table-fragment % ctx))]])]]))
+      (when (more-items? data)
+        [:tr
+         [:td
+          (load-more-ellipsis
+           (more-handler data
+                         #(.-parentElement (.-parentElement %))
+                         render
+                         #(first (.getElementsByTagName % "tbody"))))]])]]))
 
 (defn render-obj [obj names rndrs show-attr-names get-key]
   [:div.quf-object 
@@ -354,34 +328,18 @@
          [:div.quf-object-attr val-el])))
    (when get-key (render-checkbox (get-key obj)))])
 
-(defn insert-list-fragment [target ctx resp]
-  (when (contains? resp :value)
-    (let [{value :value} resp
-          parent (.-parentElement target)
-          lst (crate/html (render (add-context value ctx)))]
-      (.remove target)
-      (doseq [el (vec (.-children lst))]
-        (.append parent el)))))
-
-(defn retrieve-list-fragment [e [path expr]]
-  (let [target (.-target  e)
-        from (dec (.-childElementCount (.-parentElement target)))
-        to (+ from u/quota)]
-    (nrepl/send-eval expr
-                     #(insert-list-fragment target [path expr] %)
-                     {:shashurup.quf/path path
-                      :shashurup.quf/range {:from from
-                                            :to to}})))
-
 (defn render-list [data show-attr-names]
-  (let [ctx (get-context data)
-        hint (:shashurup.quf/hint (meta data))
+  (let [hint (:shashurup.quf/hint (meta data))
         [names rndrs get-key] (parse-hint hint)]
     [:div.quf-composite-body-list.quf-container
      (for [obj data]
        (render-obj obj names rndrs show-attr-names get-key))
-     (when (:shashurup.quf/range (meta data))
-       (load-more-ellipsis #(retrieve-list-fragment % ctx)))]))
+     (when (more-items? data)
+       (load-more-ellipsis
+        (more-handler data
+                      identity
+                      render
+                      identity)))]))
 
 (defmethod render :list [data]
   (render-list data false))
