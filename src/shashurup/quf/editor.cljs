@@ -48,6 +48,9 @@
 
 (defn make-text-node [text] (.createTextNode js/document text))
 
+(defn text-content [node]
+  (.-textContent node))
+
 (defn root? [node]
   (gcls/contains node "quf-input"))
 
@@ -149,6 +152,47 @@
   (filter element?
           (nodes-after node)))
 
+(defn right-edge-of? [sel]
+  (when (collapsed? sel)
+    (let [node (get-anchor-node sel)]
+      (empty? (str (subs (.-textContent node)
+                         (get-anchor-offset sel))
+                   (->> node
+                        nodes-after
+                        (map text-content)
+                        (map s/trim)
+                        (reduce str)))))))
+
+(defn left-edge-of? [sel]
+  (when (collapsed? sel)
+    (let [node (get-anchor-node sel)]
+      (empty? (str (subs (.-textContent node) 0 (get-anchor-offset sel))
+                   (->> node
+                        nodes-before
+                        (map text-content)
+                        (map s/trim)
+                        (reduce str)))))))
+
+(defn right-edge-of-sexp? [sel]
+  (and (closing-paren? (.-parentElement (get-anchor-node sel)))
+       (right-edge-of? sel)))
+
+(defn left-edge-of-sexp? [sel]
+  (and (open-paren? (.-parentElement (get-anchor-node sel)))
+       (left-edge-of? sel)))
+
+(defn right-edge-of-atom? [sel]
+  (and (in-atom? (get-anchor-node sel))
+       (right-edge-of? sel)))
+
+(defn left-edge-of-atom? [sel]
+  (and (in-atom? (get-anchor-node sel))
+       (left-edge-of? sel)))
+
+;; TODO
+(defn sibling-elements-before-caret [sel]
+  )
+
 (defn text-node-seq [subj]
   (->> subj
        (tree-seq #(.hasChildNodes %)
@@ -189,11 +233,17 @@
 
 (defn children [node] (seq (.-childNodes node)))
 
+;; TODO fix cases when a caret before open or after close parens
 (defn enclosing-sexp [sel]
-  (->> (get-common-ancestor sel)
-       parent-nodes
-       (filter sexp?)
-       first))
+  (let [node (get-common-ancestor sel)
+        which (if (or (right-edge-of-sexp? sel)
+                      (left-edge-of-sexp? sel))
+                second
+                first)]
+    (->> node
+         parent-nodes
+         (filter sexp?)
+         which)))
 
 (defn first-text-node-or-self [node]
   (when node
@@ -282,7 +332,7 @@
   [id]
   (when-let [sel (get-selection)]
     (if (collapsed? sel)
-      ;; move cursor backwards
+      ;; move caret backwards
       (let [node (get-anchor-node sel)]
         (if (> (get-anchor-offset sel) 0)
           (set-position! sel node)
@@ -296,7 +346,7 @@
 (defn next-element [id sel-fn]
   (when-let [sel (get-selection)]
     (if (collapsed? sel)
-      ;; move cursor backwards
+      ;; move caret backwards
       (let [node (get-anchor-node sel)]
         (when-let [node (next-atom-text node)]
           (sel-fn sel node)))
@@ -544,7 +594,7 @@
 ;; todo rework this somehow
 ;; it doesn't make sense when you have to move over a closing element
 
-(defn insert-text-at-cursor [text]
+(defn insert-text-at-caret [text]
   (let [sel (get-selection)
         node (get-anchor-node sel)
         offset (get-anchor-offset sel)
@@ -560,7 +610,7 @@
         tp (.-inputType e)]
     (when (= tp "insertText")
       (when-let [pair (get pairs ch)]
-        (insert-text-at-cursor pair)))))
+        (insert-text-at-caret pair)))))
 
 ;; input structure
 
@@ -629,13 +679,13 @@
        (map #(.-length %))
        (reduce +)))
 
-(defn get-cursor-position [el]
-  (let [range (.getRangeAt (js/getSelection) 0)
+(defn get-caret-position [el]
+  (let [range (get-range-0 (get-selection))
         start-el (.-startContainer range)
         start-pos (.-startOffset range)]
     (+ (get-node-text-offset start-el el) start-pos)))
 
-(defn set-cursor-position! [el pos]
+(defn set-caret-position! [el pos]
   (when-let [[start _ node]
              (->> el
                   text-node-seq
@@ -653,9 +703,9 @@
         markup (markup/parse text)]
     (when (not= (skeleton markup) (skeleton el))
       (. js/console debug "Changed, restructuring")
-      (let [pos (get-cursor-position el)]
+      (let [pos (get-caret-position el)]
         (replace-content el (structure->html markup))
-        (set-cursor-position! el pos)))))
+        (set-caret-position! el pos)))))
 
 ;; autoident
 
@@ -683,13 +733,15 @@
          (count (last (s/split-lines (first tail))))))))
 
 (defn find-indent-atom [sel]
+  ;; (fix-selection! sel)
   (let [node (get-anchor-node sel)
         parent (.-parentNode node)]
     (cond
-      (whitespace? node) (if (or (some open-paren? (nodes-after node))
-                                 (some closing-paren? (nodes-before node)))
-                           parent  ;; enclosing sexp
-                           node)
+      ;; (whitespace? node) (if (or (some open-paren? (nodes-after node))
+      ;;                            (some closing-paren? (nodes-before node)))
+      ;;                      parent  ;; enclosing sexp
+      ;;                      node)
+      (whitespace? node) node
       (paren? parent) (let [text (.-textContent node)
                             offset (get-anchor-offset sel)]
                         (if  (or (pairs (first (s/trim (subs text offset))))
@@ -710,6 +762,11 @@
       (let [[ref-node offset] (indent-reference atom sexp)
             column (indent-column ref-node)
             pos (get-anchor-offset sel)]
+        (.debug js/console
+                "Indenting, sexp " (u/node-info ref-node)
+                " offset " offset
+                " column " column
+                " pos " pos)
         (.insertData node pos (.repeat " " (+ column offset)))
         (set-position! sel node (+ pos column offset))))))
 
