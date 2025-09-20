@@ -623,6 +623,27 @@
       (when-let [pair (get pairs ch)]
         (insert-text-at-caret pair)))))
 
+(defn- handle-pair-key [e]
+  (let [ch (.-key e)]
+    (when (closing ch)
+      (let [sel (get-selection)
+            node (get-anchor-node sel)
+            offset (get-anchor-offset sel)]
+        (if (=  (first (subs (text-content node)
+                             offset))
+                ch)
+          (do
+            (.preventDefault e)
+            (.modify sel "move" "forward" "character"))
+          (let [text (->> (iterate next-leaf-node node)
+                          rest
+                          (map text-content)
+                          (drop-while empty?)
+                          first)]
+            (when (= ch (first text))
+              (.preventDefault e)
+              (.modify sel "move" "forward" "character"))))))))
+
 ;; input structure
 
 (def control-syms #{"if" "if-not" "if-let"
@@ -767,12 +788,13 @@
     (.execCommand js/document "insertText" false text)))
 
 (defn- handle-input-change [e]
-  ;(handle-pairs e)
+  (handle-pairs e)
   (when (need-indent? e)
     (indent))
   (restructure (.-target e)))
 
 (defn plug [input]
   (.addEventListener input "input" handle-input-change)
+  (.addEventListener input "keydown" handle-pair-key)
   (restructure input)
   (.addEventListener input "paste" handle-paste))
