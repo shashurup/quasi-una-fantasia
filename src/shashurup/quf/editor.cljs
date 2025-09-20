@@ -154,24 +154,25 @@
 
 (defn right-edge-of? [sel]
   (when (collapsed? sel)
-    (let [node (get-anchor-node sel)]
-      (empty? (str (subs (.-textContent node)
-                         (get-anchor-offset sel))
-                   (->> node
-                        nodes-after
-                        (map text-content)
-                        (map s/trim)
-                        (reduce str)))))))
+    (let [node (get-anchor-node sel)
+          offset (get-anchor-offset sel)]
+      (when (empty? (s/trim (subs (.-textContent node) offset)))
+        (empty? (->> node
+                     nodes-after
+                     (map text-content)
+                     (map s/trim)
+                     (reduce str)))))))
 
 (defn left-edge-of? [sel]
   (when (collapsed? sel)
-    (let [node (get-anchor-node sel)]
-      (empty? (str (subs (.-textContent node) 0 (get-anchor-offset sel))
-                   (->> node
-                        nodes-before
-                        (map text-content)
-                        (map s/trim)
-                        (reduce str)))))))
+    (let [node (get-anchor-node sel)
+          offset (get-anchor-offset sel)]
+      (when (empty? (s/trim (subs (.-textContent node) 0 offset)))
+        (empty? (->> node
+                     nodes-before
+                     (map text-content)
+                     (map s/trim)
+                     (reduce str)))))))
 
 (defn right-edge-of-sexp? [sel]
   (and (closing-paren? (.-parentElement (get-anchor-node sel)))
@@ -188,10 +189,6 @@
 (defn left-edge-of-atom? [sel]
   (and (in-atom? (get-anchor-node sel))
        (left-edge-of? sel)))
-
-;; TODO
-(defn sibling-elements-before-caret [sel]
-  )
 
 (defn text-node-seq [subj]
   (->> subj
@@ -233,7 +230,21 @@
 
 (defn children [node] (seq (.-childNodes node)))
 
-;; TODO fix cases when a caret before open or after close parens
+(defn sibling-elements-before-caret [sel]
+  (let [node (get-anchor-node sel)
+        parent (.-parentNode node)
+        base (cond
+               (left-edge-of-atom? sel) (prev-leaf-node node)
+               (left-edge-of-sexp? sel) (prev-leaf-node node)
+               (right-edge-of-sexp? sel) (.-parentElement parent)
+               (atom? parent) parent
+               (paren? parent) parent
+               :else node)]
+    (->> base
+         (iterate previous-sibling)
+         (take-while identity)
+         (filter element?))))
+
 (defn enclosing-sexp [sel]
   (let [node (get-common-ancestor sel)
         which (if (or (right-edge-of-sexp? sel)
@@ -709,10 +720,10 @@
 
 ;; autoident
 
-(defn indent-reference [atom sexp]
+(defn indent-reference [before sexp]
   (let [open (first (filter open-paren? (.-childNodes sexp)))
         call? (= (.-textContent open) "(")
-        atoms (reverse (sibling-elements-before atom))
+        atoms (reverse before)
         atom-count (count atoms)]
     (if (= 0 atom-count)
       [open 3]
@@ -732,41 +743,14 @@
        (when tail
          (count (last (s/split-lines (first tail))))))))
 
-(defn find-indent-atom [sel]
-  ;; (fix-selection! sel)
-  (let [node (get-anchor-node sel)
-        parent (.-parentNode node)]
-    (cond
-      ;; (whitespace? node) (if (or (some open-paren? (nodes-after node))
-      ;;                            (some closing-paren? (nodes-before node)))
-      ;;                      parent  ;; enclosing sexp
-      ;;                      node)
-      (whitespace? node) node
-      (paren? parent) (let [text (.-textContent node)
-                            offset (get-anchor-offset sel)]
-                        (if  (or (pairs (first (s/trim (subs text offset))))
-                                 (closing (last (s/trim (subs text 0 offset)))))
-                          (.-parentNode parent)  ;; enclosing sexp
-                          parent))
-      (atom? parent) parent)))
-
 (defn indent []
   (let [sel (get-selection)
         node (get-anchor-node sel)
-        atom (find-indent-atom sel)]
-    (. js/console debug "Indenting, node " (u/node-info node))
-    (. js/console debug "Indenting, parent " (u/node-info (.-parentNode node)))
-    (. js/console debug "Indenting, atom " (u/node-info atom))
-    (when-let [sexp (->> (parent-nodes atom) rest (filter sexp?) first)]
-      (. js/console debug "Indenting, sexp " (u/node-info sexp))
-      (let [[ref-node offset] (indent-reference atom sexp)
+        before (sibling-elements-before-caret sel)]
+    (when-let [sexp (enclosing-sexp sel)]
+      (let [[ref-node offset] (indent-reference before sexp)
             column (indent-column ref-node)
             pos (get-anchor-offset sel)]
-        (.debug js/console
-                "Indenting, sexp " (u/node-info ref-node)
-                " offset " offset
-                " column " column
-                " pos " pos)
         (.insertData node pos (.repeat " " (+ column offset)))
         (set-position! sel node (+ pos column offset))))))
 
