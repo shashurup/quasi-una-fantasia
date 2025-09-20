@@ -228,6 +228,19 @@
        (filter in-atom?)
        first))
 
+(defn next-to-caret [sel]
+  (let [node (get-anchor-node sel)
+        offset (get-anchor-offset sel)]
+    (let [text (subs (text-content node) offset)]
+      (if (empty? text)
+        (when-let [node (->> (iterate next-leaf-node node)
+                             rest
+                             (take-while identity)
+                             (drop-while #(empty? (text-content %)))
+                             first)]
+          [(text-content node) node])
+        [text node]))))
+
 (defn children [node] (seq (.-childNodes node)))
 
 (defn sibling-elements-before-caret [sel]
@@ -627,22 +640,10 @@
   (let [ch (.-key e)]
     (when (closing ch)
       (let [sel (get-selection)
-            node (get-anchor-node sel)
-            offset (get-anchor-offset sel)]
-        (if (=  (first (subs (text-content node)
-                             offset))
-                ch)
-          (do
-            (.preventDefault e)
-            (.modify sel "move" "forward" "character"))
-          (let [text (->> (iterate next-leaf-node node)
-                          rest
-                          (map text-content)
-                          (drop-while empty?)
-                          first)]
-            (when (= ch (first text))
-              (.preventDefault e)
-              (.modify sel "move" "forward" "character"))))))))
+            [text _] (next-to-caret sel)]
+        (when (= ch (first text))
+          (.preventDefault e)
+          (.modify sel "move" "forward" "character"))))))
 
 ;; input structure
 
