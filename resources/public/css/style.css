@@ -2,7 +2,7 @@
 
 :root {
     --color-bg: beige;
-    --color-sel-bg: darkseagreen;
+    --color-sel-bg: darkcyan;
     --color-fg: #1c1c18;
     --color-alt-bg: honeydew;
     --color-symbol: maroon;
@@ -80,6 +80,12 @@ p.quf-ex {
 
 ::selection {
     background-color: var(--color-sel-bg);
+    color: var(--color-bg);
+}
+
+.quf-highlight {
+    background-color: var(--color-sel-bg);
+    color: var(--color-bg);
 }
 
 body {

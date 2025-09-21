@@ -129,6 +129,12 @@
   (take-while #(not (root? %))
               (iterate #(.-parentElement %) node)))
 
+(defn root-node [node]
+  (->> node
+       (iterate #(.-parentElement %))
+       (filter root?)
+       first))
+
 (defn previous-sibling [node] (.-previousSibling node))
 
 (defn next-sibling [node] (.-nextSibling node))
@@ -190,10 +196,12 @@
   (and (in-atom? (get-anchor-node sel))
        (left-edge-of? sel)))
 
+(defn node-seq [subj]
+  (tree-seq #(.hasChildNodes %) #(.-childNodes %) subj))
+
 (defn text-node-seq [subj]
   (->> subj
-       (tree-seq #(.hasChildNodes %)
-                 #(.-childNodes %))
+       node-seq
        (filter text-node?)))
 
 (defn prev-leaf-node [node]
@@ -731,11 +739,9 @@
     (set-position! (get-selection) node (- pos start))))
 
 (defn restructure [el]
-  (. js/console debug "Checking structure ...")
   (let [text (.-textContent el)
         markup (markup/parse text)]
     (when (not= (skeleton markup) (skeleton el))
-      (. js/console debug "Changed, restructuring")
       (let [pos (get-caret-position el)]
         (replace-content el (structure->html markup))
         (set-caret-position! el pos)))))
@@ -781,6 +787,34 @@
       (and (= (.-inputType e) "insertText")
            (nil? (.-data e)))))
 
+;; Paren highlight
+
+(defn clear-highlight [subj]
+  (doseq [p (->> subj
+                 node-seq
+                 (filter paren?))]
+    (gcls/remove p  "quf-highlight")))
+
+(defn highlight-parens [_]
+  (let [sel (get-selection)]
+    (when-let [root (root-node (get-anchor-node sel))]
+      (clear-highlight root)
+      (let [[text node] (next-to-caret sel)
+            ch (first text)]
+        (when (or (pairs ch)
+                  (closing ch))
+          (when-let [sexp (->> node
+                               parent-nodes
+                               (filter sexp?)
+                               first)]
+            (doseq [p (filter paren? (children sexp))]
+              (gcls/add p "quf-highlight"))))))))
+
+(defn blur-parens [e]
+  (clear-highlight (.-target e)))
+
+(.addEventListener js/document "selectionchange" highlight-parens)
+
 ;; paste text without formatting
 
 (defn- handle-paste [e]
@@ -797,5 +831,6 @@
 (defn plug [input]
   (.addEventListener input "input" handle-input-change)
   (.addEventListener input "keydown" handle-pair-key)
+  (.addEventListener input "blur" blur-parens)
   (restructure input)
   (.addEventListener input "paste" handle-paste))
