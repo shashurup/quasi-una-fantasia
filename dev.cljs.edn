@@ -11,4 +11,6 @@
            }
  :output-to "dummy.js"
  :externs ["xtermjs-externs.js"]
+ :foreign-libs [{:file "extra/lib/xterm.js"
+                 :provides ["xtermjs"]}]
 }

@@ -9,7 +9,8 @@
                                           output-handlers]]
             [shashurup.quf.theme :as theme]
             [shashurup.quf.utils :as u]
-            [shashurup.quf.vars :as vars]))
+            [shashurup.quf.vars :as vars]
+            [xtermjs]))
 
 (u/begin-module-load! :terminal)
 
@@ -148,7 +149,6 @@
     (gevents/listenOnce js/document
                         "evalComplete"
                         send-terminal-dimensions)
-    (u/add-style-ref "css/xterm.css")
-    (u/add-script "js/xterm.js")))
+    (u/add-style-ref "css/xterm.css")))
 
 (u/set-module-loaded!)
