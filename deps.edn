@@ -1,28 +1,28 @@
 {:mvn/repos {"jetbrains" {:url "https://packages.jetbrains.team/maven/p/ij/intellij-dependencies/"}}
 
- :deps {org.clojure/clojure {:mvn/version "1.11.3"}
-        ring/ring-core {:mvn/version "1.11.0"}
-        ring/ring-jetty-adapter {:mvn/version "1.9.1"}
+ :deps {org.clojure/clojure {:mvn/version "1.12.2"}
+        ring/ring-core {:mvn/version "1.15.2"}
+        ring/ring-jetty-adapter {:mvn/version "1.15.2"}
         ;; 0.4.0 by default uses cookie-store we don't need
         ring/ring-defaults {:mvn/version "0.3.4"}
         nrepl/nrepl {:mvn/version "1.4.0"}
-        compojure/compojure {:mvn/version "1.7.1"}}
+        compojure/compojure {:mvn/version "1.7.2"}}
 
  :paths ["src" "resources" "target" "test"]
 
- :aliases {:extra {:extra-deps {cheshire/cheshire {:mvn/version "5.12.0"}
-                                org.clojure/data.csv {:mvn/version "1.0.1"}
+ :aliases {:extra {:extra-deps {cheshire/cheshire {:mvn/version "6.1.0"}
+                                clj-http/clj-http {:mvn/version "3.13.1"}
+                                org.clojure/data.csv {:mvn/version "1.1.0"}
                                 org.clojure/java.jdbc {:mvn/version "0.7.12"}
                                 de.swiesend/secret-service {:mvn/version "1.8.1-jdk17"}
-                                org.postgresql/postgresql {:mvn/version "42.7.1"}
-                                com.novemberain/monger {:mvn/version "3.6.0"}
-                                org.apache.tika/tika-core {:mvn/version "2.9.1"}
-                                org.apache.tika/tika-parsers-standard-package {:mvn/version "2.9.1"}
-                                org.jetbrains.pty4j/pty4j {:mvn/version "0.12.25"}
-                                clj-commons/clj-yaml {:mvn/version "1.0.27"}}
+                                org.postgresql/postgresql {:mvn/version "42.7.8"}
+                                org.apache.tika/tika-core {:mvn/version "3.2.3"}
+                                org.apache.tika/tika-parsers-standard-package {:mvn/version "3.2.3"}
+                                org.jetbrains.pty4j/pty4j {:mvn/version "0.13.11"}
+                                clj-commons/clj-yaml {:mvn/version "1.0.29"}}
                    :extra-paths ["extra/src" "extra/resources"]}
-           :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}
-                               com.bhauman/figwheel-main {:mvn/version "0.2.18"}
+           :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.42"}
+                               com.bhauman/figwheel-main {:mvn/version "0.2.20"}
                                crate/crate {:mvn/version "0.2.5"}
                                cljsjs/openlayers {:mvn/version "7.5.2-0"}
                                cljsjs/chartjs {:mvn/version "3.9.1-0"}}}
@@ -32,8 +32,8 @@
            :slim-bo {:main-opts ["-m" "figwheel.main" "-bo" "slim"]}
            :fat {:main-opts ["-m" "figwheel.main" "-b" "fat"]}
            :fat-bo {:main-opts ["-m" "figwheel.main" "-bo" "fat"]}
-           :base16 {:extra-deps {clj-commons/clj-yaml {:mvn/version "1.0.27"}}
+           :base16 {:extra-deps {clj-commons/clj-yaml {:mvn/version "1.0.29"}}
                     :extra-paths ["extra/src"]
                     :main-opts ["-m" "shashurup.quf.base16" "extra/resources/base16.edn"]}
-           :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.1"}}
+           :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.10"}}
                    :ns-default build}}}

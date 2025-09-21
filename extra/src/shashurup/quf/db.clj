@@ -3,9 +3,6 @@
    [clojure.string :as s]
    [clojure.set :as set]
    [clojure.java.jdbc :as jdbc]
-   [monger.core :as mg]
-   [monger.collection :as mc]
-   [monger.credentials :as mcreds]
    [shashurup.quf.secrets :as secrets]
    [shashurup.quf.response :as resp]))
 
@@ -70,27 +67,8 @@
 
 (defmulti query (fn [db & _] (class db)))
 
-(defmethod query-by-uri "mongodb" [uri & args]
-  (apply mc/find-maps (:db (mg/connect-via-uri uri)) args))
-
 (defmethod query-by-uri "postgresql" [uri & args]
   (apply query-by-map (parse-pg-uri uri) args))
-
-(defmethod query-by-map "mongodb" [db & args]
-  (let [{auth-src :auth-source
-         user :user
-         pwd :password
-         dbname :dbname
-         host :host
-         port :port} (resolve-creds db)
-        sa (mg/server-address host (or port 27017))
-        opts (mg/mongo-options db)
-        c (if user
-            (mg/connect sa opts (mcreds/create user
-                                               (or auth-src dbname)
-                                               pwd))
-            (mg/connect sa opts))]
-    (apply mc/find-maps (mg/get-db c dbname) args)))
 
 (defmethod query-by-map :default [db & args]
   (let [handle (fn [rset]
@@ -126,9 +104,7 @@
               *current* is used when ommited
    query - for SQL databases it is a query string
            parameter placeholder is ?
-           or db specific structure for other databases
-           for instance, for Mongo it could be something like:
-             \"coll\" {:field1 val} [:field2 :field3]
+           or db specific structure for other databases.
   "
   [& args]
   (let [[db args] (preprocess args)]
