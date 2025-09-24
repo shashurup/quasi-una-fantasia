@@ -23,9 +23,7 @@
                    :extra-paths ["extra/src" "extra/resources"]}
            :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.42"}
                                com.bhauman/figwheel-main {:mvn/version "0.2.20"}
-                               crate/crate {:mvn/version "0.2.5"}
-                               cljsjs/openlayers {:mvn/version "7.5.2-0"}
-                               cljsjs/chartjs {:mvn/version "3.9.1-0"}}}
+                               crate/crate {:mvn/version "0.2.5"}}}
            :fig {:main-opts ["-m" "figwheel.main"]}
            :dev {:main-opts ["-m" "figwheel.main" "-b" "dev" "-r"]}
            :slim {:main-opts ["-m" "figwheel.main" "-b" "slim"]}

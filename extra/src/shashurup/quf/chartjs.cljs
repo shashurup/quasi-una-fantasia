@@ -3,7 +3,7 @@
             [shashurup.quf.utils :as u]
             [crate.core :as crate]
             [goog.dom :as gdom]
-            [cljsjs.chartjs :as chart]))
+            [chartjs]))
 
 (u/begin-module-load! :chartjs)
 

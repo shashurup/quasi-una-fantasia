@@ -3,7 +3,7 @@
             [shashurup.quf.utils :as u]
             [crate.core :as crate]
             [goog.dom :as gdom]
-            [cljsjs.openlayers]))
+            [ol]))
 
 (u/begin-module-load! :ol)
 
@@ -55,5 +55,8 @@
   (let [mapdiv (crate/html [:div.quf-medium-sized])]
     (defer #(create-map-control mapdiv subj))
     mapdiv))
+
+(defonce startup-dummy
+  (u/add-style-ref "css/ol.css"))
 
 (u/set-module-loaded!)

@@ -10,7 +10,12 @@
            :theme {:entries #{shashurup.quf.theme}}
            }
  :output-to "dummy.js"
- :externs ["xtermjs-externs.js"]
+ :infer-externs true
  :foreign-libs [{:file "extra/lib/xterm.js"
-                 :provides ["xtermjs"]}]
+                 :provides ["xtermjs"]}
+                {:file "extra/lib/chart.umd.js"
+                 :file-min "extra/lib/chart.umd.min.js"
+                 :provides ["chartjs"]}
+                {:file "extra/lib/ol.js"
+                 :provides ["ol"]}]
 }
