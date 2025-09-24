@@ -132,6 +132,7 @@
 (defn root-node [node]
   (->> node
        (iterate #(.-parentElement %))
+       (take-while identity)
        (filter root?)
        first))
 

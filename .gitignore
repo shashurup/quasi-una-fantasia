@@ -14,5 +14,7 @@ test.py
 base16.edn
 xterm.js
 xterm.css
+ol.css
 dummy-auto-testing.js
+extra/lib
 
