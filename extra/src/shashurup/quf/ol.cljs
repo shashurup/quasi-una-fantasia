@@ -12,8 +12,15 @@
 
 (def black-color "#000")
 
+(defn detect-format [subj]
+  (let [fc (first (drop-while #(re-matches #"\s" %) subj))]
+    (cond
+      (= fc "{") (js/ol.format.GeoJSON.)
+      (re-matches #"[0-9A-F]" fc) (js/ol.format.WKB.)
+      :else (js/ol.format.WKT.))))
+
 (defn read-wkb [subj proj]
-  (.readFeature (js/ol.format.WKB.) subj #js {:featureProjection proj}))
+  (.readFeature (detect-format subj) subj #js {:featureProjection proj}))
 
 (defn set-props [subj props]
   (.setProperties subj (clj->js props))
