@@ -13,11 +13,13 @@ I strongly recommend visiting this [intro](https://shashurup.github.io/quasi-una
 
 ## Prerequisites
 
-### xterm.js
+### Node
 
-Download xterm.js component with
+You need npm to install js dependencies
 
-    ./install-xterm.js.sh
+    ./install-node-deps.sh
+    
+You don't need node_modules directory after the installation
 
 ### Base16 themes
 
