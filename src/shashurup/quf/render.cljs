@@ -13,6 +13,14 @@
       (first hint))
     (type subj)))
 
+(defn hint-args [subj]
+  (when-let [hint (:shashurup.quf/hint (meta subj))]
+    (when (coll? hint)
+      (let [sec (second hint)]
+        (if (keyword? sec)
+          [sec (nth hint 2)]
+          [nil sec])))))
+
 (defmulti render value-type)
 
 (defn get-result-element [id]
@@ -285,27 +293,21 @@
   [:input.quf-check {:type "checkbox"
                      :value val}])
 
-(defn parse-hint [subj]
-  (when (coll? subj)
-    (let [sec (second subj)]
-      (if (keyword? sec)
-        (desc/table-desc sec (nth subj 2))
-        (desc/table-desc sec)))))
-
 (defmethod render :table [data]
-  (let [hint (:shashurup.quf/hint (meta data))
-        [names rndrs get-key] (if (keyword? hint)
-                               (desc/table-desc (guess-columns data))
-                               (parse-hint hint))]
+  (let [[type-key columns] (hint-args data)
+        get-key (get-in @desc/object-types [type-key :key])
+        col-desc (desc/column-descriptors type-key
+                                          (or columns
+                                              (guess-columns data)))]
     [:table.quf.quf-container
      [:thead [:tr
               (when get-key [:th.quf-check-cell])
-              (for [name names]
-                (render-header name))]]
+              (for [[title _] col-desc]
+                (render-header title))]]
      [:tbody (for [row data]
                [:tr
                 (when get-key [:td.quf-check-cell (render-checkbox (get-key row))])
-                (for [rndr rndrs]
+                (for [[_ rndr] col-desc]
                   (render-cell (rndr row)))])
       (when (more-items? data)
         [:tr
@@ -316,24 +318,27 @@
                          render
                          #(first (.getElementsByTagName % "tbody"))))]])]]))
 
-(defn render-obj [obj names rndrs show-attr-names get-key]
+(defn render-obj [obj col-desc show-attr-names get-key]
   [:div.quf-object 
-   (for [[name rndr] (zipmap names rndrs)]
+   (for [[title rndr] col-desc]
      (let [val (rndr obj)
            val-el (if (coll? val)
                     (render val)
                     [:span (str val)])]
        (if show-attr-names
-         [:div.quf-map-entry [:span.quf-keyword name] "=" val-el]
+         [:div.quf-map-entry [:span.quf-keyword title] "=" val-el]
          [:div.quf-object-attr val-el])))
    (when get-key (render-checkbox (get-key obj)))])
 
 (defn render-list [data show-attr-names]
-  (let [hint (:shashurup.quf/hint (meta data))
-        [names rndrs get-key] (parse-hint hint)]
+  (let [[type-key columns] (hint-args data)
+        get-key (get-in @desc/object-types [type-key :key])
+        col-desc (desc/column-descriptors type-key
+                                          (or columns
+                                              (guess-columns data)))]
     [:div.quf-composite-body-list.quf-container
      (for [obj data]
-       (render-obj obj names rndrs show-attr-names get-key))
+       (render-obj obj col-desc show-attr-names get-key))
      (when (more-items? data)
        (load-more-ellipsis
         (more-handler data
@@ -348,14 +353,17 @@
   (render-list data true))
 
 (defmethod render :object [data]
-  (let [hint (:shashurup.quf/hint (meta data))
-        [names rndrs get-key] (parse-hint hint)]
-    (render-obj data names rndrs false get-key)))
+  (let [[type-key columns] (hint-args data)
+        get-key (get-in @desc/object-types [type-key :key])
+        col-desc (desc/column-descriptors type-key
+                                          (or columns
+                                              (guess-columns data)))]
+    (render-obj data col-desc false get-key)))
 
 (defmethod render :object-attr [data]
-  (let [hint (:shashurup.quf/hint (meta data))
-        [_ rndrs _] (desc/table-desc (second hint) [(nth hint 2)])]
-    ((first rndrs) data)))
+  (let [[type-key attr] (hint-args data)
+        [_ rndr] (first (desc/column-descriptors type-key [attr]))]
+    (rndr data)))
 
 ;; Tree
 

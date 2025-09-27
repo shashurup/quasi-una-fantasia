@@ -92,18 +92,22 @@
     (fn [arg]
       (with-meta (subj arg) {:shashurup.quf/hint :html}))))
 
-(defn canonize-column [key desc]
-  (let [m (cond
-              (keyword? desc) {:type desc}
-              (fn? desc)      {:convert desc}
-              :else           desc)
-        field-type (:type m)
-        type-desc (get @field-types field-type)]
-    (when (and field-type (nil? type-desc))
-      (u/not-found-hook))
-    (merge (column-defaults key)
-           type-desc
-           m)))
+(defn canonize-column
+  ([subj] (if (map? subj)
+            (canonize-column (:key subj) subj)
+            (canonize-column subj nil)))
+  ([key desc]
+   (let [m (cond
+             (keyword? desc) {:type desc}
+             (fn? desc)      {:convert desc}
+             :else           desc)
+         field-type (:type m)
+         type-desc (get @field-types field-type)]
+     (when (and field-type (nil? type-desc))
+       (u/not-found-hook))
+     (merge (column-defaults key)
+            type-desc
+            m))))
 
 (defn make-getter [key]
   (if (vector? key)
@@ -120,22 +124,14 @@
         (:convert column-desc)
         (make-getter (:key column-desc))))
 
-(defn- pack-table-desc [columns key]
-  [(mapv :title columns)
-   (mapv make-renderer columns)
-   (when key (make-getter key))])
-
-(defn table-desc
-  ([type-key columns]
-   (let [desc (get @object-types type-key)]
-     (when (and type-key (nil? desc))
-       (u/not-found-hook))
-     (pack-table-desc (for [col columns]
-                        (canonize-column col (get-in desc [:columns col])))
-                      (:key desc))))
-  ([columns]
-   (pack-table-desc (for [col columns]
-                      (if (map? col)
-                        (canonize-column {:key col} col)
-                        (canonize-column col nil)))
-                    nil)))
+(defn column-descriptors [type-key columns]
+  (let [desc (get @object-types type-key)]
+    (.log js/console (str columns))
+    (when (and type-key (nil? desc))
+      (u/not-found-hook))
+    (for [col columns]
+      (let [col (if desc
+                  (canonize-column col (get-in desc [:columns col]))
+                  (canonize-column col))]
+        (.log js/console (str col))
+        [(:title col) (make-renderer col)]))))
