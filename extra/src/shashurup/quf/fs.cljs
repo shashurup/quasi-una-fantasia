@@ -56,7 +56,8 @@
                      :permissions convert-permissions
                      :content {:key [:path :mime-type]
                                :render render-content}}
-           :key :path})
+           :key :path
+           :actions {:default ['shashurup.quf.fs/v]}})
 
 (swap! desc/object-types assoc ::file file)
 

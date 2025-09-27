@@ -204,15 +204,18 @@
                   args) 0 2))
 
 (defn- add-tree-meta [subj]
-  (for [item subj]
-    (if (:directory? item)
-      (let [more (format "(shashurup.quf.fs/l :r %s)"
-                         (pr-str (:path item)))]
-        (assoc item
-               :children
-               (with-meta [] {:shashurup.quf/more more
-                              :shashurup.quf/range {:more? true}})))
-      item)))
+  (let [actions {:default ['shashurup.quf.fs/l :m]}]
+    (for [item subj]
+      (if (:directory? item)
+        (let [more (format "(shashurup.quf.fs/l :r %s)"
+                           (pr-str (:path item)))]
+          (with-meta
+            (assoc item
+                   :children
+                   (with-meta [] {:shashurup.quf/more more
+                                  :shashurup.quf/range {:more? true}}))
+            {:shashurup.quf/actions actions}))
+        item))))
 
 (defn fmt
   "Formats file list as a table or thumb list.

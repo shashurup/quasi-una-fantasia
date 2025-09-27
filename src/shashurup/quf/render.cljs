@@ -377,17 +377,36 @@
     (.removeAttribute (.-target e) attr)
     (subj e)))
 
-(defn render-tree-level [data [render-fn children-key tree-id :as params]]
+(defn tree-content-loader [tree-id action key]
+  (let [code (str "(" (->> (conj action key)
+                           (map pr-str)
+                           (interpose " ")
+                           (apply str)) ")")]
+    (fn [_]
+      (let [target (gdom/getElement (str tree-id "-content"))
+            insert (fn [resp]
+                     (when (contains? resp :value)
+                       (.replaceChildren target
+                                         (crate/html (render (:value resp))))))]
+        (nrepl/send-eval code insert u/eval-extra)))))
+
+(defn render-tree-level [data [render-fn children-key
+                               tree-id actions get-key :as params]]
   [:div.quf-tree
    (for [[idx item] (map-indexed vector data)]
      (let [id (str "tree-item-" (swap! cur-tree-id inc))
            b-id (str id "-b")
            r-id (str id "-r")
+           action (:default (or (:shashurup.quf/actions (meta item))
+                                actions))
            has-children (contains? item children-key)
            children (children-key item)
            more (and has-children
                      (empty? children)
                      (get-in (meta children) [:shashurup.quf/range :more?]))
+           onselect (u/gen-js-call (tree-content-loader tree-id
+                                                        action
+                                                        (get-key item)))
            onchange (when more (u/gen-js-call
                                 (call-once
                                  (more-handler children
@@ -405,9 +424,9 @@
           [:span.quf-tree-button-space])
         [:input.quf-tree-item {:id r-id
                                :name tree-id
+                               :onchange onselect
                                :type "radio"}]
         [:label.quf-tree-item {:for r-id} (render-fn item)]
-        ;(when-let [children (not-empty children)]
         (when has-children
           (render-tree-level (push-context data children idx children-key)
                              params))]))
@@ -420,12 +439,23 @@
 
 (defmethod render :tree [data]
   (let [[type-key params] (hint-args data)
+        type-actions (get-in @desc/object-types [type-key :actions])
+        type-key-fn (get-in @desc/object-types [type-key :key])
         {name-key :name
-         children-key :children} (merge {:name :name
-                                         :children :children} params)
+         children-key :children
+         actions :actions
+         get-key :key} (merge {:name :name
+                               :children :children
+                               :actions type-actions
+                               :key type-key-fn}
+                              params)
         [_ render-fn] (first (desc/column-descriptors type-key [name-key]))
-        tree-id (str "tree-" (swap! cur-tree-id inc))]
-    (render-tree-level data [render-fn children-key tree-id])))
+        tree-id (str "quf-tree-" (swap! cur-tree-id inc))]
+    [:div {:style "display: flex"}
+     [:div
+      (render-tree-level data [render-fn children-key tree-id
+                               actions get-key])]
+     [:div {:id (str tree-id "-content")}]]))
 
 (defonce startup-dummy
   (swap! output-handlers assoc :progress update-progress))
