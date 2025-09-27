@@ -386,8 +386,13 @@
       (let [target (gdom/getElement (str tree-id "-content"))
             insert (fn [resp]
                      (when (contains? resp :value)
-                       (.replaceChildren target
-                                         (crate/html (render (:value resp))))))]
+                       (.replaceChildren
+                        target
+                        (-> resp
+                            :value
+                            (vary-meta assoc ::expr code)
+                            render
+                            crate/html))))]
         (nrepl/send-eval code insert u/eval-extra)))))
 
 (defn render-tree-level [data [render-fn children-key
