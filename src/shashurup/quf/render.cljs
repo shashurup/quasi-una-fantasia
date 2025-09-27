@@ -361,6 +361,14 @@
 
 (def cur-tree-id (atom 0))
 
+(defn find-ellipsis [subj]
+  (.-firstElementChild (.-lastElementChild (.-parentElement subj))))
+
+(defn- call-once [subj attr]
+  (fn [e]
+    (.removeAttribute (.-target e) attr)
+    (subj e)))
+
 (defn render-tree-level [data [name-key children-key tree-id :as params]]
   [:div.quf-tree
    (for [[idx item] (map-indexed vector data)]
@@ -373,11 +381,11 @@
                      (empty? children)
                      (get-in (meta children) [:shashurup.quf/range :more?]))
            onchange (when more (u/gen-js-call
-                                (more-handler children
-                                              identity
-                                              #(render-tree-level % params)
-                                              identity)))
-           ]
+                                (call-once
+                                 (more-handler children
+                                               find-ellipsis
+                                               #(render-tree-level % params)
+                                               identity) "onchange")))]
        [:div.quf-tree-item {:aria-expanded "false"}
         (if has-children
           (list
@@ -391,7 +399,8 @@
                                :name tree-id
                                :type "radio"}]
         [:label.quf-tree-item {:for r-id} (name-key item)]
-        (when-let [children (not-empty children)]
+        ;(when-let [children (not-empty children)]
+        (when has-children
           (render-tree-level (push-context data children idx children-key)
                              params))]))
    (when (more-items? data)
