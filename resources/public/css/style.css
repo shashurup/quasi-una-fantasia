@@ -357,3 +357,17 @@ input.quf-tree-item {
 input.quf-tree-item:checked + label {
     border: solid;
 }
+
+div.quf-tree-top {
+    display: flex;
+}
+
+div.quf-tree-left {
+    padding-right: 2ch;
+    border-right: 1px dashed;
+}
+
+
+div.quf-tree-right {
+    padding-left: 2ch;
+}

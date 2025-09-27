@@ -456,11 +456,11 @@
                               params)
         [_ render-fn] (first (desc/column-descriptors type-key [name-key]))
         tree-id (str "quf-tree-" (swap! cur-tree-id inc))]
-    [:div {:style "display: flex"}
-     [:div
+    [:div.quf-tree-top
+     [:div.quf-tree-left
       (render-tree-level data [render-fn children-key tree-id
                                actions get-key])]
-     [:div {:id (str tree-id "-content")}]]))
+     [:div.quf-tree-right {:id (str tree-id "-content")}]]))
 
 (defonce startup-dummy
   (swap! output-handlers assoc :progress update-progress))
