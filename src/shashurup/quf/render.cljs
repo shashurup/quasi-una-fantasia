@@ -409,15 +409,17 @@
            more (and has-children
                      (empty? children)
                      (get-in (meta children) [:shashurup.quf/range :more?]))
-           onselect (u/gen-js-call (tree-content-loader tree-id
-                                                        action
-                                                        (get-key item)))
-           onchange (when more (u/gen-js-call
-                                (call-once
-                                 (more-handler children
-                                               find-ellipsis
-                                               #(render-tree-level % params)
-                                               identity) "onchange")))]
+           onselect (when get-key
+                      (u/gen-js-call (tree-content-loader tree-id
+                                                          action
+                                                          (get-key item))))
+           onchange (when more
+                      (u/gen-js-call
+                       (call-once
+                        (more-handler children
+                                      find-ellipsis
+                                      #(render-tree-level % params)
+                                      identity) "onchange")))]
        [:div.quf-tree-item {:aria-expanded "false"}
         (if has-children
           (list
