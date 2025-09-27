@@ -367,7 +367,7 @@
 
 ;; Tree
 
-(def cur-tree-id (atom 0))
+(defonce cur-tree-id (atom 0))
 
 (defn find-ellipsis [subj]
   (.-firstElementChild (.-lastElementChild (.-parentElement subj))))
@@ -377,7 +377,7 @@
     (.removeAttribute (.-target e) attr)
     (subj e)))
 
-(defn render-tree-level [data [name-key children-key tree-id :as params]]
+(defn render-tree-level [data [render-fn children-key tree-id :as params]]
   [:div.quf-tree
    (for [[idx item] (map-indexed vector data)]
      (let [id (str "tree-item-" (swap! cur-tree-id inc))
@@ -406,7 +406,7 @@
         [:input.quf-tree-item {:id r-id
                                :name tree-id
                                :type "radio"}]
-        [:label.quf-tree-item {:for r-id} (name-key item)]
+        [:label.quf-tree-item {:for r-id} (render-fn item)]
         ;(when-let [children (not-empty children)]
         (when has-children
           (render-tree-level (push-context data children idx children-key)
@@ -419,12 +419,13 @@
                     identity)))])
 
 (defmethod render :tree [data]
-  (let [hint (:shashurup.quf/hint (meta data))
-        [name-key children-key] (if (and (coll? hint) (> 1 (count hint)))
-                                  (rest hint)
-                                  [:name :children])
+  (let [[type-key params] (hint-args data)
+        {name-key :name
+         children-key :children} (merge {:name :name
+                                         :children :children} params)
+        [_ render-fn] (first (desc/column-descriptors type-key [name-key]))
         tree-id (str "tree-" (swap! cur-tree-id inc))]
-    (render-tree-level data [name-key children-key tree-id])))
+    (render-tree-level data [render-fn children-key tree-id])))
 
 (defonce startup-dummy
   (swap! output-handlers assoc :progress update-progress))

@@ -203,30 +203,49 @@
                   [[] {} nil]
                   args) 0 2))
 
+(defn- add-tree-meta [subj]
+  (for [item subj]
+    (if (:directory? item)
+      (let [more (format "(shashurup.quf.fs/l :r %s)"
+                         (pr-str (:path item)))]
+        (assoc item
+               :children
+               (with-meta [] {:shashurup.quf/more more
+                              :shashurup.quf/range {:more? true}})))
+      item)))
+
 (defn fmt
   "Formats file list as a table or thumb list.
    flags - one of:
-   :1 - to show just a file name
-   :m - to show name, size and modification timestamp,
-   :l - long format to show permissions, user, group, size, timestamp and a name,
-   :c - to show files as a list of thumbnails"
+   :1 - to show just a file name;
+   :m - to show name, size and modification timestamp;
+   :l - long format to show permissions, user, group, size, timestamp and a name;
+   :c - to show files as a list of thumbnails;
+   :r - recursively, as a tree."
   ([subj] (fmt :1 subj))
   ([flag subj]
-   (let [mode (if (= flag :c) :list  :table)
+   (let [mode (condp = flag
+                :c :list
+                :r :tree
+                :table)
          cols (get {:m [:size :modified :name-ex]
                     :l [:permissions :user :group :size :modified :name-ex]
-                    :c [:content :name-ex]}
+                    :c [:content :name-ex]
+                    :r {}}
                    flag [:name])]
-     (resp/hint subj [mode :shashurup.quf.fs/file cols]))))
+     (resp/hint (if (= mode :tree)
+                  (add-tree-meta subj)
+                  subj)
+                [mode :shashurup.quf.fs/file cols]))))
 
 (defn ord
   "Sorts file list.
-   :t - by modification timestamp ascending,
-   :T - by modification timestamp descending,
-   :s - by size ascending,
-   :S - by size descending,
-   :n - by name ascending,
-   :N - by name descending"
+   :t - by modification timestamp ascending;
+   :T - by modification timestamp descending;
+   :s - by size ascending;
+   :S - by size descending;
+   :n - by name ascending;
+   :N - by name descending."
   ([flag subj]
    (let [[key cmp] (get {:t [:modified compare]
                          :T [:modified #(- (compare %1 %2))]
@@ -246,21 +265,21 @@
   pattern - a string with wildcards * or ? used to filter files,
   vector - list of regexes or patterns to match
   flags - one of:
-   :m - to show name, size and modification timestamp,
-   :l - long format to show permissions, user, group, size, timestamp and a name,
-   :t - to sort by modification timestamp ascending,
-   :T - to sort by modification timestamp descending,
-   :s - to sort by size ascending,
-   :S - to sort by size descending,
-   :n - to sort by name ascending,
-   :N - to sort by name descending,
-   :h - to show hidden files
-   :c - to show files as a list of thumbnails
-  "
+   :m - to show name, size and modification timestamp;
+   :l - long format to show permissions, user, group, size, timestamp and a name;
+   :t - to sort by modification timestamp ascending;
+   :T - to sort by modification timestamp descending;
+   :s - to sort by size ascending;
+   :S - to sort by size descending;
+   :n - to sort by name ascending;
+   :N - to sort by name descending;
+   :h - to show hidden files;
+   :c - to show files as a list of thumbnails;
+   :r - recursively, as a tree."
   [& args]
-  (let [[args flags] (extract-flags args #{:m :l :c :t :T :s :S :n :N :h} #{})
+  (let [[args flags] (extract-flags args #{:m :l :c :r :t :T :s :S :n :N :h} #{})
         path (resolve-path *cwd* (first-of file-arg? args "."))
-        fmt-flag (some #{:m :l :c} (keys flags))
+        fmt-flag (some #{:m :l :c :r} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
         filter1 (if (:h flags) any? not-hidden?)
         filter2 (build-filter (first-of filter? args any?))

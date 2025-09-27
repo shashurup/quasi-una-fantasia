@@ -126,12 +126,10 @@
 
 (defn column-descriptors [type-key columns]
   (let [desc (get @object-types type-key)]
-    (.log js/console (str columns))
     (when (and type-key (nil? desc))
       (u/not-found-hook))
     (for [col columns]
       (let [col (if desc
                   (canonize-column col (get-in desc [:columns col]))
                   (canonize-column col))]
-        (.log js/console (str col))
         [(:title col) (make-renderer col)]))))
