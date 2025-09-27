@@ -429,10 +429,11 @@
                                             {:onchange onchange}))]
            [:label {:for b-id} ""])
           [:span.quf-tree-button-space])
-        [:input.quf-tree-item {:id r-id
-                               :name tree-id
-                               :onchange onselect
-                               :type "radio"}]
+        [:input.quf-tree-item (merge  {:id r-id
+                                       :name tree-id
+                                       :type "radio"}
+                                      (when onselect
+                                        {:onchange onselect}))]
         [:label.quf-tree-item {:for r-id} (render-fn item)]
         (when has-children
           (render-tree-level (push-context data children idx children-key)
