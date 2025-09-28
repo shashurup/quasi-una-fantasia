@@ -4,7 +4,8 @@
    [clojure.set :as set]
    [clojure.java.jdbc :as jdbc]
    [shashurup.quf.secrets :as secrets]
-   [shashurup.quf.response :as resp]))
+   [shashurup.quf.response :as resp])
+  (:import [java.sql Types]))
 
 (def ^:dynamic *current*)
 
@@ -127,11 +128,34 @@
                           :function_name :name
                           :procedure_schem :schema
                           :procedure_name :name
+                          :data-type :data-type
                           :remarks :remarks
                           :column_name :column
-                          :type_name :data-type
-                          :column_size :size
-                          :is_nullable :null})
+                          :is_nullable :null
+                          :column_def :default})
+
+(def ^:private size1 #{java.sql.Types/VARCHAR
+                       java.sql.Types/NVARCHAR
+                       java.sql.Types/LONGVARCHAR
+                       java.sql.Types/LONGNVARCHAR})
+
+(def ^:private size2 #{java.sql.Types/DECIMAL java.sql.Types/NUMERIC})
+
+(defn- render-type [{:keys [:data_type :type_name
+                            :column_size :decimal_digits] :as subj}]
+  (let [type-str (cond
+                   (and (not= column_size java.lang.Integer/MAX_VALUE)
+                        (size1 data_type)) (format "%s(%s)"
+                                                   type_name
+                                                   column_size)
+                   (and (size2 data_type)
+                        decimal_digits) (format "%s(%s,%s)"
+                                                type_name
+                                                column_size
+                                                decimal_digits)
+                   (= data_type java.sql.Types/ARRAY) (str type_name "[]")
+                   :else type_name)]
+    (assoc subj :data-type type-str)))
 
 (defn- add-object-key [{:keys [:name :schema] :as subj}]
   (assoc subj :key (str schema "." name)))
@@ -156,7 +180,8 @@
 (defn- get-columns [db schema table]
   (rename-keys
    (jdbc/with-db-metadata [m (resolve-creds db)]
-     (jdbc/metadata-query (.getColumns m nil schema table nil)))
+     (map render-type
+          (jdbc/metadata-query (.getColumns m nil schema table nil))))
    field-map))
 
 (defn- get-fn-args [db schema function]
@@ -208,6 +233,7 @@
                       (if table
                         (resp/hint (concat (get-columns db schema table)
                                            (get-fn-args db schema table))
-                                   [:table [:column :data-type :size :null :remarks]])
+                                   [:table [:column :data-type :null
+                                            :default :remarks]])
                         (resp/hint (get-objects db schema "%")
                                    [:table [:type :name :remarks]]))))))
