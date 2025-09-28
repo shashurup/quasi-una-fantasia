@@ -271,9 +271,10 @@
         selected (find-selected-candidate (get-cand-root id))
         subj (if selected
                (gdom/getTextContent selected)
-               (text-at-point))]
+               (text-at-point))
+        sym (symbol subj)]
     (if (empty? (gdom/getTextContent root))
-      (nrepl/send-eval-aux (str "(clojure.repl/doc " subj ")")
+      (nrepl/send-eval-aux `(clojure.repl/doc ~sym)
                            #(show-doc id %))
       (do
         (gdom/removeChildren root)
