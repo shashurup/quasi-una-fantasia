@@ -195,31 +195,41 @@
        :is_nullable :null})
      :table)))
 
+
 (defn- get-schemas [db]
   (map
    :table_schem
    (jdbc/with-db-metadata [m (resolve-creds db)]
      (jdbc/metadata-query (.getSchemas m)))))
 
-(defn- get-tables [db schema table]
-  (transform 
-   (jdbc/with-db-metadata [m (resolve-creds db)]
-     (jdbc/metadata-query (.getTables m
-                                      nil
-                                      schema
-                                      table
-                                      (into-array String ["TABLE" "VIEW"]))))
-   {:table_type :type
-    :table_schem :schema
-    :table_name :name}))
+(def ^:private field-map {:table_type :type
+                          :table_schem :schema
+                          :table_name :name
+                          :function_schem :schema
+                          :function_name :name
+                          :procedure_schem :schema
+                          :procedure_name :name
+                          :remarks :remarks})
 
-(defn- get-functions [db schema function]
-  (transform 
-   (jdbc/with-db-metadata [m (resolve-creds db)]
-     (jdbc/metadata-query (.getFunctions m nil schema function)))
-   {:function_schem :schema
-    :function_name :name
-    :remarks :remarks}))
+(defn- add-object-key [{:keys [:name :schema] :as subj}]
+  (assoc subj :key (str schema "." name)))
+
+(defn- get-objects [db schema obj]
+  (jdbc/with-db-metadata [m (resolve-creds db)]
+    (map 
+     add-object-key
+     (transform
+      (concat
+       (jdbc/metadata-query (.getTables m
+                                        nil
+                                        schema
+                                        obj
+                                        (into-array String ["TABLE" "VIEW"])))
+       (map #(assoc % :table_type "FUNCTION")
+            (jdbc/metadata-query (.getFunctions m nil schema obj)))
+       (map #(assoc % :table_type "PROCEDURE")
+            (jdbc/metadata-query (.getProcedures m nil schema obj))))
+      field-map))))
 
 (defn- get-columns [db schema table]
   (transform 
@@ -256,8 +266,8 @@
         ["%" arg']
         [arg' nil]))))
 
-(defn- add-table-key [{:keys [:name :schema] :as subj}]
-  (assoc subj :key (str schema "." name)))
+(defn- name-with-schema [{:keys [:name :schema] :as subj}]
+  (assoc subj :name (str schema "." name)))
 
 (defn d2 [& args]
   (let [[db _] (preprocess args)
@@ -270,15 +280,15 @@
                        :key sch
                        :children (with-meta []
                                    {:shashurup.quf/range {:more? true}
-                                    :shashurup.quf/more `(d2 ~db ~pattern)})})
+                                    :shashurup.quf/more `(d2 ~db ~sch)})})
                     [:tree {:actions {:default `(d2 ~db)}}])
-      (pattern? arg) (let [[schema table] (parse-arg arg)
-                           data (concat (get-tables db schema table)
-                                        (get-functions db schema table))]
-                       (resp/hint (map add-key data)
+      (pattern? arg) (let [[schema obj] (parse-arg arg)
+                           data (get-objects db schema obj)]
+                       (resp/hint (map name-with-schema data)
                                   [:tree {:actions {:default `(d2 ~db)}}]))
       (string? arg) (let [[schema table] (parse-arg arg)]
                       (if table
                         (resp/hint (concat (get-columns db schema table)
                                            (get-fn-args db schema table)) :table)
-                        (resp/hint (get-tables db schema "%") :table))))))
+                        (resp/hint (get-objects db schema "%")
+                                   [:table [:type :name :remarks]]))))))
