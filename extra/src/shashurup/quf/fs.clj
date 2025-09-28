@@ -203,8 +203,8 @@
                   [[] {} nil]
                   args) 0 2))
 
-(defn- add-tree-meta [subj]
-  (let [actions {:default '(shashurup.quf.fs/l :m)}]
+(defn- add-tree-meta [subj flag]
+  (let [actions {:default `(shashurup.quf.fs/l ~flag)}]
     (for [item subj]
       (if (:directory? item)
         (let [path (:path item)
@@ -225,19 +225,20 @@
    :l - long format to show permissions, user, group, size, timestamp and a name;
    :c - to show files as a list of thumbnails;
    :r - recursively, as a tree."
-  ([subj] (fmt :1 subj))
-  ([flag subj]
-   (let [mode (condp = flag
-                :c :list
-                :r :tree
-                :table)
+  ([subj] (fmt [:1] subj))
+  ([flags subj]
+   (let [list-flag (some #{:m :l :c :1} flags)
+         mode (cond
+                (some #{:r} flags) :tree
+                (some #{:c} flags) :list
+                :else :table)
          cols (get {:m [:size :modified :name-ex]
                     :l [:permissions :user :group :size :modified :name-ex]
                     :c [:content :name-ex]
-                    :r {}}
-                   flag [:name])]
+                    :1 [:name]}
+                   list-flag)]
      (resp/hint (if (= mode :tree)
-                  (add-tree-meta subj)
+                  (add-tree-meta subj (or list-flag :m))
                   subj)
                 [mode :shashurup.quf.fs/file cols]))))
 
@@ -282,7 +283,7 @@
   [& args]
   (let [[args flags] (extract-flags args #{:m :l :c :r :t :T :s :S :n :N :h} #{})
         path (resolve-path *cwd* (first-of file-arg? args "."))
-        fmt-flag (some #{:m :l :c :r} (keys flags))
+        fmt-flags (keep #{:m :l :c :r} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
         filter1 (if (:h flags) any? not-hidden?)
         filter2 (build-filter (first-of filter? args any?))
@@ -292,8 +293,8 @@
            (filter filter1)
            (filter filter2)
            (ord ord-flag)
-           (fmt fmt-flag))
-      (fmt fmt-flag [file-attrs]))))
+           (fmt fmt-flags))
+      (fmt fmt-flags [file-attrs]))))
 
 (defn f
   "Find files, args can be:
@@ -317,7 +318,7 @@
   [& args]
   (let [[args flags] (extract-flags args #{:m :l :c :t :T :s :S :n :N} #{:skip})
         path (resolve-path *cwd* (first-of file-arg? args "."))
-        fmt-flag (some #{:m :l :c} (keys flags))
+        fmt-flags (keep #{:m :l :c} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
         filter1 (complement (build-filter (:skip flags (constantly false))))
         filter2 (build-filter (first-of filter? args any?))
@@ -327,7 +328,7 @@
          (filter filter2)
          (map #(assoc % :name (relative-path path (:path %))))
          (ord ord-flag)
-         (fmt fmt-flag))))
+         (fmt fmt-flags))))
 
 (defn- add-trailing-slash [subj]
   (if (= (last subj) \/)
