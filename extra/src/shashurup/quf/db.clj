@@ -194,3 +194,91 @@
        :column_size :size
        :is_nullable :null})
      :table)))
+
+(defn- get-schemas [db]
+  (map
+   :table_schem
+   (jdbc/with-db-metadata [m (resolve-creds db)]
+     (jdbc/metadata-query (.getSchemas m)))))
+
+(defn- get-tables [db schema table]
+  (transform 
+   (jdbc/with-db-metadata [m (resolve-creds db)]
+     (jdbc/metadata-query (.getTables m
+                                      nil
+                                      schema
+                                      table
+                                      (into-array String ["TABLE" "VIEW"]))))
+   {:table_type :type
+    :table_schem :schema
+    :table_name :name}))
+
+(defn- get-functions [db schema function]
+  (transform 
+   (jdbc/with-db-metadata [m (resolve-creds db)]
+     (jdbc/metadata-query (.getFunctions m nil schema function)))
+   {:function_schem :schema
+    :function_name :name
+    :remarks :remarks}))
+
+(defn- get-columns [db schema table]
+  (transform 
+   (jdbc/with-db-metadata [m (resolve-creds db)]
+     (jdbc/metadata-query (.getColumns m nil schema table nil)))
+   {:table_schem :schema
+    :table_name :table
+    :column_name :column
+    :type_name :type
+    :column_size :size
+    :is_nullable :null}))
+
+(defn- get-fn-args [db schema function]
+  (transform 
+   (jdbc/with-db-metadata [m (resolve-creds db)]
+     (jdbc/metadata-query (.getFunctionColumns m nil schema function nil)))
+   {:function_schem :schema
+    :function_name :table
+    :column_name :column
+    :type_name :type
+    :column_size :size
+    :is_nullable :null}))
+
+(defn- pattern? [subj]
+  (some #{\* \?} subj))
+
+(defn- parse-arg [arg]
+  (let [arg' (-> arg
+                 (s/replace #"\*" "%")
+                 (s/replace #"\?" "_"))]
+    (if (some #{\.} arg')
+      (s/split arg' #"\." 2)
+      (if (pattern? arg)
+        ["%" arg']
+        [arg' nil]))))
+
+(defn- add-table-key [{:keys [:name :schema] :as subj}]
+  (assoc subj :key (str schema "." name)))
+
+(defn d2 [& args]
+  (let [[db _] (preprocess args)
+        arg (first (filter string? args))]
+    (cond
+      (empty? arg) (resp/hint
+                    (for [sch (get-schemas db)
+                          :let [pattern (str sch ".*")]]
+                      {:name sch
+                       :key sch
+                       :children (with-meta []
+                                   {:shashurup.quf/range {:more? true}
+                                    :shashurup.quf/more `(d2 ~db ~pattern)})})
+                    [:tree {:actions {:default `(d2 ~db)}}])
+      (pattern? arg) (let [[schema table] (parse-arg arg)
+                           data (concat (get-tables db schema table)
+                                        (get-functions db schema table))]
+                       (resp/hint (map add-key data)
+                                  [:tree {:actions {:default `(d2 ~db)}}]))
+      (string? arg) (let [[schema table] (parse-arg arg)]
+                      (if table
+                        (resp/hint (concat (get-columns db schema table)
+                                           (get-fn-args db schema table)) :table)
+                        (resp/hint (get-tables db schema "%") :table))))))

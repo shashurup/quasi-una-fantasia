@@ -452,7 +452,7 @@
          get-key :key} (merge {:name :name
                                :children :children
                                :actions type-actions
-                               :key type-key-fn}
+                               :key (or type-key-fn :key)}
                               params)
         [_ render-fn] (first (desc/column-descriptors type-key [name-key]))
         tree-id (str "quf-tree-" (swap! cur-tree-id inc))]
