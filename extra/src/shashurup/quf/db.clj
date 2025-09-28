@@ -110,91 +110,9 @@
   (let [[db args] (preprocess args)]
     (apply query db args)))
 
-(defn- transform [subj renames]
+(defn- rename-keys [subj renames]
   (map #(set/rename-keys (select-keys % (keys renames))
                          renames) subj))
-
-(defn dn
-  "Lists database schemas. Optional argument is a database to query."
-  [& args]
-  (let [[db _] (preprocess args)]
-    (resp/hint
-     (transform 
-      (jdbc/with-db-metadata [m (resolve-creds db)]
-        (jdbc/metadata-query (.getSchemas m)))
-      {:table_schem :schema})
-     :table)))
-
-(defn df
-  "Lists database functions, args are:
-   database schema function
-   database - optional, database to connect to, see q for details
-   schema - optional schema name pattern
-   function - function name pattern
-   % is used as wildcard"
-  [& args]
-  (let [[db args] (preprocess args)
-        [schema fun] (if (> (count args) 1)
-                         args
-                         [nil (first args)])]
-    (resp/hint
-     (transform 
-      (jdbc/with-db-metadata [m (resolve-creds db)]
-        (jdbc/metadata-query (.getFunctions m nil schema fun)))
-      {:function_schem :schema
-       :function_name :function
-       :remarks :remarks})
-     :table)))
-
-(defn dt
-  "Lists database tables, args are:
-   database schema function
-   database - optional, database to connect to, see q for details
-   schema - optional schema name pattern
-   table - table name pattern
-   % is used as wildcard"
-  [& args]
-  (let [[db args] (preprocess args)
-        [schema table] (if (> (count args) 1)
-                         args
-                         [nil (first args)])]
-    (resp/hint
-     (transform 
-      (jdbc/with-db-metadata [m (resolve-creds db)]
-        (jdbc/metadata-query (.getTables m
-                                         nil
-                                         schema
-                                         table
-                                         (into-array String ["TABLE" "VIEW"]))))
-      {:table_type :type
-       :table_schem :schema
-       :table_name :table})
-     :table)))
-
-(defn d
-  "Describe database table, args are:
-   database schema function
-   database - optional, database to connect to, see q for details
-   schema - optional schema name pattern
-   table - table name
-   % is used as wildcard"
-  [& args]
-  (let [[db args] (preprocess args)
-        [schema table] (if (> (count args) 1)
-                         args
-                         [nil (first args)])]
-    (resp/hint
-     (transform 
-      (jdbc/with-db-metadata [m (resolve-creds db)]
-        (jdbc/metadata-query (.getColumns m nil schema table nil)))
-      {:table_schem :schema
-       :table_name :table
-       :column_name :column
-       :type_name :type
-       :column_size :size
-       :is_nullable :null})
-     :table)))
-
 
 (defn- get-schemas [db]
   (map
@@ -209,7 +127,11 @@
                           :function_name :name
                           :procedure_schem :schema
                           :procedure_name :name
-                          :remarks :remarks})
+                          :remarks :remarks
+                          :column_name :column
+                          :type_name :data-type
+                          :column_size :size
+                          :is_nullable :null})
 
 (defn- add-object-key [{:keys [:name :schema] :as subj}]
   (assoc subj :key (str schema "." name)))
@@ -218,7 +140,7 @@
   (jdbc/with-db-metadata [m (resolve-creds db)]
     (map 
      add-object-key
-     (transform
+     (rename-keys
       (concat
        (jdbc/metadata-query (.getTables m
                                         nil
@@ -232,26 +154,16 @@
       field-map))))
 
 (defn- get-columns [db schema table]
-  (transform 
+  (rename-keys
    (jdbc/with-db-metadata [m (resolve-creds db)]
      (jdbc/metadata-query (.getColumns m nil schema table nil)))
-   {:table_schem :schema
-    :table_name :table
-    :column_name :column
-    :type_name :type
-    :column_size :size
-    :is_nullable :null}))
+   field-map))
 
 (defn- get-fn-args [db schema function]
-  (transform 
+  (rename-keys
    (jdbc/with-db-metadata [m (resolve-creds db)]
      (jdbc/metadata-query (.getFunctionColumns m nil schema function nil)))
-   {:function_schem :schema
-    :function_name :table
-    :column_name :column
-    :type_name :type
-    :column_size :size
-    :is_nullable :null}))
+   field-map))
 
 (defn- pattern? [subj]
   (some #{\* \?} subj))
@@ -269,7 +181,13 @@
 (defn- name-with-schema [{:keys [:name :schema] :as subj}]
   (assoc subj :name (str schema "." name)))
 
-(defn d2 [& args]
+(defn d
+  "Describe database table, args are:
+   string - db object name with schema to describe
+            or a pattern with * and ?
+   without arguments shows object tree.
+   "
+  [& args]
   (let [[db _] (preprocess args)
         arg (first (filter string? args))]
     (cond
@@ -280,15 +198,16 @@
                        :key sch
                        :children (with-meta []
                                    {:shashurup.quf/range {:more? true}
-                                    :shashurup.quf/more `(d2 ~db ~sch)})})
-                    [:tree {:actions {:default `(d2 ~db)}}])
+                                    :shashurup.quf/more `(d ~db ~sch)})})
+                    [:tree {:actions {:default `(d ~db)}}])
       (pattern? arg) (let [[schema obj] (parse-arg arg)
                            data (get-objects db schema obj)]
                        (resp/hint (map name-with-schema data)
-                                  [:tree {:actions {:default `(d2 ~db)}}]))
+                                  [:tree {:actions {:default `(d ~db)}}]))
       (string? arg) (let [[schema table] (parse-arg arg)]
                       (if table
                         (resp/hint (concat (get-columns db schema table)
-                                           (get-fn-args db schema table)) :table)
+                                           (get-fn-args db schema table))
+                                   [:table [:column :data-type :size :null :remarks]])
                         (resp/hint (get-objects db schema "%")
                                    [:table [:type :name :remarks]]))))))
