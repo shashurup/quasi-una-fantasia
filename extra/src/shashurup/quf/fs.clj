@@ -204,11 +204,11 @@
                   args) 0 2))
 
 (defn- add-tree-meta [subj]
-  (let [actions {:default ['shashurup.quf.fs/l :m]}]
+  (let [actions {:default '(shashurup.quf.fs/l :m)}]
     (for [item subj]
       (if (:directory? item)
-        (let [more (format "(shashurup.quf.fs/l :r %s)"
-                           (pr-str (:path item)))]
+        (let [path (:path item)
+              more `(l :r ~path)]
           (with-meta
             (assoc item
                    :children

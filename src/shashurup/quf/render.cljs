@@ -378,10 +378,7 @@
     (subj e)))
 
 (defn tree-content-loader [tree-id action key]
-  (let [code (str "(" (->> (conj action key)
-                           (map pr-str)
-                           (interpose " ")
-                           (apply str)) ")")]
+  (let [code (concat action [key])]
     (fn [_]
       (let [target (gdom/getElement (str tree-id "-content"))
             insert (fn [resp]

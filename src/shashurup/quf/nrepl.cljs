@@ -120,18 +120,23 @@
               (update m k read-value)
               m)) subj keys))
 
+(defn- serialize-code [code]
+  (if (string? code)
+    code
+    (pr-str code)))
+
 (defn send-eval
   ([expr callback] (send-eval expr callback nil))
   ([expr callback extra]
    (send-op (merge {:op "eval"
-                    :code expr
+                    :code (serialize-code expr)
                     :nrepl.middleware.print/print
                       "shashurup.quf.response/pr-with-meta"}
                    extra)
             (fn [reply]
               (let [reply (read-values reply [:value :x-data])]
                 (when (terminated? (:status reply))
-                  (history-append expr))
+                  (history-append (serialize-code expr)))
                 (when-let [ns (:ns reply)]
                   (swap! state assoc :ns ns))
                 (when callback
@@ -141,7 +146,7 @@
   (if (:aux-session @state)
     (send-op {:op "eval"
               :ns (get-ns)
-              :code expr}
+              :code (serialize-code expr)}
              (fn [reply]
                (when callback
                  (callback (read-values reply [:value]))))
