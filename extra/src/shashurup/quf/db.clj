@@ -185,7 +185,7 @@
   (let [view (get-view-query db schema object)
         fns (when-not view
               (get-function-bodies db schema object))
-        cols (when-not fns
+        cols (when (empty? fns)
                (not-empty (resp/hint (get-columns db schema object)
                                      [:table [:column :data-type :null
                                               :default :remarks]])))]
