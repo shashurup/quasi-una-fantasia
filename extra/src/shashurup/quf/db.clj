@@ -44,53 +44,22 @@
       (assoc db :password (secrets/lookup pwd))
       db)))
 
-(defn- parse-pg-uri [subj]
-  (let [uri (java.net.URI. subj)
-        user-info (.getUserInfo uri)
-        parts [[:dbtype "postgresql"]
-               [:host (.getHost uri)]
-               [:port (let [p (.getPort uri)]
-                        (when (> p 0) p))]
-               [:dbname (let [p (.getPath uri)]
-                          (when (not-empty p)
-                            (s/replace p #"^/" "")))]
-               [:user (when (not-empty user-info)
-                        (first (s/split user-info #":")))]
-               [:password (when (not-empty user-info)
-                            (second (s/split user-info #":")))]]]
-    (->> parts
-         (filter second)
-         (into {}))))
+(defn get-db-type [db & _]
+  (if (string? db)
+    (.getScheme (java.net.URI. db))
+    (:dbtype db)))
 
-(defmulti query-by-map {:private true} (fn [db & _] (:dbtype db)))
-
-(defmulti query-by-uri {:private true} (fn [uri & _] (.getScheme (java.net.URI. uri))))
-
-(defmulti query (fn [db & _] (class db)))
-
-(defmethod query-by-uri "postgresql" [uri & args]
-  (apply query-by-map (parse-pg-uri uri) args))
-
-(defmethod query-by-map :default [db & args]
-  (let [handle (fn [rset]
+(defn query [db & args]
+  (let [db (if (string? db)
+             {:connection-uri db}
+             db)
+        handle (fn [rset]
                  (let [meta (make-meta rset)]
                    (with-meta 
                      (subvec
                       (jdbc/metadata-result rset {:as-arrays? true}) 1)
                      meta)))]
     (jdbc/db-query-with-resultset (resolve-creds db) args handle)))
-
-(defmethod query-by-uri :default [uri & args]
-  (apply query {:connection-uri uri} args))
-
-(defmethod query String [db & args]
-  (apply query-by-uri db args))
-
-(defmethod query clojure.lang.IPersistentMap [db & args]
-  (apply query-by-map db args))
-
-(defmethod query :default [db & args]
-  (throw (Exception. "db must be either string or map")))
 
 (defn- preprocess [args]
   (if (keyword? (first args))
@@ -110,6 +79,28 @@
   [& args]
   (let [[db args] (preprocess args)]
     (apply query db args)))
+
+; (defmulti get-view-query {:private true} get-db-type)
+(defmulti get-view-query get-db-type)
+
+(defmethod get-view-query :default [db schema view]
+  "View query is not available")
+
+(defmethod get-view-query "postgresql" [db schema view]
+  (ffirst (query db "select definition from pg_views
+                     where schemaname = ? and viewname = ?" schema view)))
+
+(defmulti get-function-bodies get-db-type)
+
+(defmethod get-function-bodies :default [db schema func]
+  "Function bodies are not available")
+
+(defmethod get-function-bodies "postgresql" [db schema func]
+  (map first
+       (query db "select pg_get_functiondef(p.oid)
+                  from pg_proc p
+                  join pg_namespace n on p.pronamespace = n.oid
+                  where nspname = ? and proname= ? " schema func)))
 
 (defn- rename-keys [subj renames]
   (map #(set/rename-keys (select-keys % (keys renames))
@@ -190,6 +181,17 @@
      (jdbc/metadata-query (.getFunctionColumns m nil schema function nil)))
    field-map))
 
+(defn- get-object-details [db schema object]
+  (let [view (get-view-query db schema object)
+        fns (when-not view
+              (get-function-bodies db schema object))
+        cols (when-not fns
+               (not-empty (resp/hint (get-columns db schema object)
+                                     [:table [:column :data-type :null
+                                              :default :remarks]])))]
+    (resp/hint [cols (resp/hint (into ["" view] fns) :text)]
+               :sequence)))
+
 (defn- pattern? [subj]
   (some #{\* \?} subj))
 
@@ -231,9 +233,6 @@
                                   [:tree {:actions {:default `(d ~db)}}]))
       (string? arg) (let [[schema table] (parse-arg arg)]
                       (if table
-                        (resp/hint (concat (get-columns db schema table)
-                                           (get-fn-args db schema table))
-                                   [:table [:column :data-type :null
-                                            :default :remarks]])
+                        (get-object-details db schema table)
                         (resp/hint (get-objects db schema "%")
                                    [:table [:type :name :remarks]]))))))
