@@ -182,15 +182,14 @@
    field-map))
 
 (defn- get-object-details [db schema object]
-  (let [view (get-view-query db schema object)
-        fns (when-not view
-              (get-function-bodies db schema object))
-        cols (when (empty? fns)
-               (not-empty (resp/hint (get-columns db schema object)
-                                     [:table [:column :data-type :null
-                                              :default :remarks]])))]
-    (resp/hint [cols (resp/hint (into ["" view] fns) :text)]
-               :sequence)))
+  (let [cols (resp/hint (get-columns db schema object)
+                        [:table [:column :data-type :null
+                                 :default :remarks]])]
+    (if (empty? cols)
+      (resp/hint (get-function-bodies db schema object) :text)
+      (if-let [view (get-view-query db schema object)]
+        (resp/hint [cols (resp/hint ["" view] :text)] :sequence)
+        cols))))
 
 (defn- pattern? [subj]
   (some #{\* \?} subj))
