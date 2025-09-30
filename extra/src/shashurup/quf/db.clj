@@ -4,7 +4,7 @@
    [clojure.set :as set]
    [clojure.java.jdbc :as jdbc]
    [shashurup.quf.secrets :as secrets]
-   [shashurup.quf.response :as resp])
+   [shashurup.quf.ui :as ui])
   (:import [java.sql Types]))
 
 (def ^:dynamic *current*)
@@ -182,13 +182,12 @@
    field-map))
 
 (defn- get-object-details [db schema object]
-  (let [cols (resp/hint (get-columns db schema object)
-                        [:table [:column :data-type :null
-                                 :default :remarks]])]
+  (let [cols (ui/table [:column :data-type :null :default :remarks]
+                       (get-columns db schema object))]
     (if (empty? cols)
-      (resp/hint (get-function-bodies db schema object) :text)
+      (ui/text (get-function-bodies db schema object))
       (if-let [view (get-view-query db schema object)]
-        (resp/hint [cols (resp/hint ["" view] :text)] :sequence)
+        (ui/sequence [cols (ui/text ["" view])])
         cols))))
 
 (defn- pattern? [subj]
@@ -217,21 +216,21 @@
   (let [[db _] (preprocess args)
         arg (first (filter string? args))]
     (cond
-      (empty? arg) (resp/hint
+      (empty? arg) (ui/tree
+                    {:actions {:default `(d ~db)}}
                     (for [sch (get-schemas db)
                           :let [pattern (str sch ".*")]]
                       {:name sch
                        :key sch
                        :children (with-meta []
                                    {:shashurup.quf/range {:more? true}
-                                    :shashurup.quf/more `(d ~db ~sch)})})
-                    [:tree {:actions {:default `(d ~db)}}])
+                                    :shashurup.quf/more `(d ~db ~sch)})}))
       (pattern? arg) (let [[schema obj] (parse-arg arg)
                            data (get-objects db schema obj)]
-                       (resp/hint (map name-with-schema data)
-                                  [:tree {:actions {:default `(d ~db)}}]))
+                       (ui/tree {:actions {:default `(d ~db)}}
+                                (map name-with-schema data)))
       (string? arg) (let [[schema table] (parse-arg arg)]
                       (if table
                         (get-object-details db schema table)
-                        (resp/hint (get-objects db schema "%")
-                                   [:table [:type :name :remarks]]))))))
+                        (ui/table [:type :name :remarks]
+                                  (get-objects db schema "%")))))))
