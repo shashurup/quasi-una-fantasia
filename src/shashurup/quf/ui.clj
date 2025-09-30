@@ -20,7 +20,10 @@
 
 (defn sequence [subj] (r/hint subj :sequence))
 
-(defn text [subj] (r/hint subj :text))
+(defn text [subj]
+  (if (string? subj)
+    (r/hint [subj] :text)
+    (r/hint subj :text)))
 
 (defn html [subj] (r/hint subj :html))
 

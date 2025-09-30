@@ -123,7 +123,8 @@
                           :remarks :remarks
                           :column_name :column
                           :is_nullable :null
-                          :column_def :default})
+                          :column_def :default
+                          })
 
 (def ^:private size1 #{java.sql.Types/VARCHAR
                        java.sql.Types/NVARCHAR
@@ -175,6 +176,31 @@
           (jdbc/metadata-query (.getColumns m nil schema table nil))))
    field-map))
 
+(defn- get-indicies [db schema table]
+  (rename-keys
+   (jdbc/with-db-metadata [m (resolve-creds db)]
+     (map render-type
+          (jdbc/metadata-query (.getIndexInfo m nil schema table false false))))
+   {:index_name :name :column_name :column :filter_condition :filter}))
+
+(defn- get-primary-keys [db schema table]
+  (rename-keys
+   (jdbc/with-db-metadata [m (resolve-creds db)]
+     (map render-type
+          (jdbc/metadata-query (.getPrimaryKeys m nil schema table))))
+   {:pk_name :name :column_name :column}))
+
+(defn- get-foreign-keys [db schema table]
+  (rename-keys
+   (jdbc/with-db-metadata [m (resolve-creds db)]
+     (map render-type
+          (jdbc/metadata-query (.getImportedKeys m nil schema table))))
+   {:fk_name :name
+    :fkcolumn_name :column
+    :pktable_schem :schema2
+    :pktable_name :table2
+    :pkcolumn_name :column2}))
+
 (defn- get-fn-args [db schema function]
   (rename-keys
    (jdbc/with-db-metadata [m (resolve-creds db)]
@@ -187,8 +213,22 @@
     (if (empty? cols)
       (ui/text (get-function-bodies db schema object))
       (if-let [view (get-view-query db schema object)]
-        (ui/sequence [cols (ui/text ["" view])])
-        cols))))
+        (ui/sequence [cols
+                      (ui/html [:h3 "Query"])
+                      (ui/text view)])
+        (let [ind (ui/table [:name :column :filter]
+                            (get-indicies db schema object))
+              pks (ui/table [:name :column]
+                            (get-primary-keys db schema object))
+              fks (ui/table [:name :column :schema2 :table2 :column2]
+                            (get-foreign-keys db schema object))]
+          (ui/sequence [cols
+                        (ui/html [:h3 "Primary keys"])
+                        pks
+                        (ui/html [:h3 "Indexes"])
+                        ind
+                        (ui/html [:h3 "Foreign keys"])
+                        fks]))))))
 
 (defn- pattern? [subj]
   (some #{\* \?} subj))
