@@ -233,7 +233,9 @@
   [:div.quf-tag (str "#" tag) (render arg)])
 
 (defmethod render :sequence [subj]
-  [:div (map render subj)])
+  [:div (for [[idx item] (map-indexed vector subj)
+              :let [item (push-context subj item idx)]]
+          (render item))])
 
 ;; Table
 
