@@ -53,6 +53,19 @@
 (defn text-content [node]
   (.-textContent node))
 
+(defn insert-text-at-caret [text]
+  (when-let [orig-sel (get-selection)]
+    (.deleteFromDocument orig-sel)
+    (let [sel (get-selection)
+          node (get-anchor-node sel)
+          offset (get-anchor-offset sel)
+          node-text (.-textContent node)]
+      (gdom/setTextContent node
+                           (str (subs node-text 0 offset)
+                                text
+                                (subs node-text offset)))
+      (.setStart (.getRangeAt (get-selection) 0) node offset))))
+
 (defn root? [node]
   (gcls/contains node "quf-input"))
 
@@ -664,6 +677,8 @@
       (backward-slurp id)
       (forward-barf id))))
 
+(defonce clipboard (atom ""))
+
 (defn change
   "Change selected text - vim terminology - delete and turn insert mode."
   {:keymap/key :change-selection}
@@ -677,22 +692,27 @@
   {:keymap/key :delete-selection}
   [id]
   (when-let [sel (js/getSelection)]
+    (reset! clipboard (.toString sel))
     (.deleteFromDocument sel)))
+
+(defn yank
+  "Yanks the selected text into local clipboard."
+  {:keymap/key :yank}
+  [id]
+  (when-let [sel (js/getSelection)]
+    (reset! clipboard (.toString sel))))
+
+(defn paste
+  "Pastes local clipboard content."
+  {:keymap/key :paste}
+  [id]
+  (insert-text-at-caret @clipboard)
+  (restructure (get-input-element id)))
+
 
 ;; auto pairs
 ;; todo rework this somehow
 ;; it doesn't make sense when you have to move over a closing element
-
-(defn insert-text-at-caret [text]
-  (let [sel (get-selection)
-        node (get-anchor-node sel)
-        offset (get-anchor-offset sel)
-        node-text (.-textContent node)]
-    (gdom/setTextContent node
-                         (str (subs node-text 0 offset)
-                              text
-                              (subs node-text offset)))
-    (.setStart (.getRangeAt (get-selection) 0) node offset)))
 
 (defn- handle-pairs [e]
   (let [ch (.-data e)
