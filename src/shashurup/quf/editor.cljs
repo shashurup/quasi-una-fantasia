@@ -48,6 +48,8 @@
 
 (defn make-text-node [text] (.createTextNode js/document text))
 
+(defn parent-element [node] (.-parentElement node))
+
 (defn text-content [node]
   (.-textContent node))
 
@@ -75,7 +77,7 @@
 
 (defn in-atom? [node]
   (when node
-    (atom? (.-parentElement node))))
+    (atom? (parent-element node))))
 
 (defn paren? [node]
   (and node
@@ -91,7 +93,7 @@
 (defn whitespace? [node]
   (and node
        (text-node? node)
-       (not (paren? (.-parentElement node)))
+       (not (paren? (parent-element node)))
        (not (in-atom? node))))
 
 (defn atom-of-type? [node type]
@@ -107,11 +109,11 @@
 (defn get-start-element [selection]
   (let [range (get-range-0 selection)
         start (.-startContainer range)
-        parent (.-parentElement start)
+        parent (parent-element start)
         offset (.-startOffset range)]
     (if (text-node? start)
       (cond
-        (paren? parent) (.-parentElement parent)
+        (paren? parent) (parent-element parent)
         (atom? parent) parent
         :else start)
       (.item (.-childNodes start) offset))))
@@ -119,7 +121,7 @@
 (defn get-end-element [selection]
   (let [range (get-range-0 selection)
         end (.-endContainer range)
-        parent (.-parentElement end)
+        parent (parent-element end)
         offset (.-endOffset range)]
     (if (text-node? end)
       (if (atom? parent) parent end)
@@ -127,11 +129,11 @@
 
 (defn parent-nodes [node]
   (take-while #(not (root? %))
-              (iterate #(.-parentElement %) node)))
+              (iterate parent-element node)))
 
 (defn root-node [node]
   (->> node
-       (iterate #(.-parentElement %))
+       (iterate parent-element)
        (take-while identity)
        (filter root?)
        first))
@@ -182,11 +184,11 @@
                      (reduce str)))))))
 
 (defn right-edge-of-sexp? [sel]
-  (and (closing-paren? (.-parentElement (get-anchor-node sel)))
+  (and (closing-paren? (parent-element (get-anchor-node sel)))
        (right-edge-of? sel)))
 
 (defn left-edge-of-sexp? [sel]
-  (and (open-paren? (.-parentElement (get-anchor-node sel)))
+  (and (open-paren? (parent-element (get-anchor-node sel)))
        (left-edge-of? sel)))
 
 (defn right-edge-of-atom? [sel]
@@ -261,11 +263,11 @@
 
 (defn sibling-elements-before-caret [sel]
   (let [node (get-anchor-node sel)
-        parent (.-parentNode node)
+        parent (parent-element node)
         base (cond
                (left-edge-of-atom? sel) (prev-leaf-node node)
                (left-edge-of-sexp? sel) (prev-leaf-node node)
-               (right-edge-of-sexp? sel) (.-parentElement parent)
+               (right-edge-of-sexp? sel) (parent-element parent)
                (atom? parent) parent
                (paren? parent) parent
                :else node)]
@@ -273,6 +275,19 @@
          (iterate previous-sibling)
          (take-while identity)
          (filter element?))))
+
+(defn selected-sexp-child [sel]
+  (let [node (get-common-ancestor sel)]
+    (if (or (right-edge-of-sexp? sel)
+            (left-edge-of-sexp? sel))
+      (->> node
+           parent-nodes
+           (filter sexp?)
+           first)
+      (let [parent (parent-element node)]
+        (if (sexp? parent)
+          node
+          parent)))))
 
 (defn enclosing-sexp [sel]
   (let [node (get-common-ancestor sel)
@@ -321,7 +336,7 @@
                    (.-length (.-childNodes node)))))
 
 (defn select-whole-atom! [selection node]
-  (let [parent (.-parentElement node)
+  (let [parent (parent-element node)
         range (get-range-0 selection)]
     (.selectNode range parent)))
 
@@ -455,7 +470,7 @@
   (when (identical? (get-anchor-node sel)
                     (get-focus-node sel))
     (let [anchor-node (get-anchor-node sel)
-          parent (.-parentElement anchor-node)]
+          parent (parent-element anchor-node)]
       (when (atom? parent)
         (when (not (whole-node-selected? sel))
           (if (string-atom? parent)
@@ -490,13 +505,13 @@
   (when (and (collapsed? selection)
              (at-the-end? selection))
     (let [node (get-anchor-node selection)
-          parent (.-parentElement node)]
+          parent (parent-element node)]
       (when (or (whitespace? node) (paren? parent))
         (set-position! selection (next-leaf-node node))))))
 
 (defn find-container-node [sel]
   (let [node (get-common-ancestor sel)]
-    (->> (iterate #(.-parentElement %) node)
+    (->> (iterate parent-element node)
          (remove text-node?)
          (remove paren?)
          first)))
@@ -523,10 +538,10 @@
         start (get-start-element sel)
         end (if (collapsed? sel) start (get-end-element sel))
         open-node (make-text-node (str open " "))]
-    (.insertBefore (.-parentElement start)
+    (.insertBefore (parent-element start)
                    open-node
                    start)
-    (.insertBefore (.-parentElement end)
+    (.insertBefore (parent-element end)
                    (make-text-node close)
                    (next-sibling end))
     (set-position! sel open-node 1)
@@ -569,6 +584,20 @@
            doall)
       (restructure (get-input-element id)))))
 
+(defn raise-sexp
+  "Unwraps sexp and deletes elements before caret."
+  {:keymap/key :raise-sexp}
+  [id]
+  (when-let [sel (get-selection)]
+    (when-let [node (selected-sexp-child sel)]
+      (->> node
+           nodes-before
+           (filter #(not (paren? %)))
+           vec ;; makes a copy of node to delete
+           (map #(.removeChild (parent-element node) %))
+           doall)
+      (unwrap id))))
+
 (defn forward-slurp
   "Move nearest closing brace one element forward."
   {:keymap/key :forward-slurp}
@@ -599,7 +628,7 @@
     (when-let [sexp (enclosing-sexp sel)]
       (->> (nodes-before (.-lastChild sexp))
            (u/take-until whitespace?)
-           (map #(.insertBefore (.-parentElement sexp)
+           (map #(.insertBefore (parent-element sexp)
                                 %
                                 (next-sibling sexp)))
            doall))))
@@ -612,7 +641,7 @@
     (when-let [sexp (enclosing-sexp sel)]
       (->> (nodes-after (.-firstChild sexp))
            (u/take-until whitespace?)
-           (map #(.insertBefore (.-parentElement sexp) % sexp))
+           (map #(.insertBefore (parent-element sexp) % sexp))
            doall))))
 
 (defn smart-slurp

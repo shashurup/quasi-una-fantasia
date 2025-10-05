@@ -47,6 +47,7 @@
                                  "u" :unwrap
                                  "S->" :smart-slurp
                                  "S-<" :smart-barf
+                                 "r" :raise-sexp
                                  "S-^" :move-start
                                  "S-$" :move-end
                                  "0" :move-start}})
