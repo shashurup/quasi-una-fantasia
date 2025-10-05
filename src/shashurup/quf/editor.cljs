@@ -585,7 +585,7 @@
       (restructure (get-input-element id)))))
 
 (defn raise-sexp
-  "Unwraps sexp and deletes elements before caret."
+  "Deletes siblings before caret and unwraps."
   {:keymap/key :raise-sexp}
   [id]
   (when-let [sel (get-selection)]
