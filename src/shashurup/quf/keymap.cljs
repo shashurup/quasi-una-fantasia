@@ -45,10 +45,8 @@
                                  "S-{" :wrap-with-a-brace
                                  "S-\"" :wrap-with-quotes
                                  "u" :unwrap
-                                 "f" :forward-slurp
-                                 "S-F" :forward-barf
-                                 "a" :backward-slurp
-                                 "S-A" :backward-barf
+                                 "S->" :smart-slurp
+                                 "S-<" :smart-barf
                                  "S-^" :move-start
                                  "S-$" :move-end
                                  "0" :move-start}})

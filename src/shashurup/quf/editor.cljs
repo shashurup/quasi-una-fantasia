@@ -250,6 +250,13 @@
           [(text-content node) node])
         [text node]))))
 
+(defn prev-to-caret [sel]
+  (let [node (get-anchor-node sel)
+        offset (get-anchor-offset sel)]
+    (let [text (subs (text-content node) 0 offset)]
+      (when (not-empty text)
+        (last text)))))
+
 (defn children [node] (seq (.-childNodes node)))
 
 (defn sibling-elements-before-caret [sel]
@@ -607,6 +614,26 @@
            (u/take-until whitespace?)
            (map #(.insertBefore (.-parentElement sexp) % sexp))
            doall))))
+
+(defn smart-slurp
+  "Forward slurp when inside an sexp.
+   Backward barf when at opening brace."
+  {:keymap/key :smart-slurp}
+  [id]
+  (let [n (prev-to-caret (get-selection))]
+    (if (pairs n)
+      (backward-barf id)
+      (forward-slurp id))))
+
+(defn smart-barf
+  "Forward barf when inside an sexp.
+   Backward slurp when at opening brace."
+  {:keymap/key :smart-barf}
+  [id]
+  (let [n (prev-to-caret (get-selection))]
+    (if (pairs n)
+      (backward-slurp id)
+      (forward-barf id))))
 
 (defn change
   "Change selected text - vim terminology - delete and turn insert mode."
