@@ -84,8 +84,7 @@ p.quf-ex {
 }
 
 .quf-highlight {
-    background-color: var(--color-sel-bg);
-    color: var(--color-bg);
+    border: dotted 1px;
 }
 
 body {
