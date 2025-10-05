@@ -83,6 +83,13 @@ p.quf-ex {
     color: var(--color-bg);
 }
 
+.quf-paren {
+    /* A little hack to prevent
+       a change of a paren when border is added */
+    border: solid 1px;
+    border-color: transparent;
+}
+
 .quf-highlight {
     border: dotted 1px;
 }
