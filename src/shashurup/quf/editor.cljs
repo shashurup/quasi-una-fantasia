@@ -22,10 +22,6 @@
 (defn get-range-0 [selection]
   (.getRangeAt selection 0))
 
-(defn get-the-only-range []
-  (when-let [selection (get-selection)]
-    (.getRangeAt selection 0)))
-
 (defn range-includes? [range node] (.intersectsNode range node))
 
 (defn get-common-ancestor [selection]
@@ -64,7 +60,7 @@
                            (str (subs node-text 0 offset)
                                 text
                                 (subs node-text offset)))
-      (.setStart (.getRangeAt (get-selection) 0) node offset))))
+      (.setStart (get-range-0 (get-selection)) node offset))))
 
 (defn root? [node]
   (gcls/contains node "quf-input"))
