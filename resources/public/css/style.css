@@ -202,6 +202,8 @@ div.quf-input {
     min-width: 80ch;
     max-width: 100%;
     white-space: break-spaces;
+    border: 1px dotted;
+    border-radius: 4px;
 }
 
 table.quf {
