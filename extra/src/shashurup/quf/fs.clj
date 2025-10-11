@@ -215,7 +215,7 @@
                    (with-meta [] {:shashurup.quf/more more
                                   :shashurup.quf/range {:more? true}}))
             {:shashurup.quf/actions actions}))
-        (with-meta item {:shashurup.quf/actions {:default `(v)}})))))
+        item))))
 
 (defn fmt
   "Formats file list as a table or thumb list.

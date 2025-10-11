@@ -57,7 +57,7 @@
                      :content {:key [:path :mime-type]
                                :render render-content}}
            :key :path
-           :actions {:default '(shashurup.quf.fs/v)}})
+           :actions {:default `(v)}})
 
 (swap! desc/object-types assoc ::file file)
 
