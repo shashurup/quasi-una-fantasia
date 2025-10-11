@@ -211,11 +211,11 @@
   (let [cols (ui/table [:column :data-type :null :default :remarks]
                        (get-columns db schema object))]
     (if (empty? cols)
-      (ui/text (get-function-bodies db schema object))
+      (ui/code (get-function-bodies db schema object) "pgsql" "sql")
       (if-let [view (get-view-query db schema object)]
         (ui/sequence [cols
                       (ui/html [:h3 "Query"])
-                      (ui/text view)])
+                      (ui/code view "sql")])
         (let [ind (ui/table [:name :column :filter]
                             (get-indicies db schema object))
               pks (ui/table [:name :column]

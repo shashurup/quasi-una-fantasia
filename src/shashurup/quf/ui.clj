@@ -25,6 +25,14 @@
     (r/hint [subj] :text)
     (r/hint subj :text)))
 
+(defn code [subj & args]
+  (let [hint (if (empty? args)
+               :code
+               [:code args])]
+    (if (string? subj)
+      (r/hint [subj] hint)
+      (r/hint subj hint))))
+
 (defn html [subj] (r/hint subj :html))
 
 (defn keymap [subj] (r/hint subj :keymap))
