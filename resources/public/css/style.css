@@ -156,6 +156,8 @@ span.quf-closing-paren {
 .quf-keyword,
 .hljs-keyword,
 .hljs-attribute,
+.hljs-attr,
+.hljs-meta,
 .hljs-selector-tag,
 .hljs-doctag,
 .hljs-name {
@@ -176,8 +178,19 @@ span.quf-closing-paren {
 .hljs-link,
 .hljs-selector-attr,
 .hljs-operator,
+.hljs-section,
+.hljs-title,
 .hljs-selector-pseudo {
     color: var(--color-symbol);
+}
+
+.hljs-code {
+    color: var(--color-dark-fg);
+}
+
+.hljs-built_in {
+    color: var(--color-symbol);
+    font-weight: bold;
 }
 
 .hljs-comment {

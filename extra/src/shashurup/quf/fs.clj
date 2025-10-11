@@ -9,7 +9,7 @@
   (:require [clojure.string :as s]
             [shashurup.quf.response :as resp]
             [shashurup.quf.data :as data]
-            [shashurup.quf.response :as response]))
+            [shashurup.quf.ui :as ui]))
 
 (def permission-map
   {PosixFilePermission/OWNER_READ :owner-read
@@ -204,7 +204,7 @@
                   args) 0 2))
 
 (defn- add-tree-meta [subj flag]
-  (let [actions {:default `(shashurup.quf.fs/l ~flag)}]
+  (let [actions {:default `(l ~flag)}]
     (for [item subj]
       (if (:directory? item)
         (let [path (:path item)
@@ -215,7 +215,7 @@
                    (with-meta [] {:shashurup.quf/more more
                                   :shashurup.quf/range {:more? true}}))
             {:shashurup.quf/actions actions}))
-        item))))
+        (with-meta item {:shashurup.quf/actions {:default `(v)}})))))
 
 (defn fmt
   "Formats file list as a table or thumb list.
@@ -240,7 +240,7 @@
      (resp/hint (if (= mode :tree)
                   (add-tree-meta subj (or list-flag :m))
                   subj)
-                [mode :shashurup.quf.fs/file cols]))))
+                [mode ::file cols]))))
 
 (defn ord
   "Sorts file list.
@@ -355,17 +355,41 @@
   (or (naive-mime-type url)
       (deep-mime-type url)))
 
+(def lang-map {"application/xml" "xml"
+               "application/x-sh" "bash"
+               "application/json" "json"
+               "text/x-python" "python"
+               "text/x-csrc" "c"
+               "text/x-clojure" "clojure"
+               "text/x-csharp" "csharp"
+               "text/css" "css"
+               "text/x-go" "go"
+               "text/x-java-source" "java"
+               "text/javascript" "javascript"
+               "text/x-common-lisp" "lisp"
+               "text/x-lua" "lua"
+               "text/x-web-markdown" "markdown"
+               "text/x-sql" "sql"})
+
+(defn- text? [mime-type]
+  (or (s/starts-with? mime-type "text/")
+      (get lang-map mime-type)))
+
 (defn v
   "View file content."
   [subj]
-  (let [obj (if (map? subj) subj {:path (resolve-path *cwd* subj)})
-        obj (update obj :mime-type (fn [mt]
-                                     (if mt
-                                       mt
-                                       (let [url (absolute-url (:path obj))]
-                                         (or (naive-mime-type url)
-                                             (deep-mime-type url))))))]
-    (resp/hint obj [:object-attr :shashurup.quf.fs/file :content])))
+  (let [obj (if (map? subj)
+              subj
+              {:path (resolve-path *cwd* subj)})
+        mt (or (:mime-type obj)
+               (let [url (absolute-url (:path obj))]
+                 (get-file-mime-type url)))
+        obj (assoc obj :mime-type mt)]
+    (if (text? mt)
+      (if-let [lang (get lang-map mt)]
+        (ui/code (data/as-text (:path obj)) lang)
+        (ui/code (data/as-text (:path obj))))
+      (resp/hint obj [:object-attr ::file :content]))))
 
 
 (defn t
