@@ -13,13 +13,13 @@ I strongly recommend visiting this [intro](https://shashurup.github.io/quasi-una
 
 ## Prerequisites
 
-### Node
+### Dependencies
 
 You need npm to install js dependencies
 
-    ./install-node-deps.sh
+    ./install-deps.sh
     
-You don't need node_modules directory after the installation
+You don't need node_modules and raw-deps directories after the installation
 
 ### Base16 themes
 

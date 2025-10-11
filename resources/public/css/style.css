@@ -135,32 +135,50 @@ span.quf-closing-paren {
     align-self: end;
 }
 
-.quf-string {
+/* TODO bring other base16 colors for highlight.js */
+
+.quf-string,
+.quf-char,
+.hljs-type,
+.hljs-string,
+.hljs-number,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-quote,
+.hljs-template-tag,
+.hljs-deletion {
     color: var(--color-string);
 }
 
-.quf-char {
-    color: var(--color-string);
-}
-
-.quf-keyword {
+.quf-keyword,
+.hljs-keyword,
+.hljs-attribute,
+.hljs-selector-tag,
+.hljs-doctag,
+.hljs-name {
     color: var(--color-keyword);
 }
 
-.quf-number {
+.quf-number,
+.quf-bool,
+.hljs-number {
     color: var(--color-literal);
 }
 
-.quf-symbol {
+.quf-symbol
+.hljs-regexp,
+.hljs-symbol,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-link,
+.hljs-selector-attr,
+.hljs-operator,
+.hljs-selector-pseudo {
     color: var(--color-symbol);
 }
 
 .quf-control {
     font-weight: bold;
-}
-
-.quf-bool {
-    color: var(--color-literal);
 }
 
 .quf-client-var {

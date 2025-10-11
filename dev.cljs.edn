@@ -17,5 +17,9 @@
                  :file-min "extra/lib/chart.umd.min.js"
                  :provides ["chartjs"]}
                 {:file "extra/lib/ol.js"
-                 :provides ["ol"]}]
+                 :provides ["ol"]}
+                {:file "extra/lib/highlight.js"
+                 :file-min "extra/lib/highlight.min.js"
+                 :provides ["hljs"]}
+                ]
 }
