@@ -11,6 +11,9 @@
     --color-keyword: blue;
     --color-client-var: darkgreen;
     --color-error: red;
+    --color-comment: grey;
+    --color-class: chocolate;
+    --color-regex: aquamarine;
 }
 
 div.quf-result {
@@ -165,7 +168,7 @@ span.quf-closing-paren {
     color: var(--color-literal);
 }
 
-.quf-symbol
+.quf-symbol,
 .hljs-regexp,
 .hljs-symbol,
 .hljs-variable,
@@ -175,6 +178,19 @@ span.quf-closing-paren {
 .hljs-operator,
 .hljs-selector-pseudo {
     color: var(--color-symbol);
+}
+
+.hljs-comment {
+    color: var(--color-comment);
+}
+
+.hljs-selector-class {
+    color: var(--color-class);
+}
+
+.quf-regex,
+.hljs-regex {
+    color: var(--color-regex);
 }
 
 .quf-control {

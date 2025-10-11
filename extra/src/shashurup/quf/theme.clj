@@ -46,12 +46,18 @@
   {:scheme :name
    :author :author
    :base00 :bg
-   :base02 :sel-bg
-   :base05 :fg
    :base01 :alt-bg
+   :base02 :sel-bg
+   :base03 :comment
+   :base04 :dark-fg
+   :base05 :fg
+   :base06 :light-fg
+   :base07 :light-bg
    :base08 :symbol
    :base09 :literal
+   :base0A :class
    :base0B :string
+   :base0C :regex
    :base0D :keyword
    :base0E :client-var
    :base0F :error})

@@ -8,9 +8,9 @@
 
 (u/begin-module-load! :theme)
 
-(def colors [:bg :sel-bg :alt-bg :fg
-             :symbol :literal :string :keyword :client-var
-             :error])
+(def colors [:bg :sel-bg :alt-bg :light-bg :fg :dark-fg :light-fg
+             :comment :symbol :literal :class :string :regex :keyword
+             :client-var :error])
 
 (defn- var-name [color-key]
   (str "--color-" (name color-key)))
