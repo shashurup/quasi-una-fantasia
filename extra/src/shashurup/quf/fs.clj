@@ -208,7 +208,7 @@
     (for [item subj]
       (if (:directory? item)
         (let [path (:path item)
-              more `(l :r ~path)]
+              more `(l :r ~flag ~path)]
           (with-meta
             (assoc item
                    :children
@@ -225,7 +225,7 @@
    :l - long format to show permissions, user, group, size, timestamp and a name;
    :c - to show files as a list of thumbnails;
    :r - recursively, as a tree."
-  ([subj] (fmt [:1] subj))
+  ([subj] (fmt nil subj))
   ([flags subj]
    (let [list-flag (some #{:m :l :c :1} flags)
          mode (cond
@@ -236,11 +236,10 @@
                     :l [:permissions :user :group :size :modified :name-ex]
                     :c [:content :name-ex]
                     :1 [:name]}
-                   list-flag)]
-     (resp/hint (if (= mode :tree)
-                  (add-tree-meta subj (or list-flag :m))
-                  subj)
-                [mode ::file cols]))))
+                   (or  list-flag :1))]
+     (if (= mode :tree)
+       (resp/hint (add-tree-meta subj (or list-flag :m)) [mode ::file nil])
+       (resp/hint subj [mode ::file cols])))))
 
 (defn ord
   "Sorts file list.
