@@ -140,21 +140,42 @@
 (defn find-prev-input [id]
   (find-prev-input-by-node (get-cell-element id)))
 
+(defn find-parent-cell [node]
+  (->> node
+       u/parent-elements
+       (filter #(gcls/contains % "quf-cell"))
+       first))
+
 (defn focus-next-cell
   "Move to the cell below."
-  {:keymap/key :cell-below}
-  [id]
-  (if-let [el (find-next-input id)]
-    (do (.focus el) el)
-    (append-cell)))
+  {:keymap/key :cell-below
+   :keymap/global true}
+  ([id]
+   (if-let [el (find-next-input id)]
+     (do (.focus el) el)
+     (append-cell)))
+  ([]
+   (if-let [cell (find-parent-cell (.-anchorNode (js/getSelection)))]
+     (when-let [el (find-next-input-by-node cell)]
+       (do (.focus el) el))
+     (append-cell))))
 
 (defn focus-prev-cell
   "Move to the cell above."
-  {:keymap/key :cell-above}
-  [id]
-  (if-let [el (find-prev-input id)]
-    (do (.focus el) el)
-    (insert-cell-before id)))
+  {:keymap/key :cell-above
+   :keymap/global true}
+  ([id]
+   (if-let [el (find-prev-input id)]
+     (do (.focus el) el)
+     (insert-cell-before id)))
+  ([]
+   (if-let [cell (find-parent-cell (.-anchorNode (js/getSelection)))]
+     (when-let [el (gdom/getElementByClass "quf-input" cell)]
+       (let [el (if (gst/isElementShown el)
+                  el
+                  (find-prev-input-by-node cell))]
+         (do (.focus el) el)))
+     (insert-cell-before 1))))
 
 (defn store-cell-exprs []
   (let [name (:ns @nrepl/state)]
@@ -376,9 +397,8 @@
                   (ns-interns 'shashurup.quf.editor)
                   (ns-interns 'shashurup.quf.vars)])
     (vars/push-server-updates! '*quota* u/quota)
-    (gevents/listen js/window
-                    "load"
-                    (fn [_] (append-cell)))))
+    (gevents/listen js/window "load" (fn [_] (append-cell)))
+    (gevents/listen js/document "keydown" (keymap/keydown-handler-for))))
 
 ;; specify reload hook with ^:after-load metadata
 (defn ^:after-load on-reload []

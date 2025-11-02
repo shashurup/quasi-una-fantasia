@@ -88,12 +88,21 @@
       (when (editor/sexp-mode? id)
         identity)))
 
-(defn keydown-handler-for [id]
-  (fn [e]
-    (when-let [f (find-handler id (key-event->str e))]
-      (. js/console debug "found a handler")
-      (f id)
-      (.preventDefault e))))
+(defn keydown-handler-for
+  ([id]
+   (fn [e]
+     (when-let [f (find-handler id (key-event->str e))]
+       (. js/console debug "found a handler")
+       (f id)
+       (.stopPropagation e)
+       (.preventDefault e))))
+  ([]
+   (fn [e]
+     (when-let [f (handler-fn :base (key-event->str e))]
+       (when (:keymap/global (meta f))
+         (. js/console debug "found a global handler")
+         (f)
+         (.preventDefault e))))))
 
 (def item-name "keymap")
 
