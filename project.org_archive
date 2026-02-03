@@ -1,0 +1,312 @@
+#    -*- mode: org -*-
+
+
+Archived entries from file /home/georgy/d/quasi-una-fantasia/project.org
+
+
+* DONE Change Ctrl+R and Ctrl+T shortcuts
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+  Ctrl+T - Ctrl+Alt+T duplicating current session
+  Ctrl+R - probably Ctrl+P (like completions in Vim)
+
+* DONE db/dt - filter only tables and views
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE ns prompt
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE extensibility
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+  need to define the architecture
+
+* DONE Ctrl+I почему иногда перестает работать
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Ctrl+A Ctrl+E
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Шорткат для нового окна, переименование текущего
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Сохранение\загрузка всех выражений ячеек
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Копирование выражения текущей ячейки в новую
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE render возвращающий функцию - не работает внутри композита
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+  только для toplevel результата :()
+
+* DONE Больше деталей в подсказках - аргументы функций, возможно документация
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Автоматически добавлять " ) ] }
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Прерывание eval
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE При наличии единственного кандидата Tab должен его дополнять
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Поиск по истории должен игнорить скобки
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Вставляем только голый текст, без форматирования
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+  https://stackoverflow.com/questions/58980235/stop-pasting-html-style-in-a-contenteditable-div-only-paste-the-plain-text
+
+* DONE Initialize cljs thing in a reload-safe way
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Сломалось отображение документации по символу под курсором
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Обновление переменной *selection* случается при каждом eval даже если у нас ничего нет в result
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Вторичная сессия nrepl для вспомогательных операций
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Нужно (require 'clojure.repl) перед тем как Ctrl+H будет работать
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Для завершенных xterm resize не должен менять высоту
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Tab больше не пытается дополнить до ближайшего кандидата
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Странное поведение wrap в sexp mode когда находишься у скобок
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Автоматическое определение формата геоданных в ol.cljs
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Не всегда корректно работает autoident
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+  Проверить можно на require поднятом из истории
+
+* DONE Ctrl+Shift шорткаты не работают
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+  Может ну их, лучше использовать несколько клавиш?
+  Нафиг, буду Ctrl+Alt использовать
+
+* DONE Ctrl j,k не дружать с удаленными элементами ввода (Alt+u которые)
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE По дефолту ! должны использовать текущий шелл (из $SHELL)
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:02
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+  Плюс флаг для запука без шелла
+
+* DONE Если нажать Ctrl+h до того как сработает completion, то completion сработав убирает help
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:03
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Переделать ассистента на popup
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:03
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+  Чтобы избежать перемещения активного ввода по экрану когда запрашиваем справку или автодополнение
+
+* DONE Фильтруем вывод l или f по типу картинка и выводим в виде галереи
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:03
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_OLPATH: Сценарии
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+   Есть предикат для mimetype работающий по встроенному определителю типа (по расширению)
+   Результат отправляем в v и получаем галерею
+
+* DONE cwd - просто var
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:03
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_OLPATH: модуль fs
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE поддержка ~
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:03
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_OLPATH: модуль fs
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE поддержка локальных картинок для v
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:03
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_OLPATH: модуль fs
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+
+* DONE Определение типа файла - легкий\тяжелый режимы
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-02-03 Вт 19:03
+:ARCHIVE_FILE: ~/d/quasi-una-fantasia/project.org
+:ARCHIVE_OLPATH: модуль fs
+:ARCHIVE_CATEGORY: project
+:ARCHIVE_TODO: DONE
+:END:
+   Легкий режим теперь встроен - в l и f новое поле mime-type по расширению
+   Для тяжелого режима новая функция t
