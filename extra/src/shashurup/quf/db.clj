@@ -274,3 +274,12 @@
                         (get-object-details db schema table)
                         (ui/table [:type :name :remarks]
                                   (get-objects db schema "%")))))))
+
+;; java.sql.Date inherits java.util.Date
+;; wich causes pr to render it as #inst
+;; wich in turn hides the nature of DATE
+;; field data type
+(defmethod print-method java.sql.Date [d w]
+  (.write w "#object [java.sql.Date \"")
+  (.write w (.toString d))
+  (.write w "\"]"))
