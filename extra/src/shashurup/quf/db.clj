@@ -281,9 +281,14 @@
 (defn- make-table-name [subj]
   (str \" (:table_schem subj) "\".\"" (:table_name subj) \"))
 
-(defn- search-tables [meta schema table]
-  (jdbc/metadata-query (.getTables meta nil schema table
-                                   (into-array String ["TABLE"]))))
+(defn- search-tables
+  ([meta schema table types]
+   (jdbc/metadata-query (.getTables meta nil schema table
+                                    (into-array String types))))
+  ([meta schema table] (search-tables meta schema table ["TABLE"])))
+
+(defn- search-views [meta schema table]
+  (search-tables meta schema table ["VIEW"]))
 
 (defn- guess-primary-key [meta {schema :table_schem
                                 table :table_name}]
@@ -300,7 +305,10 @@
         (:column_name (first pks))))))
 
 (defn- guess-table-name [meta table]
-  (let [matches (search-tables meta "%" (str "%" table "%"))
+  (let [tables (search-tables meta "%" (str "%" table "%"))
+        matches (if (empty? tables)
+                  (search-views meta "%" (str "%" table "%"))
+                  tables)
         exact-matches (filter #(= (:table_name %)
                                   (str table))
                               matches)]
