@@ -154,20 +154,23 @@
 
 (defn- get-objects [db schema obj]
   (jdbc/with-db-metadata [m (resolve-creds db)]
-    (map 
-     add-object-key
-     (rename-keys
-      (concat
-       (jdbc/metadata-query (.getTables m
-                                        nil
-                                        schema
-                                        obj
-                                        (into-array String ["TABLE" "VIEW"])))
-       (map #(assoc % :table_type "FUNCTION")
-            (jdbc/metadata-query (.getFunctions m nil schema obj)))
-       (map #(assoc % :table_type "PROCEDURE")
-            (jdbc/metadata-query (.getProcedures m nil schema obj))))
-      field-map))))
+    (->> (rename-keys
+          (concat
+           (jdbc/metadata-query (.getTables m
+                                            nil
+                                            schema
+                                            obj
+                                            (into-array String ["TABLE" "VIEW"])))
+           (map #(assoc % :table_type "FUNCTION")
+                (jdbc/metadata-query (.getFunctions m nil schema obj)))
+           (map #(assoc % :table_type "PROCEDURE")
+                (jdbc/metadata-query (.getProcedures m nil schema obj))))
+          field-map)
+         (map add-object-key)
+         (group-by :key)
+         vals
+         (map first)
+         (sort-by :key))))
 
 (defn- get-columns [db schema table]
   (rename-keys
