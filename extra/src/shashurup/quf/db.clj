@@ -275,6 +275,60 @@
                         (ui/table [:type :name :remarks]
                                   (get-objects db schema "%")))))))
 
+(defn- make-table-name [subj]
+  (str \" (:table_schem subj) "\".\"" (:table_name subj) \"))
+
+(defn- search-tables [meta schema table]
+  (jdbc/metadata-query (.getTables meta nil schema table
+                                   (into-array String ["TABLE"]))))
+
+(defn- guess-primary-key [meta {schema :table_schem
+                                table :table_name}]
+  (let [pks (jdbc/metadata-query
+             (.getPrimaryKeys meta nil schema table))]
+    (if (empty? pks)
+      (let [cols (jdbc/metadata-query (.getColumns meta nil schema table nil))]
+        (->> cols
+             (map :column_name)
+             (filter #(or (= % "id")
+                          (= % (str table "_id"))))
+             first))
+      (when (= (count pks) 1)
+        (:column_name (first pks))))))
+
+(defn- guess-table-name [meta table]
+  (let [matches (search-tables meta "%" (str "%" table "%"))
+        exact-matches (filter #(= (:table_name %)
+                                  (str table))
+                              matches)]
+    (cond
+      (empty? matches) (print "No matches for" table)
+      (= (count exact-matches) 1) (first exact-matches)
+      (> (count matches) 1) (print (map make-table-name matches)
+                                   "which one?")
+      :else (first matches)))
+  )
+
+(defn- explore [db args]
+  (when-let [table (first (filter symbol? args))]
+    (jdbc/with-db-metadata [m (resolve-creds db)]
+      (when-let [table (guess-table-name m table)]
+        (let [pk (guess-primary-key m table)]
+          (str "select * from "
+               (make-table-name table)
+               (when pk
+                 (str " order by \"" pk "\" desc"))
+               " limit 10"))))))
+
+(defmacro e
+  "Explore database contents, args are:
+   - symbol, table name"
+  [& args]
+  (let [[db# args#] (preprocess args)]
+    (when-let [sql# (explore db# args#)]
+      (println sql#)
+      `(query ~db# ~sql#))))
+
 ;; java.sql.Date inherits java.util.Date
 ;; wich causes pr to render it as #inst
 ;; wich in turn hides the nature of DATE
