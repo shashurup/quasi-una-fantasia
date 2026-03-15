@@ -324,21 +324,29 @@
   (when-let [table (first (filter symbol? args))]
     (jdbc/with-db-metadata [m (resolve-creds db)]
       (when-let [table (guess-table-name m table)]
-        (let [pk (guess-primary-key m table)]
-          (str "select * from "
-               (make-table-name table)
-               (when pk
-                 (str " order by \"" pk "\" desc"))
-               " limit 10"))))))
+        (let [pk (guess-primary-key m table)
+              pk-val (first (filter #(or (string? %)
+                                         (number? %)) args))]
+          [(str "select * from "
+                (make-table-name table)
+                (when (and pk pk-val)
+                  (str " where \"" pk "\" = ?"))
+                (when pk
+                  (str " order by \"" pk "\" desc"))
+                " limit 10")
+           pk-val])))))
 
 (defmacro e
   "Explore database contents, args are:
    - symbol, table name"
   [& args]
   (let [[db# args#] (preprocess args)]
-    (when-let [sql# (explore db# args#)]
+    (when-let [[sql# k#] (explore db# args#)]
       (println sql#)
-      `(query ~db# ~sql#))))
+      (println k#)
+      (if k#
+        `(query ~db# ~sql# ~k#)
+        `(query ~db# ~sql#)))))
 
 ;; java.sql.Date inherits java.util.Date
 ;; wich causes pr to render it as #inst
