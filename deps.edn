@@ -21,7 +21,7 @@
                                 org.jetbrains.pty4j/pty4j {:mvn/version "0.13.11"}
                                 clj-commons/clj-yaml {:mvn/version "1.0.29"}}
                    :extra-paths ["extra/src" "extra/resources"]}
-           :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.42"}
+           :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.134"}
                                com.bhauman/figwheel-main {:mvn/version "0.2.20"}
                                crate/crate {:mvn/version "0.2.5"}}}
            :fig {:main-opts ["-m" "figwheel.main"]}

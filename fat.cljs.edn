@@ -21,5 +21,7 @@
                  :provides ["ol"]}
                 {:file "extra/lib/highlight.js"
                  :file-min "extra/lib/highlight.min.js"
-                 :provides ["hljs"]}]
+                 :provides ["hljs"]}
+                {:file "extra/lib/marked.umd.js"
+                 :provides ["marked"]}]
 }

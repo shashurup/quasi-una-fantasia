@@ -27,3 +27,6 @@ npm run build-cdn asciidoc c clojure csharp css diff dockerfile \
 cp -upv build/highlight.js ../../extra/lib/
 cp -upv build/highlight.min.js ../../extra/lib/
 cd ../../
+
+npm install marked@18.0.1
+cp -upv node_modules/marked/lib/marked.umd.js extra/lib/
