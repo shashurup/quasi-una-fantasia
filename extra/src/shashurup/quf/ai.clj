@@ -2,11 +2,63 @@
   (:require [clj-http.client :as http]
             [shashurup.quf.secrets :as secrets]
             [shashurup.quf.response :as r]
-            ))
+            [cheshire.core :as json])
+  (:import (java.io BufferedReader InputStreamReader OutputStreamWriter)
+           (java.lang ProcessBuilder)
+           (java.util.concurrent TimeUnit)))
 
 (def ^:dynamic *default-endpoint* "/api/v1/chat/completions")
 (def ^:dynamic *default-message* "You are a large language model and a helpful assistant.
                                   Respond concisely.")
+
+(defn- call-mcp-server
+  ([in out method] (call-mcp-server in out method {}))
+  ([in out method params]
+   (let [msg (json/generate-string {:jsonrpc "2.0"
+                                    :method method
+                                    :params params
+                                    :id 1})]
+     (.write out (str msg "\n"))
+     (.flush out)
+     (json/parse-string (.readLine in) true))))
+
+(defn- start-mcp-server [args]
+  (let [p (.start (ProcessBuilder. args))]
+    {:in (BufferedReader. (InputStreamReader. (.getInputStream p)))
+     :err (BufferedReader. (InputStreamReader. (.getErrorStream p)))
+     :out (OutputStreamWriter. (.getOutputStream p))
+     :process p}))
+
+(defn- notify-client-ready [out]
+  (let [msg (json/generate-string {:jsonrpc "2.0"
+                                   :method "notifications/initialized"})]
+    (.write out (str msg "\n"))))
+
+(defn- init-mcp-server [args]
+  (let [{:keys [in out] :as result} (start-mcp-server args)]
+    (let [resp (call-mcp-server in out "initialize"
+                                {:protocolVersion "2024-05-01"
+                                 :capabilities {} 
+                                 :clientInfo {:name "Quasi una fantasia"
+                                              :version "0.16"}})]
+      (notify-client-ready out)
+      result)))
+
+(defn- list-mcp-tools [in out]
+  (let [mcp-tools (call-mcp-server in out "tools/list")]
+    (for [tool (get-in mcp-tools [:result :tools])]
+      {:type "function"
+       :function {:name (:name tool)
+                  :description (:description tool)
+                  :parameters {:inputSchema tool}}})))
+
+(defn- shutdown-mcp-server [out p]
+  (.close out)
+  (try
+    (when-not (.waitFor p 5 TimeUnit/SECONDS)
+      (.destroyForcibly p))
+    (catch InterruptedException e
+      (.destroyForcibly p))))
 
 (defn- query-model [host endpoint key model messages]
   (:body (http/post (str host endpoint)
@@ -72,3 +124,22 @@
   ([context query]
    (let [temp-context (atom {:config (:config @context)})]
      (p temp-context :temp query))))
+
+
+(defn ensure-mcp-servers-started
+  ([] (ensure-mcp-servers-started *current*))
+  ([context]
+   (doseq [{:keys [name cmd]} (get-in @context [:config :servers])]
+     (when-not (get-in @context [:servers name])
+       (let [{:keys [in out] :as proc} (init-mcp-server cmd)
+             tools (list-mcp-tools in out)]
+         (swap! context update :servers assoc name proc)
+         (swap! context update :tools conj tools))))))
+
+(defn stop-mcp-servers
+  ([] (stop-mcp-servers *current*))
+  ([context]
+   (doseq [[name {:keys [out process]}] (:servers @context)]
+     (shutdown-mcp-server out process)
+     (swap! context update :servers dissoc name))
+   (swap! context dissoc :tools)))
