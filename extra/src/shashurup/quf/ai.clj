@@ -50,7 +50,7 @@
       {:type "function"
        :function {:name (:name tool)
                   :description (:description tool)
-                  :parameters {:inputSchema tool}}})))
+                  :parameters (:inputSchema tool)}})))
 
 (defn- shutdown-mcp-server [out p]
   (.close out)
@@ -60,13 +60,16 @@
     (catch InterruptedException e
       (.destroyForcibly p))))
 
-(defn- query-model [host endpoint key model messages]
+(defn- query-model [host endpoint key model messages tools]
   (:body (http/post (str host endpoint)
                     {:headers {"Authorization" (str "Bearer " key)}
                      :content-type :json
                      :as :json
+                     ;; :debug true
+                     ;; :debug-body true
                      :form-params {:model model
-                                   :messages messages}})))
+                                   :messages messages
+                                   :tools tools}})))
 
 (defn interact
   "Prompt a model"
@@ -75,7 +78,8 @@
           key :key
           endpoint :endpoint
           message :message
-          model :model} :config} @context
+          model :model} :config
+         tools :tools} @context
         key (if (map? key) (secrets/lookup key) key)]
     (swap! context
            #(if (get-in % [:messages topic])
@@ -91,7 +95,8 @@
                             (or endpoint *default-endpoint*)
                             key
                             model
-                            (get-in @context [:messages topic]))
+                            (get-in @context [:messages topic])
+                            tools)
           choice (-> resp :choices first)]
       (swap! context
              update-in [:messages topic]
@@ -134,7 +139,7 @@
        (let [{:keys [in out] :as proc} (init-mcp-server cmd)
              tools (list-mcp-tools in out)]
          (swap! context update :servers assoc name proc)
-         (swap! context update :tools conj tools))))))
+         (swap! context update :tools concat tools))))))
 
 (defn stop-mcp-servers
   ([] (stop-mcp-servers *current*))
