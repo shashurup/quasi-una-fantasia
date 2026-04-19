@@ -135,16 +135,19 @@
           choice (-> resp :choices first)
           content (get-in choice [:message :content])
           tool_calls (get-in choice [:message :tool_calls])]
-      (cond content (do
+      (cond
+        tool_calls (do
+                     (call-tools context topic tool_calls)
+                     (if content
+                       (r/report-progress content)
+                       (r/report-progress "Using tools"))
+                     (interact context topic nil))
+        content (do
                       (append-message! context
                                        topic
                                        {:role "assistant"
                                         :content content})
-                      choice)
-            tool_calls (do
-                         (call-tools context topic tool_calls)
-                         (r/report-progress (str "Calling tools for " model))
-                         (interact context topic nil))))))
+                      choice)))))
 
 (def ^:dynamic *current*)
 
