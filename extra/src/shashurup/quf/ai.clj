@@ -3,6 +3,7 @@
             [clj-http.client :as http]
             [shashurup.quf.secrets :as secrets]
             [shashurup.quf.response :as r]
+            [shashurup.quf.ui :as ui]
             [cheshire.core :as json])
   (:import (java.io BufferedReader InputStreamReader OutputStreamWriter)
            (java.lang ProcessBuilder)
@@ -152,11 +153,18 @@
 
 (defn clear
   ([] (clear *current*))
-  ([context] (swap! context dissoc :messages)))
+  ([arg] (if (keyword? arg)
+           (clear *current* arg)
+           (swap! arg dissoc :messages)))
+  ([context topic] (swap! context
+                          update :messages
+                          dissoc topic)))
 
 (defn p
   ([query] (p *current* :default query))
-  ([topic query] (p *current* topic query))
+  ([arg query] (if (keyword? arg)
+                 (p *current* arg query)
+                 (p arg :default query)))
   ([context topic query]
    (-> (interact context topic query)
        (get-in [:message :content])
@@ -187,3 +195,44 @@
      (shutdown-mcp-server out process)
      (swap! context update :servers dissoc name))
    (swap! context dissoc :tools)))
+
+(defn tools
+  ([] (tools *current*))
+  ([context]
+   (ui/table
+    [:name :description]
+    (for [{{name :name
+            desc :description} :function} (:tools @context)]
+      {:name name
+       :description desc}))))
+
+(defn servers
+  ([] (servers *current*))
+  ([context]
+   (ui/table
+    [:name :started :cmd]
+    (for [srv (get-in @context [:config :servers])]
+      (assoc srv :started (when (get-in @context [:servers (:name srv)])
+                            "yes"))))))
+
+(defn- cut-content [subj]
+  (when (not (nil? subj))
+    (s/replace (if (> (count subj) 80)
+                 (subs subj 0 80)
+                 subj) #"\n" " ")))
+
+(defn log
+  ([] (log *current*))
+  ([arg] (if (keyword? arg)
+           (log *current* arg)
+           (ui/table
+            [:topic :role :content :tools_call]
+            (map #(update % :content cut-content)
+                 (apply concat (for [[topic recs] (:messages @arg)]
+                                 (map #(assoc % :topic topic) recs)))))
+           ))
+  ([context topic]
+   (ui/table
+    [:role :content :tools_call]
+    (map #(update % :content cut-content)
+         (get-in @context [:messages topic])))))
