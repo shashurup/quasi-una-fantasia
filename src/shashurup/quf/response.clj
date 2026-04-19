@@ -14,8 +14,10 @@
     (pr (hint subj hint_))
     (flush)))
 
-(defn report-progress [message value max]
-  (print-with-hint [message value max] :progress))
+(defn report-progress
+  ([message] (report-progress message nil nil))
+  ([message value max]
+   (print-with-hint [message value max] :progress)))
 
 (defn client-modules []
   (->> (loaded-libs)

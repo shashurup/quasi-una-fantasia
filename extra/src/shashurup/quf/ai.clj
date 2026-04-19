@@ -124,7 +124,8 @@
     (ensure-system-message! context topic)
     (when query
       (append-message! context topic {:role "user"
-                                      :content query}))
+                                      :content query})
+      (r/report-progress (str "Querying " model)))
     (let [resp (query-model host
                             (or endpoint *default-endpoint*)
                             key
@@ -142,6 +143,7 @@
                       choice)
             tool_calls (do
                          (call-tools context topic tool_calls)
+                         (r/report-progress (str "Calling tools for " model))
                          (interact context topic nil))))))
 
 (def ^:dynamic *current*)
