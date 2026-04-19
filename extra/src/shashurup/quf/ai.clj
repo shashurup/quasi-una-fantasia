@@ -146,12 +146,29 @@
 
 (def ^:dynamic *current*)
 
-(defn c [subj]
+(defn c
+  "Set current model connection. Stored in *current*.
+   An argument can be either:
+   map - connection configuration consisting of:
+     :host - model API host
+     :endpoint - optional API endpoint when differ from default
+     :key - API key (or a map to retrieve it from secrets)
+     :message - system message
+     :model - model name to use
+     :servers - MCP servers, vector of maps with:
+       :name - server name
+       :cmd - vector with command and args to start it
+       :url - remote server (not yet implemented)"
+  [subj]
   (if (map? subj)
     (def ^:dynamic *current* (atom {:config subj}))
     (def ^:dynamic *current* subj)))
 
 (defn clear
+  "Clear model context. Args can be:
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used.
+   topic - optional, a keyword representing a topic to clear"
   ([] (clear *current*))
   ([arg] (if (keyword? arg)
            (clear *current* arg)
@@ -161,6 +178,12 @@
                           dissoc topic)))
 
 (defn p
+  "Prompt the model. Args are:
+   query - the prompt
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used.
+   topic - optional, a keyword representing a discussion topic
+           topic holds separate context"
   ([query] (p *current* :default query))
   ([arg query] (if (keyword? arg)
                  (p *current* arg query)
@@ -172,6 +195,13 @@
        (r/hint :markdown))))
 
 (defn btw
+  "Prompt the model with empty context.
+   Convinient when you don't want to spoil
+   conversation context with unrelated question.
+   Args, are:
+   query - the prompt
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used."
   ([query] (btw *current* query))
   ([context query]
    (let [temp-context (atom {:config (:config @context)})]
@@ -179,6 +209,9 @@
 
 
 (defn ensure-mcp-servers-started
+  "Ensure that all MCP servers started.
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used."
   ([] (ensure-mcp-servers-started *current*))
   ([context]
    (doseq [{:keys [name cmd]} (get-in @context [:config :servers])]
@@ -189,6 +222,9 @@
          (swap! context update :tools concat tools))))))
 
 (defn stop-mcp-servers
+  "Stop all MCP servers.
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used."
   ([] (stop-mcp-servers *current*))
   ([context]
    (doseq [[name {:keys [out process]}] (:servers @context)]
@@ -197,6 +233,9 @@
    (swap! context dissoc :tools)))
 
 (defn tools
+  "List tools available in started MCP servers.
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used."
   ([] (tools *current*))
   ([context]
    (ui/table
@@ -207,6 +246,9 @@
        :description desc}))))
 
 (defn servers
+  "List configured MCP servers.
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used."
   ([] (servers *current*))
   ([context]
    (ui/table
@@ -222,6 +264,13 @@
                  subj) #"\n" " ")))
 
 (defn log
+  "Show conversation logs. The log also contains MCP server interactions.
+   Args are:
+   query - the prompt
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used.
+   topic - optional, a keyword representing a discussion topic
+           topic holds separate context"
   ([] (log *current*))
   ([arg] (if (keyword? arg)
            (log *current* arg)
