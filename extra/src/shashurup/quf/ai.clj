@@ -1,5 +1,6 @@
 (ns shashurup.quf.ai
-  (:require [clj-http.client :as http]
+  (:require [clojure.string :as s]
+            [clj-http.client :as http]
             [shashurup.quf.secrets :as secrets]
             [shashurup.quf.response :as r]
             [cheshire.core :as json])
@@ -44,11 +45,12 @@
       (notify-client-ready out)
       result)))
 
-(defn- list-mcp-tools [in out]
+(defn- list-mcp-tools [in out server]
   (let [mcp-tools (call-mcp-server in out "tools/list")]
     (for [tool (get-in mcp-tools [:result :tools])]
-      {:type "function"
-       :function {:name (:name tool)
+      {:server server
+       :type "function"
+       :function {:name (str server "." (:name tool))
                   :description (:description tool)
                   :parameters (:inputSchema tool)}})))
 
@@ -59,6 +61,31 @@
       (.destroyForcibly p))
     (catch InterruptedException e
       (.destroyForcibly p))))
+
+(defn- call-tool [context id fun args]
+  (let [[srv {:keys [in out]}] (->> @context
+                                    :servers
+                                    (filter #(s/starts-with? fun (first %)))
+                                    first)
+        name (subs fun (inc (count srv)))
+        args (json/parse-string args)]
+    (call-mcp-server in out "tools/call" {:name name
+                                          :arguments args})))
+
+(defn- call-tools [context topic subj]
+  (append-message! context
+                   topic
+                   {:role "assistant"
+                    :tools_call subj})
+  (doseq [{{fun :name
+            args :arguments} :function
+           id :id} subj]
+    (let [r (call-tool context id fun args)]
+      (append-message! context
+                       topic
+                       {:role "tool"
+                        :content (json/generate-string r)
+                        :tool_call_id id}))))
 
 (defn- query-model [host endpoint key model messages tools]
   (:body (http/post (str host endpoint)
@@ -71,6 +98,18 @@
                                    :messages messages
                                    :tools tools}})))
 
+(defn- ensure-system-message! [context topic]
+  (swap! context
+         #(if (get-in % [:messages topic])
+            %
+            (assoc-in % [:messages topic]
+                      [{:role "system"
+                        :content (or (get-in % [:config :message])
+                                     *default-message*)}]))))
+
+(defn- append-message! [context topic message]
+  (swap! context update-in [:messages topic] conj message))
+
 (defn interact
   "Prompt a model"
   [context topic query]
@@ -81,28 +120,28 @@
           model :model} :config
          tools :tools} @context
         key (if (map? key) (secrets/lookup key) key)]
-    (swap! context
-           #(if (get-in % [:messages topic])
-              %
-              (assoc-in % [:messages topic]
-                        [{:role "system"
-                          :content (or message *default-message*)}])))
-    (swap! context
-           update-in [:messages topic]
-           conj {:role "user"
-                 :content query})
+    (ensure-system-message! context topic)
+    (when query
+      (append-message! context topic {:role "user"
+                                      :content query}))
     (let [resp (query-model host
                             (or endpoint *default-endpoint*)
                             key
                             model
                             (get-in @context [:messages topic])
                             tools)
-          choice (-> resp :choices first)]
-      (swap! context
-             update-in [:messages topic]
-             conj {:role "assistant"
-                   :content (get-in choice [:message :content])})
-      choice)))
+          choice (-> resp :choices first)
+          content (get-in choice [:message :content])
+          tool_calls (get-in choice [:message :tool_calls])]
+      (cond content (do
+                      (append-message! context
+                                       topic
+                                       {:role "assistant"
+                                        :content content})
+                      choice)
+            tool_calls (do
+                         (call-tools context topic tool_calls)
+                         (interact context topic nil))))))
 
 (def ^:dynamic *current*)
 
@@ -137,7 +176,7 @@
    (doseq [{:keys [name cmd]} (get-in @context [:config :servers])]
      (when-not (get-in @context [:servers name])
        (let [{:keys [in out] :as proc} (init-mcp-server cmd)
-             tools (list-mcp-tools in out)]
+             tools (list-mcp-tools in out name)]
          (swap! context update :servers assoc name proc)
          (swap! context update :tools concat tools))))))
 
