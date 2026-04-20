@@ -10,8 +10,7 @@
            (java.util.concurrent TimeUnit)))
 
 (def ^:dynamic *default-endpoint* "/api/v1/chat/completions")
-(def ^:dynamic *default-message* "You are a large language model and a helpful assistant.
-                                  Respond concisely.")
+(def ^:dynamic *default-message* "You are a large language model and a helpful assistant. Respond concisely.")
 
 (defn- call-mcp-server
   ([in out method] (call-mcp-server in out method {}))
@@ -49,8 +48,7 @@
 (defn- list-mcp-tools [in out server]
   (let [mcp-tools (call-mcp-server in out "tools/list")]
     (for [tool (get-in mcp-tools [:result :tools])]
-      {:server server
-       :type "function"
+      {:type "function"
        :function {:name (str server "." (:name tool))
                   :description (:description tool)
                   :parameters (:inputSchema tool)}})))
@@ -63,42 +61,6 @@
     (catch InterruptedException e
       (.destroyForcibly p))))
 
-(defn- call-tool [context id fun args]
-  (let [[srv {:keys [in out]}] (->> @context
-                                    :servers
-                                    (filter #(s/starts-with? fun (first %)))
-                                    first)
-        name (subs fun (inc (count srv)))
-        args (json/parse-string args)]
-    (call-mcp-server in out "tools/call" {:name name
-                                          :arguments args})))
-
-(defn- call-tools [context topic subj]
-  (append-message! context
-                   topic
-                   {:role "assistant"
-                    :tools_call subj})
-  (doseq [{{fun :name
-            args :arguments} :function
-           id :id} subj]
-    (let [r (call-tool context id fun args)]
-      (append-message! context
-                       topic
-                       {:role "tool"
-                        :content (json/generate-string r)
-                        :tool_call_id id}))))
-
-(defn- query-model [host endpoint key model messages tools]
-  (:body (http/post (str host endpoint)
-                    {:headers {"Authorization" (str "Bearer " key)}
-                     :content-type :json
-                     :as :json
-                     ;; :debug true
-                     ;; :debug-body true
-                     :form-params {:model model
-                                   :messages messages
-                                   :tools tools}})))
-
 (defn- ensure-system-message! [context topic]
   (swap! context
          #(if (get-in % [:messages topic])
@@ -110,6 +72,49 @@
 
 (defn- append-message! [context topic message]
   (swap! context update-in [:messages topic] conj message))
+
+(defn- call-tool [context id fun args]
+  (let [[srv {:keys [in out]}] (->> @context
+                                    :servers
+                                    (filter #(s/starts-with? fun (first %)))
+                                    first)
+        name (subs fun (inc (count srv)))
+        args (json/parse-string args)]
+    (call-mcp-server in out "tools/call" {:name name
+                                          :arguments args})))
+
+(defn- extract-tool-text [subj]
+  (s/join " "
+          (->> (get-in subj [:result :content])
+               (filter #(= (:type %) "text"))
+               (map :text))))
+
+(defn- call-tools [context topic subj]
+  (append-message! context
+                   topic
+                   {:role "assistant"
+                    :content nil
+                    :tools_call subj})
+  (doseq [{{fun :name
+            args :arguments} :function
+           id :id} subj]
+    (let [r (call-tool context id fun args)]
+      (append-message! context
+                       topic
+                       {:role "tool"
+                        :tool_call_id id
+                        :content (extract-tool-text r)}))))
+
+(defn- query-model [host endpoint key model messages tools]
+  (:body (http/post (str host endpoint)
+                    {:headers {"Authorization" (str "Bearer " key)}
+                     :content-type :json
+                     :as :json
+                     ;; :debug true
+                     ;; :debug-body true
+                     :form-params {:model model
+                                   :messages messages
+                                   :tools tools}})))
 
 (defn interact
   "Prompt a model"
