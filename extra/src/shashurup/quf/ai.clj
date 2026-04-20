@@ -49,7 +49,7 @@
   (let [mcp-tools (call-mcp-server in out "tools/list")]
     (for [tool (get-in mcp-tools [:result :tools])]
       {:type "function"
-       :function {:name (str server "." (:name tool))
+       :function {:name (str server "_" (:name tool))
                   :description (:description tool)
                   :parameters (:inputSchema tool)}})))
 
@@ -90,11 +90,6 @@
                (map :text))))
 
 (defn- call-tools [context topic subj]
-  (append-message! context
-                   topic
-                   {:role "assistant"
-                    :content nil
-                    :tools_call subj})
   (doseq [{{fun :name
             args :arguments} :function
            id :id} subj]
@@ -137,9 +132,9 @@
                             model
                             (get-in @context [:messages topic])
                             tools)
-          choice (-> resp :choices first)
-          content (get-in choice [:message :content])
-          tool_calls (get-in choice [:message :tool_calls])]
+          message (-> resp :choices first :message)
+          {:keys [content tool_calls]} message]
+      (append-message! context topic message)
       (cond
         tool_calls (do
                      (call-tools context topic tool_calls)
@@ -147,12 +142,7 @@
                        (r/report-progress content)
                        (r/report-progress "Using tools"))
                      (interact context topic nil))
-        content (do
-                      (append-message! context
-                                       topic
-                                       {:role "assistant"
-                                        :content content})
-                      choice)))))
+        content message))))
 
 (def ^:dynamic *current*)
 
@@ -200,7 +190,7 @@
                  (p arg :default query)))
   ([context topic query]
    (-> (interact context topic query)
-       (get-in [:message :content])
+       :content
        vector
        (r/hint :markdown))))
 
