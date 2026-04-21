@@ -239,10 +239,15 @@
   ([] (tools *current*))
   ([context]
    (ui/table
-    [:name :description]
-    (for [{{name :name
+    [:name :params :description]
+    (for [{{fun :name
+            {params :properties} :parameters
             desc :description} :function} (:tools @context)]
-      {:name name
+      {:name fun
+       :params (->> params
+                    keys
+                    (map name)
+                    (s/join ", "))
        :description desc}))))
 
 (defn servers
