@@ -268,6 +268,25 @@
                  (subs subj 0 80)
                  subj) #"\n" " ")))
 
+(defn- render-tool-calls [subj]
+  (->> subj
+       (map :function)
+       (map (fn [{:keys [name arguments]}]
+              (str name "(" (->> (json/parse-string arguments)
+                                 (map (fn [[k v]] (str k ": " v)))
+                                 (s/join ", ")) ")")))
+       (s/join "; ")))
+
+(defn- render-log-entry [subj]
+  (let [{:keys [content tool_calls role] :as all} subj]
+    (assoc all :content (if tool_calls
+                          (ui/html [:span.quf-keyword
+                                    (render-tool-calls tool_calls)])
+                          (if (= role "tool")
+                            (ui/html [:span.quf-string
+                                      (cut-content content)])
+                            (cut-content content))))))
+
 (defn log
   "Show conversation logs. The log also contains MCP server interactions.
    Args are:
@@ -280,13 +299,13 @@
   ([arg] (if (keyword? arg)
            (log *current* arg)
            (ui/table
-            [:topic :role :content :tools_call]
-            (map #(update % :content cut-content)
+            [:topic :role :content]
+            (map render-log-entry
                  (apply concat (for [[topic recs] (:messages @arg)]
                                  (map #(assoc % :topic topic) recs)))))
            ))
   ([context topic]
    (ui/table
-    [:role :content :tools_call]
-    (map #(update % :content cut-content)
+    [:role :content]
+    (map make-log-entry
          (get-in @context [:messages topic])))))
