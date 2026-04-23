@@ -61,20 +61,8 @@
     (catch InterruptedException e
       (.destroyForcibly p))))
 
-(defn- ensure-system-message! [context topic]
-  (swap! context
-         #(if (get-in % [:messages topic])
-            %
-            (assoc-in % [:messages topic]
-                      [{:role "system"
-                        :content (or (get-in % [:config :message])
-                                     *default-message*)}]))))
-
-(defn- append-message! [context topic message]
-  (swap! context update-in [:messages topic] conj message))
-
 (defn- call-tool [context id fun args]
-  (let [[srv {:keys [in out]}] (->> @context
+  (let [[srv {:keys [in out]}] (->> context
                                     :servers
                                     (filter #(s/starts-with? fun (first %)))
                                     first)
@@ -89,17 +77,6 @@
                (filter #(= (:type %) "text"))
                (map :text))))
 
-(defn- call-tools [context topic subj]
-  (doseq [{{fun :name
-            args :arguments} :function
-           id :id} subj]
-    (let [r (call-tool context id fun args)]
-      (append-message! context
-                       topic
-                       {:role "tool"
-                        :tool_call_id id
-                        :content (extract-tool-text r)}))))
-
 (defn- query-model [host endpoint key model messages tools]
   (:body (http/post (str host endpoint)
                     {:headers {"Authorization" (str "Bearer " key)}
@@ -111,38 +88,52 @@
                                    :messages messages
                                    :tools tools}})))
 
+(defn- call-tools [context topic subj tools-callback]
+  (update-in context
+             [:messages topic]
+             into (for [{{fun :name
+                          args :arguments} :function
+                         id :id} subj]
+                    (do
+                      (when tools-callback
+                        (tools-callback fun))
+                      (let [r (call-tool context id fun args)]
+                        {:role "tool"
+                         :tool_call_id id
+                         :content (extract-tool-text r)})))))
+
+(defn ensure-system-message [context topic]
+  (let [messages (get-in context [:messages topic])
+        {{config-message :message} :config} context]
+    (if messages
+      context
+      (assoc-in context
+                [:messages topic] [{:role "system"
+                                    :content (or config-message
+                                                 *default-message*)}]))))
+
 (defn interact
-  "Prompt a model"
-  [context topic query]
+  "Perform model interaction cycle.
+   With tools call if necessary etc."
+  [context topic tools-callback]
   (let [{{host :host
           key :key
           endpoint :endpoint
-          message :message
           model :model} :config
-         tools :tools} @context
+         tools :tools} context
         key (if (map? key) (secrets/lookup key) key)]
-    (ensure-system-message! context topic)
-    (when query
-      (append-message! context topic {:role "user"
-                                      :content query})
-      (r/report-progress (str "Querying " model)))
     (let [resp (query-model host
                             (or endpoint *default-endpoint*)
                             key
                             model
-                            (get-in @context [:messages topic])
+                            (get-in context [:messages topic])
                             tools)
           message (-> resp :choices first :message)
-          {:keys [content tool_calls]} message]
-      (append-message! context topic message)
-      (cond
-        tool_calls (do
-                     (call-tools context topic tool_calls)
-                     (if content
-                       (r/report-progress content)
-                       (r/report-progress "Using tools"))
-                     (interact context topic nil))
-        content message))))
+          context (update-in context [:messages topic] conj message)]
+      (if-let [tool_calls (:tool_calls message)]
+        (let [context (call-tools context topic tool_calls tools-callback)]
+          (interact context topic tools-callback))
+        context))))
 
 (def ^:dynamic *current*)
 
@@ -173,9 +164,11 @@
   ([arg] (if (keyword? arg)
            (clear *current* arg)
            (swap! arg dissoc :messages)))
-  ([context topic] (swap! context
-                          update :messages
-                          dissoc topic)))
+  ([context topic]
+   (swap! context
+          update :messages
+          dissoc topic)
+   topic))
 
 (defn p
   "Prompt the model. Args are:
@@ -189,10 +182,22 @@
                  (p *current* arg query)
                  (p arg :default query)))
   ([context topic query]
-   (-> (interact context topic query)
-       :content
-       vector
-       (r/hint :markdown))))
+   (r/report-progress (str "Querying " (get-in @context [:config :model])))
+   (let [tools-callback (fn [fun]
+                          (r/report-progress (str "Using tool " fun)))
+         new-context (-> @context
+                         (ensure-system-message topic)
+                         (update-in [:messages topic]
+                                    conj {:role "user"
+                                          :content query})
+                         (interact topic tools-callback))]
+     (reset! context new-context)
+     (-> new-context
+         (get-in [:messages topic])
+         last
+         :content
+         vector
+         (r/hint :markdown)))))
 
 (defn btw
   "Prompt the model with empty context.
@@ -307,5 +312,5 @@
   ([context topic]
    (ui/table
     [:role :content]
-    (map make-log-entry
+    (map render-log-entry
          (get-in @context [:messages topic])))))
