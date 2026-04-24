@@ -12,64 +12,59 @@
 (def ^:dynamic *default-endpoint* "/api/v1/chat/completions")
 (def ^:dynamic *default-message* "You are a large language model and a helpful assistant. Respond concisely.")
 
-(defn- call-mcp-server
-  ([in out method] (call-mcp-server in out method {}))
-  ([in out method params]
-   (let [msg (json/generate-string {:jsonrpc "2.0"
-                                    :method method
-                                    :params params
-                                    :id 1})]
-     (.write out (str msg "\n"))
-     (.flush out)
-     (json/parse-string (.readLine in) true))))
+(defmulti init-server (fn [subj]
+                        (if (fn? subj)
+                          :fn
+                          (when (map? subj)
+                            (cond
+                              (:cmd subj) :stdio
+                              (:url subj) :http)))))
 
-(defn- start-mcp-server [args]
-  (let [p (.start (ProcessBuilder. args))]
-    {:in (BufferedReader. (InputStreamReader. (.getInputStream p)))
+(defmulti call-server (fn [s & _] (:type s)))
+
+(defmulti close-server :type)
+
+(defmethod init-server :stdio [{:keys [name cmd]}]
+  (let [p (.start (ProcessBuilder. cmd))]
+    {:type :stdio
+     :name name
+     :in (BufferedReader. (InputStreamReader. (.getInputStream p)))
      :err (BufferedReader. (InputStreamReader. (.getErrorStream p)))
      :out (OutputStreamWriter. (.getOutputStream p))
      :process p}))
 
-(defn- notify-client-ready [out]
-  (let [msg (json/generate-string {:jsonrpc "2.0"
-                                   :method "notifications/initialized"})]
-    (.write out (str msg "\n"))))
+(def mcp-msg-id (atom 0))
 
-(defn- init-mcp-server [args]
-  (let [{:keys [in out] :as result} (start-mcp-server args)]
-    (let [resp (call-mcp-server in out "initialize"
-                                {:protocolVersion "2024-05-01"
-                                 :capabilities {} 
-                                 :clientInfo {:name "Quasi una fantasia"
-                                              :version "0.16"}})]
-      (notify-client-ready out)
-      result)))
+(defmethod call-server :stdio [{:keys [in out]} method params]
+  (if (= method "notifications/initialized")
+      (.write out (str (json/generate-string {:jsonrpc "2.0"
+                                              :method method}) "\n"))
+      (let [msg {:jsonrpc "2.0"
+                 :method method
+                 :params params
+                 :id (swap! mcp-msg-id inc)}]
+        (.write out (str (json/generate-string msg) "\n"))
+        (.flush out)
+        (json/parse-string (.readLine in) true))))
 
-(defn- list-mcp-tools [in out server]
-  (let [mcp-tools (call-mcp-server in out "tools/list")]
-    (for [tool (get-in mcp-tools [:result :tools])]
-      {:type "function"
-       :function {:name (str server "_" (:name tool))
-                  :description (:description tool)
-                  :parameters (:inputSchema tool)}})))
-
-(defn- shutdown-mcp-server [out p]
+(defmethod close-server :stdio [{:keys [out process]}]
   (.close out)
   (try
-    (when-not (.waitFor p 5 TimeUnit/SECONDS)
-      (.destroyForcibly p))
+    (when-not (.waitFor process 5 TimeUnit/SECONDS)
+      (.destroyForcibly process))
     (catch InterruptedException e
-      (.destroyForcibly p))))
+      (.destroyForcibly process))))
 
-(defn- call-tool [context id fun args]
-  (let [[srv {:keys [in out]}] (->> context
-                                    :servers
-                                    (filter #(s/starts-with? fun (first %)))
-                                    first)
-        name (subs fun (inc (count srv)))
-        args (json/parse-string args)]
-    (call-mcp-server in out "tools/call" {:name name
-                                          :arguments args})))
+(defmethod init-server :fn [subj]
+  {:type :fn
+   :fn subj
+   :name (name subj)})
+
+(defn- call-tool [context fun args]
+  (let [[server-name name] (get-in context [:dispatch fun])
+        srv (get-in context [:servers server-name])]
+    (call-server srv "tools/call" {:name name
+                                   :arguments (json/parse-string args)})))
 
 (defn- extract-tool-text [subj]
   (s/join " "
@@ -97,7 +92,7 @@
                     (do
                       (when tools-callback
                         (tools-callback fun))
-                      (let [r (call-tool context id fun args)]
+                      (let [r (call-tool context fun args)]
                         {:role "tool"
                          :tool_call_id id
                          :content (extract-tool-text r)})))))
@@ -219,12 +214,28 @@
              when omitted, *current* is used."
   ([] (ensure-mcp-servers-started *current*))
   ([context]
-   (doseq [{:keys [name cmd]} (get-in @context [:config :servers])]
+   (doseq [{:keys [name] :as srv-cfg} (get-in @context [:config :servers])]
      (when-not (get-in @context [:servers name])
-       (let [{:keys [in out] :as proc} (init-mcp-server cmd)
-             tools (list-mcp-tools in out name)]
-         (swap! context update :servers assoc name proc)
-         (swap! context update :tools concat tools))))))
+       (let [srv (init-server srv-cfg)]
+         (call-server srv
+                      "initialize"
+                      {:protocolVersion "2024-05-01"
+                       :capabilities {} 
+                       :clientInfo {:name "Quasi una fantasia"
+                                    :version "0.16"}})
+         (call-server srv "notifications/initialized" {})
+         (swap! context update :servers assoc name srv)
+         (let [tool-list (get-in (call-server srv "tools/list" {})
+                                 [:result :tools])
+               tools (for [tool tool-list]
+                       {:type "function"
+                        :function {:name (str name "__" (:name tool))
+                                   :description (:description tool)
+                                   :parameters (:inputSchema tool)}})
+               dispatch (into {} (for [{tool-name :name} tool-list]
+                                   [(str name "__" tool-name) [name tool-name]]))]
+           (swap! context update :tools concat tools)
+           (swap! context update :dispatch merge dispatch)))))))
 
 (defn stop-mcp-servers
   "Stop all MCP servers.
@@ -232,10 +243,12 @@
              when omitted, *current* is used."
   ([] (stop-mcp-servers *current*))
   ([context]
-   (doseq [[name {:keys [out process]}] (:servers @context)]
-     (shutdown-mcp-server out process)
+   (doseq [[name srv] (:servers @context)]
+     (close-server srv)
      (swap! context update :servers dissoc name))
-   (swap! context dissoc :tools)))
+   (swap! context dissoc :tools)
+   (swap! context dissoc :dispatch)
+   nil))
 
 (defn tools
   "List tools available in started MCP servers.
