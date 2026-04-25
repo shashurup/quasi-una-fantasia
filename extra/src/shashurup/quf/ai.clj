@@ -118,8 +118,8 @@
                     {:headers {"Authorization" (str "Bearer " key)}
                      :content-type :json
                      :as :json
-                     :debug true
-                     :debug-body true
+                     ;; :debug true
+                     ;; :debug-body true
                      :form-params {:model model
                                    :messages messages
                                    :tools tools}})))
