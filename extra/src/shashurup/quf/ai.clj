@@ -12,13 +12,24 @@
 (def ^:dynamic *default-endpoint* "/api/v1/chat/completions")
 (def ^:dynamic *default-message* "You are a large language model and a helpful assistant. Respond concisely.")
 
+(def storage (atom {}))
+
+(defn store-value
+  "Stores an arbitrary value into the Quasi Una Fantasia (QuF) environment."
+  {:mcp-params
+   {:properties {:name {:type "string"
+                        :description "The name of the value to store"}
+                 :value {:type "any"
+                         :description "The value to store"}}}}
+  [name value]
+  (swap! storage assoc name value)
+  nil)
+
 (defmulti init-server (fn [subj]
-                        (if (fn? subj)
-                          :fn
-                          (when (map? subj)
-                            (cond
-                              (:cmd subj) :stdio
-                              (:url subj) :http)))))
+                        (cond
+                          (:cmd subj) :stdio
+                          (:url subj) :http
+                          (:fn subj) :fn)))
 
 (defmulti call-server (fn [s & _] (:type s)))
 
@@ -56,9 +67,39 @@
       (.destroyForcibly process))))
 
 (defmethod init-server :fn [subj]
-  {:type :fn
-   :fn subj
-   :name (name subj)})
+  (let [{srv-name :name fn :fn} subj
+        {:keys [arglists doc mcp-params]} (meta fn)
+        by-count (group-by count arglists)
+        [_ [required]] (apply min-key first by-count)
+        [_ [longest]] (apply max-key first by-count)
+        all (->> longest
+                 (map #(name %))
+                 (remove #(= % "&")))
+        deduced {:$schema "http://json-schema.org/draft-07/schema#"
+                 :type "object"
+                 :properties (into {}
+                                   (for [p all]
+                                     [p {:type "string"}]))
+                 :required (mapv name required)}]
+    {:type :fn
+     :fn (var-get fn)
+     :arg-list all
+     :mcp-description {:name (name (symbol fn))
+                       :description doc
+                       :inputSchema (merge deduced mcp-params)}
+     :name srv-name}))
+
+(defmethod call-server :fn [{:keys [fn arg-list mcp-description]}
+                            method
+                            {:keys [_ arguments]}]
+  (condp = method
+    "tools/list" {:result {:tools [mcp-description]}}
+    "tools/call" (let [resp (apply fn (map #(get arguments %) arg-list))]
+                   {:result {:content [{:type "text"
+                                        :text (json/generate-string resp)}]}})
+    nil))
+
+(defmethod close-server :fn [_])
 
 (defn- call-tool [context fun args]
   (let [[server-name name] (get-in context [:dispatch fun])
@@ -77,8 +118,8 @@
                     {:headers {"Authorization" (str "Bearer " key)}
                      :content-type :json
                      :as :json
-                     ;; :debug true
-                     ;; :debug-body true
+                     :debug true
+                     :debug-body true
                      :form-params {:model model
                                    :messages messages
                                    :tools tools}})))
@@ -97,7 +138,7 @@
                          :tool_call_id id
                          :content (extract-tool-text r)})))))
 
-(defn ensure-system-message [context topic]
+(defn- ensure-system-message [context topic]
   (let [messages (get-in context [:messages topic])
         {{config-message :message} :config} context]
     (if messages
