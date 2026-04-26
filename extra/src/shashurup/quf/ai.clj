@@ -171,6 +171,9 @@
           (interact context topic tools-callback))
         context))))
 
+(defn agent [config]
+  (atom {:config config}))
+
 (def ^:dynamic *current*)
 
 (defn c
@@ -197,14 +200,26 @@
              when omitted, *current* is used.
    topic - optional, a keyword representing a topic to clear"
   ([] (clear *current*))
-  ([arg] (if (keyword? arg)
+  ([arg] (if (or (coll? arg) (keyword? arg))
            (clear *current* arg)
            (swap! arg dissoc :messages)))
-  ([context topic]
-   (swap! context
-          update :messages
-          dissoc topic)
-   topic))
+  ([context arg]
+   (if (keyword? arg)
+     (swap! context
+            update :messages
+            dissoc arg)
+     (if (keyword? (first arg))
+       (let [[topic num] arg
+             nums (set (if (coll? num) num [num]))]
+         (swap! context
+                update-in [:messages topic]
+                (fn [ms]
+                  (->> ms
+                       (keep-indexed (fn [idx m] (if (nums idx) nil m)))
+                       vec))))
+       nil ;; todo remove by [topic num] pairs
+       ))
+   arg))
 
 (defn p
   "Prompt the model. Args are:
@@ -344,7 +359,8 @@
                           (if (= role "tool")
                             (ui/html [:span.quf-string
                                       (cut-content content)])
-                            (cut-content content))))))
+                            (cut-content content)))
+               )))
 
 (defn log
   "Show conversation logs. The log also contains MCP server interactions.
@@ -358,13 +374,15 @@
   ([arg] (if (keyword? arg)
            (log *current* arg)
            (ui/table
-            [:topic :role :content]
+            [:idx :topic :role :content]
             (map render-log-entry
                  (apply concat (for [[topic recs] (:messages @arg)]
-                                 (map #(assoc % :topic topic) recs)))))
+                                 (map-indexed #(assoc %2 :topic topic :idx %1)
+                                              recs)))))
            ))
   ([context topic]
    (ui/table
-    [:role :content]
+    [:idx :role :content]
     (map render-log-entry
-         (get-in @context [:messages topic])))))
+         (map-indexed #(assoc %2 :idx %1)
+                      (get-in @context [:messages topic]))))))
