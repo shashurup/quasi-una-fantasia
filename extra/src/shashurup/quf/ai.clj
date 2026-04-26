@@ -25,6 +25,14 @@
   (swap! storage assoc name value)
   nil)
 
+(defn load-value
+  "Loads an arbitrary value from the Quasi Una Fantasia (QuF) environment."
+  {:mcp-params
+   {:properties {:name {:type "string"
+                        :description "The name of the value to load"}}}}
+  [name]
+  (get @storage name))
+
 (defmulti init-server (fn [subj]
                         (cond
                           (:cmd subj) :stdio
