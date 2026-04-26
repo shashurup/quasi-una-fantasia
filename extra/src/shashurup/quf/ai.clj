@@ -194,6 +194,14 @@
     (def ^:dynamic *current* (atom {:config subj}))
     (def ^:dynamic *current* subj)))
 
+(defn- delete-messages [context topic msg-nums]
+  (swap! context
+         update-in [:messages topic]
+         (fn [ms]
+           (->> ms
+                (keep-indexed (fn [idx m] (if (msg-nums idx) nil m)))
+                vec))))
+
 (defn clear
   "Clear model context. Args can be:
    context - optional, atom keeping model interaction state
@@ -211,14 +219,10 @@
      (if (keyword? (first arg))
        (let [[topic num] arg
              nums (set (if (coll? num) num [num]))]
-         (swap! context
-                update-in [:messages topic]
-                (fn [ms]
-                  (->> ms
-                       (keep-indexed (fn [idx m] (if (nums idx) nil m)))
-                       vec))))
-       nil ;; todo remove by [topic num] pairs
-       ))
+         (delete-messages context topic nums))
+       (doseq [[topic pairs] (group-by first arg)]
+         (let [nums (set (map second pairs))]
+           (delete-messages context topic nums)))))
    arg))
 
 (defn p
