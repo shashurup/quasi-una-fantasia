@@ -232,9 +232,9 @@
                                {:keys [x-data status] :as reply}
                                go-next]
   (render-reply id expr reply)
+  (.scrollIntoView (get-cell-element id))
   (when (nrepl/terminated? status)
     (remove-progress-bar id)
-    (.scrollIntoView (get-cell-element id))
     (.requestIdleCallback js/window update-title)
     (.requestIdleCallback js/window store-cell-exprs)
     (.dispatchEvent js/document (js/Event. "evalComplete"))
