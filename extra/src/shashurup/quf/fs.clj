@@ -52,7 +52,7 @@
   (str (.normalize (.relativize (as-path path)
                                 (as-path other)))))
 
-(def ^:dynamic *cwd*)
+(def ^:dynamic *cwd* (System/getProperty "user.dir"))
 
 (defn c
   "Change current directory."
