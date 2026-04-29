@@ -82,4 +82,7 @@
                 {:port port :join? join?})))
 
 (defn -main [& args]
-  (start 9500 true))
+  (let [port (if-let [p (first args)]
+               (Integer/parseInt p)
+               9500)]
+    (start port true)))

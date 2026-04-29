@@ -500,5 +500,3 @@
                               (make-array FileAttribute 0))))
 
 (def mkdir create-dir)
-
-(defonce _dummy (c "~"))
