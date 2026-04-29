@@ -361,7 +361,7 @@
        (map :function)
        (map (fn [{:keys [name arguments]}]
               (str name "(" (->> (json/parse-string arguments)
-                                 (map (fn [[k v]] (str k ": " v)))
+                                 (map (fn [[k v]] (str k ": " (cut-content v))))
                                  (s/join ", ")) ")")))
        (s/join "; ")))
 
@@ -373,8 +373,7 @@
                           (if (= role "tool")
                             (ui/html [:span.quf-string
                                       (cut-content content)])
-                            (cut-content content)))
-               )))
+                            (cut-content content))))))
 
 (defn log
   "Show conversation logs. The log also contains MCP server interactions.
