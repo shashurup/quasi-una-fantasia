@@ -262,6 +262,8 @@
          vector
          (r/hint :markdown)))))
 
+(def btw-current-id (atom 0))
+
 (defn btw
   "Prompt the model with empty context.
    Convinient when you don't want to spoil
@@ -272,8 +274,8 @@
              when omitted, *current* is used."
   ([query] (btw *current* query))
   ([context query]
-   (let [temp-context (atom {:config (:config @context)})]
-     (p temp-context :temp query))))
+   (let [topic (keyword (str "btw-" (swap! btw-current-id inc)))]
+     (p context topic query))))
 
 
 (defn ensure-mcp-servers-started

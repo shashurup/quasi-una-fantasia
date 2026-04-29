@@ -52,7 +52,7 @@
   (str (.normalize (.relativize (as-path path)
                                 (as-path other)))))
 
-(def ^:dynamic *cwd*)
+(def ^:dynamic *cwd* (System/getProperty "user.dir"))
 
 (defn c
   "Change current directory."
@@ -370,6 +370,9 @@
                "text/x-web-markdown" "markdown"
                "text/x-sql" "sql"})
 
+(def known-hints {"text/markdown" :markdown
+                  "text/x-web-markdown" :markdown})
+
 (defn- text? [mime-type]
   (or (s/starts-with? mime-type "text/")
       (get lang-map mime-type)))
@@ -385,9 +388,11 @@
                  (get-file-mime-type url)))
         obj (assoc obj :mime-type mt)]
     (if (text? mt)
-      (if-let [lang (get lang-map mt)]
-        (ui/code (data/as-text (:path obj)) lang)
-        (ui/code (data/as-text (:path obj))))
+      (if-let [hint (get known-hints mt)]
+        (resp/hint (data/as-text (:path obj)) hint)
+        (if-let [lang (get lang-map mt)]
+          (ui/code (data/as-text (:path obj)) lang)
+          (ui/code (data/as-text (:path obj)))))
       (resp/hint obj [:object-attr ::file :content]))))
 
 
