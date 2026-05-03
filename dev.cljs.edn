@@ -22,5 +22,9 @@
                  :file-min "extra/lib/highlight.min.js"
                  :provides ["hljs"]}
                 {:file "extra/lib/marked.umd.js"
-                 :provides ["marked"]}]
+                 :provides ["marked"]}
+                {:file "extra/lib/katex.js"
+                 :provides ["katex"]}
+                {:file "extra/lib/marked-katex.umd.js"
+                 :provides ["marked-katex"]}]
 }

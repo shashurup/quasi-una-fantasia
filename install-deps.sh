@@ -30,3 +30,11 @@ cd ../../
 
 npm install marked@18.0.1
 cp -upv node_modules/marked/lib/marked.umd.js extra/lib/
+
+npm install katex@0.16.45
+cp -upv node_modules/katex/dist/katex.js extra/lib/
+cp -upv node_modules/katex/dist/katex.min.js extra/lib/
+cp -upv node_modules/katex/dist/katex.min.css extra/resources/public/css/
+
+npm install marked-katex-extension@5.1.8
+cp -upv node_modules/marked-katex-extension/lib/index.umd.js extra/lib/marked-katex.umd.js

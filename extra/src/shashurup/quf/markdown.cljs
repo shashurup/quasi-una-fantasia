@@ -1,7 +1,10 @@
 (ns shashurup.quf.markdown
   (:require [clojure.string :as s]
             [shashurup.quf.render :refer [render hint-args]]
+            [shashurup.quf.utils :as u]
             [marked]
+            [katex]
+            [marked-katex]
             [hljs]))
 
 (defn parse [subj]
@@ -36,6 +39,9 @@
 (.use js/marked (clj->js {:renderer {:code render-code
                                      :table render-table}}))
 
+(.use js/marked (js/markedKatex #js{:throwOnError false
+                                    :nonStandard true}))
+
 (defn- from-raw-html [subj]
   (let [templ (.createElement js/document "template")]
     (set! (.-innerHTML templ) subj)
@@ -43,3 +49,6 @@
 
 (defmethod render :markdown [subj]
   [:div (from-raw-html (parse (s/join "\n" subj)))])
+
+(defonce startup-dummy
+  (u/add-style-ref "css/katex.min.css"))
