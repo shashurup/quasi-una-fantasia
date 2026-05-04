@@ -27,5 +27,5 @@
                 {:file "extra/lib/katex.min.js"
                  :provides ["katex"]}
                 {:file "extra/lib/marked-katex.umd.js"
-                 :provides ["marked-katex"]}
+                 :provides ["marked-katex"]}]
 }
