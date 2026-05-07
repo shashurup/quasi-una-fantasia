@@ -361,7 +361,8 @@
        (map :function)
        (map (fn [{:keys [name arguments]}]
               (str name "(" (->> (json/parse-string arguments)
-                                 (map (fn [[k v]] (str k ": " (cut-content v))))
+                                 (map (fn [[k v]]
+                                        (str k ": " (cut-content (str v)))))
                                  (s/join ", ")) ")")))
        (s/join "; ")))
 
