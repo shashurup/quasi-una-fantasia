@@ -164,13 +164,17 @@
           key :key
           endpoint :endpoint
           model :model} :config
-         tools :tools} context
+         tools :tools
+         ms :messages} context
+        messages (map #(select-keys % [:content :role :name :refusal
+                                       :tool_calls :tool_call_id])
+                      (get ms topic))
         key (if (map? key) (secrets/lookup key) key)]
     (let [resp (query-model host
                             (or endpoint *default-endpoint*)
                             key
                             model
-                            (get-in context [:messages topic])
+                            messages
                             tools)
           message (-> resp :choices first :message)
           context (update-in context [:messages topic] conj message)]
