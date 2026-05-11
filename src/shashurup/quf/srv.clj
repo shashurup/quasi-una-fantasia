@@ -12,10 +12,27 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [nrepl.transport :as t]
-            [nrepl.server :as srv]))
+            [nrepl.server :as srv])
+  (:import [java.util.concurrent ArrayBlockingQueue TimeUnit]))
 
+(def SERVER-QUEUE-CAPACITY 16)
+(def TIMEOUT (* 16 1000))
+
+(deftype QueueTransport [^ArrayBlockingQueue in ^ArrayBlockingQueue out]
+  t/Transport
+  (send [this msg]
+    (when-not (.offer out msg TIMEOUT TimeUnit/MILLISECONDS)
+      (throw (ex-info "Pipe timeout" {:reason :timeout})))
+    this)
+  (recv [_this] (.take in))
+  (recv [_this timeout] (.poll in timeout TimeUnit/MILLISECONDS)))
+
+;; TODO handle sessions expiration
 (defn create-transport []
-  (let [[client server] (t/piped-transports)]
+  (let [cq (ArrayBlockingQueue. 1)
+        sq (ArrayBlockingQueue. SERVER-QUEUE-CAPACITY)
+        client (QueueTransport. sq cq)
+        server (QueueTransport. cq sq)]
     (future (srv/handle (srv/default-handler #'vars/wrap-update-vars
                                              #'pruner/wrap-pruner)
                         server))
@@ -28,7 +45,7 @@
       edn/read))
 
 (defn response-seq [transport timeout]
-  (loop [msg (t/recv transport (* 1000 timeout))
+  (loop [msg (t/recv transport timeout)
          result []]
     (if msg
       ;; when evaluation result is read
@@ -45,8 +62,9 @@
                        {timeout :timeout
                         wait-reply :wait-reply} :params}]
   (let [transport (or transport (create-transport))
-        timeout (or (as-int timeout) 8)]
+        timeout (or (as-int timeout) TIMEOUT)]
     (when (= method :post)
+      ;; TODO handle timeout (in case something is running already)
       (t/send transport (parse-message body)))
     (let [r (when (or (= method :get) wait-reply)
               (response-seq transport timeout))]
