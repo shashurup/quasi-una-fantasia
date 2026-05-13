@@ -7,10 +7,11 @@
 (defn wrap-event-reporter [h]
   (fn [{:keys [id session op transport] :as msg}]
     (when (= op "eval")
-      (let [re (fn [subj]
+      (let [session-id (:id (meta session))
+            re (fn [subj]
                  (t/send transport
                          {:id id
-                          :session (:id (meta session))
+                          :session session-id
                           :event (binding [*print-meta* true]
                                    (pr-str subj))})
                  nil)]
