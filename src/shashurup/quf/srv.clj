@@ -3,6 +3,7 @@
   (:require [shashurup.quf.response :as response]
             [shashurup.quf.vars :as vars]
             [shashurup.quf.pruner :as pruner]
+            [shashurup.quf.evt :as evt]
             [compojure.core :refer :all]
             [compojure.route :as route]
             [compojure.coercions :refer [as-int]]
@@ -34,7 +35,8 @@
         client (QueueTransport. sq cq)
         server (QueueTransport. cq sq)]
     (future (srv/handle (srv/default-handler #'vars/wrap-update-vars
-                                             #'pruner/wrap-pruner)
+                                             #'pruner/wrap-pruner
+                                             #'evt/wrap-event-reporter)
                         server))
     client))
 

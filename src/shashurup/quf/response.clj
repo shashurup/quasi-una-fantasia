@@ -14,6 +14,10 @@
     (pr (hint subj hint_))
     (flush)))
 
+;; Fallback event reporting function
+;; Overriden in evt middleware
+(def ^:dynamic report-event pr)
+
 (defn report-progress
   ([message] (report-progress message nil nil))
   ([message value max]
