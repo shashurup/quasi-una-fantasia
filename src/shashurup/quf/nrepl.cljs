@@ -134,7 +134,7 @@
                       "shashurup.quf.response/pr-with-meta"}
                    extra)
             (fn [reply]
-              (let [reply (read-values reply [:value :x-data])]
+              (let [reply (read-values reply [:value :x-data :event])]
                 (when (terminated? (:status reply))
                   (history-append (serialize-code expr)))
                 (when-let [ns (:ns reply)]

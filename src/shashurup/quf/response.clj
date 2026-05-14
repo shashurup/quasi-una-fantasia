@@ -21,7 +21,11 @@
 (defn report-progress
   ([message] (report-progress message nil nil))
   ([message value max]
-   (print-with-hint [message value max] :progress)))
+   (report-event (merge {:type :progress
+                         :message message}
+                        (when value
+                          {:value value
+                           :max max})))))
 
 (defn client-modules []
   (->> (loaded-libs)

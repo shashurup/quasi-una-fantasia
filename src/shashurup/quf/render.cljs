@@ -23,6 +23,11 @@
 
 (defmulti render value-type)
 
+(defmulti handle-event (fn [{:keys [type]} _] type))
+
+(defmethod handle-event :default [_ _]
+  (u/not-found-hook))
+
 (defn get-result-element [id]
   (gdom/getElement (str "result-" id)))
 
@@ -58,10 +63,11 @@
 (defonce cell-handlers (atom {}))
 (defonce output-handlers (atom {}))
 
-(defn render-reply [id expr {:keys [out err ex value status] :as reply}]
+(defn render-reply [id expr {:keys [out err ex value event status] :as reply}]
   (let [cell-handler (get @cell-handlers id)]
     (cond
       (contains? reply :value) (render-result expr value (get-result-element id))
+      (contains? reply :event) (handle-event event id)
       cell-handler (cell-handler id reply)
       (some reply out-keys) (let [data (nrepl/try-read-value-with-meta out)]
                               (if-let [hint (:shashurup.quf/hint (meta data))]
@@ -73,7 +79,7 @@
 
 ;; Extra nrepl messages
 
-(defn update-progress [id [message value max]]
+(defmethod handle-event :progress [{:keys [message value max]} id]
   (let [progress-el (gdom/getElement (str "progress-" id))]
     (when value
       (when-let [el (first (gdom/getElementsByTagName "progress" progress-el))]
@@ -465,6 +471,3 @@
       (render-tree-level data [render-fn children-key tree-id
                                actions get-key])]
      [:div.quf-tree-right {:id (str tree-id "-content")}]]))
-
-(defonce startup-dummy
-  (swap! output-handlers assoc :progress update-progress))
