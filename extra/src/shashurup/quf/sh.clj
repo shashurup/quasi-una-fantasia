@@ -92,13 +92,13 @@
      :wait #(.waitFor p)
      :resize #(resize p %)}))
 
-(defn flushing-copy [from to]
+(defn stream-events [from]
   (let [buffer (char-array 1024)]
     (loop []
       (let [size (.read from buffer)]
         (when (pos? size)
-          (.write to buffer 0 size)
-          (.flush to)
+          (resp/report-event {:type :terminal
+                              :out (String. buffer 0 size)})
           (recur))))))
 
 (defn process-input [from to resize]
@@ -119,10 +119,10 @@
 
   Return value is a process return code."
   [cmdline]
-  (resp/print-with-hint {} :terminal)
   (let [args [*shell* "-c" cmdline]
         {:keys [in out wait resize]} (start-process-with-pty args fs/*cwd*)]
     (let [in-handler (future (process-input *in* in resize))]
-      (flushing-copy out *out*)
+      (stream-events out)
       (future-cancel in-handler))
-    (wait)))
+    (wait))
+  (resp/report-event {:type :terminal :status #{:done}}))

@@ -5,8 +5,7 @@
             [goog.dom :as gdom]
             [goog.events :as gevents]
             [shashurup.quf.nrepl :as nrepl]
-            [shashurup.quf.render :refer [cell-handlers
-                                          output-handlers]]
+            [shashurup.quf.render :refer [handle-event]]
             [shashurup.quf.theme :as theme]
             [shashurup.quf.utils :as u]
             [shashurup.quf.vars :as vars]
@@ -104,20 +103,14 @@
 
 ;; TODO handle terminal deactivation
 (defn deactivate-terminal [id]
-  (let [terminal (get @terminals id)]
+  (let [terminal (@terminals id)]
     (.onKey terminal nil)
     ;; At the moment terminal contents isn't rendred completely yet
     ;; So we postpone shrinking
     (js/setTimeout #(shrink-to-content terminal) 128)
     (swap! terminals dissoc id)))
 
-(defn write-terimnal [id {:keys [out err status] :as reply}]
-  (when-let [terminal (get @terminals id)]
-    (if (nrepl/terminated? status)
-      (deactivate-terminal id)
-      (.write terminal (or out err)))))
-
-(defn plug-terminal [id _]
+(defn plug-terminal [id]
   (. js/console debug "plugging terminal" id)
   (let [el (get-out-element id)
         [cols rows] (terminal-dimensions)
@@ -126,7 +119,6 @@
                                          :fontSize (second font)
                                          :theme (create-theme)}))]
     (swap! terminals assoc id terminal)
-    (swap! cell-handlers assoc id write-terimnal)
     (.resize terminal cols rows)
     (gevents/listen js/window
                     "resize"
@@ -138,11 +130,18 @@
                           (.resize terminal cols (.-rows terminal))))))
     (.open terminal el)
     (.onKey terminal handle-key)
-    (.focus terminal)))
+    (.focus terminal)
+    terminal))
+
+(defmethod handle-event :terminal [{:keys [out err status] :as msg} id]
+  (. js/console log "terminal event " id)
+  (let [term (or (@terminals id) (plug-terminal id))]
+    (if (nrepl/terminated? status)
+      (deactivate-terminal id)
+      (.write term (or out err)))))
 
 (defonce startup-dummy 
   (do
-    (swap! output-handlers assoc :terminal plug-terminal)
     (gevents/listen js/window "resize" handle-resize)
     ;; Postpone updating *terminal-dimensions* var
     ;; to avoid race condition modifying session local value

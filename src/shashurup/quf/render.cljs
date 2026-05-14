@@ -60,22 +60,12 @@
                                    (crate/html result)))
         (doseq [f @deferred] (f))))))
 
-(defonce cell-handlers (atom {}))
-(defonce output-handlers (atom {}))
-
 (defn render-reply [id expr {:keys [out err ex value event status] :as reply}]
-  (let [cell-handler (get @cell-handlers id)]
-    (cond
-      (contains? reply :value) (render-result expr value (get-result-element id))
-      (contains? reply :event) (handle-event event id)
-      cell-handler (cell-handler id reply)
-      (some reply out-keys) (let [data (nrepl/try-read-value-with-meta out)]
-                              (if-let [hint (:shashurup.quf/hint (meta data))]
-                                (if-let [out-handler (get @output-handlers hint)]
-                                  (out-handler id data)
-                                  (u/not-found-hook))
-                                (gdom/append (get-out-element id)
-                                             (make-out-line reply)))))))
+  (cond
+    (contains? reply :value) (render-result expr value (get-result-element id))
+    (contains? reply :event) (handle-event event id)
+    (some reply out-keys) (gdom/append (get-out-element id)
+                                       (make-out-line reply))))
 
 ;; Extra nrepl messages
 
