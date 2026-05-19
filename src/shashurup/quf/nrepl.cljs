@@ -3,7 +3,7 @@
    [goog.events :as gevents]
    [cljs.tools.reader :refer [read-string]]))
 
-(defonce state (atom {}))
+(defonce state (atom {:bg-events #{}}))
 
 (defn get-ns [] (:ns @state))
 
@@ -48,6 +48,17 @@
   (when id
     (swap! state update :callbacks dissoc id)))
 
+(defn add-bg-event [id]
+  (when id
+    (swap! state update :bg-events conj id)))
+
+(defn remove-bg-event [id]
+  (when id
+    (swap! state update :bg-events disj id)))
+
+(defn no-bg-event [id]
+  (not ((:bg-events @state) id)))
+
 (defn pending-callbacks? []
   (> (count (:callbacks @state)) 0))
 
@@ -87,7 +98,12 @@
                     (callback reply)
                     (catch js/Object ex
                       (. js/console error ex))))
-                (when (and id (terminated? status))
+                (when (:expect-background-events status)
+                  (add-bg-event id))
+                (when (:no-more-background-events status)
+                  (remove-bg-event id)
+                  (remove-callback id))
+                (when (and id (terminated? status) (no-bg-event id))
                   (remove-callback id)))
               replies))
   (when (pending-callbacks?)

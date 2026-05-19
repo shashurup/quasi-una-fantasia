@@ -14,8 +14,21 @@
                           :session session-id
                           :event (binding [*print-meta* true]
                                    (pr-str subj))})
-                 nil)]
-        (swap! session assoc #'r/report-event re)))
+                 nil)
+            ev-start (fn []
+                       (t/send transport
+                               {:id id
+                                :session session-id
+                                :status #{:expect-background-events}}))
+            ev-stop (fn []
+                      (t/send transport
+                              {:id id
+                               :session session-id
+                               :status #{:no-more-background-events}}))]
+        (swap! session assoc
+               #'r/report-event re
+               #'r/expect-background-events ev-start
+               #'r/no-more-background-events ev-stop)))
     (h msg)))
 
 (mwre/set-descriptor! #'wrap-event-reporter

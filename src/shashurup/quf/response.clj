@@ -14,6 +14,10 @@
     (pr (hint subj hint_))
     (flush)))
 
+(def ^:dynamic expect-background-events (fn []))
+
+(def ^:dynamic no-more-background-events (fn []))
+
 ;; Fallback event reporting function
 ;; Overriden in evt middleware
 (def ^:dynamic report-event pr)
