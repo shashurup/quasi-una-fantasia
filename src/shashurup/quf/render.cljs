@@ -48,13 +48,15 @@
 
 (def ^:dynamic defer (fn [_]))
 
+(defn add-expr [val expr]
+  (if (coll? val)
+    (vary-meta val assoc ::expr expr)
+    val))
+
 (defn render-result [expr val target]
   (let [deferred (atom [])]
     (binding [defer #(swap! deferred conj %)]
-      (let [val (if (coll? val)
-                  (vary-meta val assoc ::expr expr)
-                  val)
-            result (render val)]
+      (let [result (render (add-expr val expr))]
         (gdom/appendChild target (if (gdom/isElement result)
                                    result
                                    (crate/html result)))
@@ -68,6 +70,12 @@
                                        (make-out-line reply))))
 
 ;; Extra nrepl messages
+
+(defmethod handle-event :value [{:keys [action value]} id]
+  (let [target (get-result-element id)]
+    (gdom/removeChildren target)
+    ;; TODO handle expr here
+    (render-result nil value target)))
 
 (defmethod handle-event :progress [{:keys [message value max]} id]
   (let [progress-el (gdom/getElement (str "progress-" id))]
