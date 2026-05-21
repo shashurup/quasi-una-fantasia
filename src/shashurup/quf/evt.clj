@@ -32,7 +32,8 @@
                         #'r/no-more-background-events ev-stop)
                  (h msg))
         "cancel-events" (if-let [cancel (get-in @cancel-fns [session-id id])]
-                          (do (cancel)
+                          (do (swap! cancel-fns update session-id dissoc id)
+                              (cancel)
                               (t/respond-to msg :status #{:done}))
                           (t/respond-to msg :status #{:done :error :not-found}))
         (h msg)))))

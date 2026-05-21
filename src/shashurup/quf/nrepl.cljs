@@ -179,6 +179,11 @@
 (defn send-interrupt [id]
   (send-op {:op "interrupt"} nil))
 
+(defn send-cancel-events [id]
+  (send-message {:id id
+                 :session (:session @state)
+                 :op "cancel-events"} nil))
+
 (defn send-completions [text callback]
   (send-op {:op "completions"
             :prefix text

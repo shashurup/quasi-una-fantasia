@@ -215,6 +215,13 @@
                           :value "Cancel"
                           :onclick handler-call}]])))
 
+(defn create-cancel-events-button [id reply-id]
+  (crate/html [:div {:id (str "events-" id)}
+               [:input {:type "button"
+                        :value "Cancel"
+                        :onclick (u/gen-js-call
+                                  #(nrepl/send-cancel-events reply-id))}]]))
+
 (defn get-progress-element [id]
   (gdom/getElement (str "progress-" id)))
 
@@ -231,6 +238,11 @@
                                expr
                                {:keys [x-data status] :as reply}
                                go-next]
+  (when (:expect-background-events status)
+    (gdom/appendChild (get-cell-element id)
+                      (create-cancel-events-button id (:id reply))))
+  (when (:no-more-background-events status)
+    (gdom/removeNode (gdom/getElement (str "events-" id))))
   (render-reply id expr reply)
   (.scrollIntoView (get-cell-element id))
   (when (nrepl/terminated? status)
