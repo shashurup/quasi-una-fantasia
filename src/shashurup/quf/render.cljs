@@ -85,11 +85,15 @@
         (when max
           (set! (.-max el) max))))
     (when message
-      (if-let [el (first (gdom/getElementsByTagName "p" progress-el))]
-        (.replaceChildren el message)
-        (.insertBefore progress-el
-                       (crate/html [:p message])
-                       (.-firstChild progress-el))))))
+      (let [content (if (string? message)
+                         [:p message]
+                         (render message))
+               el (first (gdom/getElementsByTagName "div" progress-el))]
+        (if el
+          (.replaceChildren el (crate/html content))
+          (.insertBefore progress-el
+                         (crate/html [:div content])
+                         (.-firstChild progress-el)))))))
 
 ;; Tree
 
