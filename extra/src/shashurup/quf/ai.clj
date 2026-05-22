@@ -135,13 +135,13 @@
 (defn- call-tools [context topic subj tools-callback]
   (update-in context
              [:messages topic]
-             into (for [{{fun :name
-                          args :arguments} :function
+             into (for [{{:keys [name arguments]
+                          :as tc} :function
                          id :id} subj]
                     (do
                       (when tools-callback
-                        (tools-callback fun))
-                      (let [r (call-tool context fun args)]
+                        (tools-callback tc))
+                      (let [r (call-tool context name arguments)]
                         {:role "tool"
                          :tool_call_id id
                          :content (extract-tool-text r)})))))
@@ -155,6 +155,12 @@
                 [:messages topic] [{:role "system"
                                     :content (or config-message
                                                  *default-message*)}]))))
+
+(defn render-tool-call [{:keys [name arguments]}]
+  (str name "(" (->> (json/parse-string arguments)
+                     (map (fn [[k v]]
+                            (str k ": " (cut-content (str v)))))
+                     (s/join ", ")) ")"))
 
 (defn interact
   "Perform model interaction cycle.
@@ -249,14 +255,19 @@
                  (p *current* arg query)
                  (p arg :default query)))
   ([context topic query]
-   (r/report-progress (str "Querying " (get-in @context [:config :model])))
-   (let [tools-callback (fn [fun]
-                          (r/report-progress (str "Using tool " fun)))
+   (swap! context assoc :log [(str "Querying "
+                                   (get-in @context [:config :model]))])
+   (r/report-progress (ui/text (:log @context)))
+   (let [tools-callback (fn [subj]
+                          (let [entry (render-tool-call subj)]
+                            (swap! context update :log conj entry)
+                            (r/report-progress (ui/text (:log @context)))))
          new-context (-> @context
                          (ensure-system-message topic)
                          (update-in [:messages topic]
                                     conj {:role "user"
                                           :content query})
+                         (dissoc :log)
                          (interact topic tools-callback))]
      (reset! context new-context)
      (-> new-context
@@ -266,7 +277,7 @@
          vector
          (r/hint :markdown)))))
 
-(def btw-current-id (atom 0))
+(defonce btw-current-id (atom 0))
 
 (defn btw
   "Prompt the model with empty context.
@@ -363,11 +374,7 @@
 (defn- render-tool-calls [subj]
   (->> subj
        (map :function)
-       (map (fn [{:keys [name arguments]}]
-              (str name "(" (->> (json/parse-string arguments)
-                                 (map (fn [[k v]]
-                                        (str k ": " (cut-content (str v)))))
-                                 (s/join ", ")) ")")))
+       (map render-tool-call)
        (s/join "; ")))
 
 (defn- render-log-entry [subj]
