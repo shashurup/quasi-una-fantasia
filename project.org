@@ -1,3 +1,6 @@
+* TODO HTTP транспорт для MCP
+* TODO Сворачиваемый контейнер для отображения большого контента в таблицах
+* TODO Допилить pruner для адекватного распределения лимита по нодам дерева
 * TODO need to do something with cljs reader
   edn reader is sometimes not enough to read repl output - ns-map по прежнему фигню показывает
   не парсится тег #function[clojure.core/nary-inline/fn--5606] - второго слеша не переносит
