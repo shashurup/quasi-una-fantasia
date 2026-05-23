@@ -156,6 +156,12 @@
                                     :content (or config-message
                                                  *default-message*)}]))))
 
+(defn- cut-content [subj]
+  (when (not (nil? subj))
+    (s/replace (if (> (count subj) 80)
+                 (subs subj 0 80)
+                 subj) #"\n" " ")))
+
 (defn render-tool-call [{:keys [name arguments]}]
   (str name "(" (->> (json/parse-string arguments)
                      (map (fn [[k v]]
@@ -189,9 +195,6 @@
           (interact context topic tools-callback))
         context))))
 
-(defn agent [config]
-  (atom {:config config}))
-
 (def ^:dynamic *current*)
 
 (defn c
@@ -219,6 +222,35 @@
            (->> ms
                 (keep-indexed (fn [idx m] (if (msg-nums idx) nil m)))
                 vec))))
+
+(defn- perform-query [context topic query callback]
+  (let [entry (str "Querying " (get-in @context [:config :model]))
+        tools-callback (fn [subj]
+                         (let [entry (render-tool-call subj)]
+                           (swap! context update :log conj entry)
+                           (when callback (callback))))]
+    (swap! context assoc :log [entry])
+    (when callback (callback))
+    (reset! context (-> @context
+                        (ensure-system-message topic)
+                        (update-in [:messages topic]
+                                   conj {:role "user"
+                                         :content query})
+                        (dissoc :log)
+                        (interact topic tools-callback)))))
+
+(defn status
+  ([] (status *current* :default))
+  ([context] (status context :default))
+  ([context topic]
+   (if-let [log (:log context)]
+     (ui/text log)
+     (-> context
+         (get-in [:messages topic])
+         last
+         :content
+         vector
+         (r/hint :markdown)))))
 
 (defn clear
   "Clear model context. Args can be:
@@ -255,27 +287,24 @@
                  (p *current* arg query)
                  (p arg :default query)))
   ([context topic query]
-   (swap! context assoc :log [(str "Querying "
-                                   (get-in @context [:config :model]))])
-   (r/report-progress (ui/text (:log @context)))
-   (let [tools-callback (fn [subj]
-                          (let [entry (render-tool-call subj)]
-                            (swap! context update :log conj entry)
-                            (r/report-progress (ui/text (:log @context)))))
-         new-context (-> @context
-                         (ensure-system-message topic)
-                         (update-in [:messages topic]
-                                    conj {:role "user"
-                                          :content query})
-                         (dissoc :log)
-                         (interact topic tools-callback))]
-     (reset! context new-context)
-     (-> new-context
-         (get-in [:messages topic])
-         last
-         :content
-         vector
-         (r/hint :markdown)))))
+   (perform-query context topic query
+                  #(r/report-progress (ui/text (:log @context))))
+   (status @context topic)))
+
+(defn start
+  "Initiate model interactions. Args are:
+   query - the prompt
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used.
+   topic - optional, a keyword representing a discussion topic
+           topic holds separate context"
+  ([query] (start *current* :default query))
+  ([arg query] (if (keyword? arg)
+                 (start *current* arg query)
+                 (start arg :default query)))
+  ([context topic query]
+   (future
+     (perform-query context topic query nil))))
 
 (defonce btw-current-id (atom 0))
 
@@ -364,12 +393,6 @@
     (for [srv (get-in @context [:config :servers])]
       (assoc srv :started (when (get-in @context [:servers (:name srv)])
                             "yes"))))))
-
-(defn- cut-content [subj]
-  (when (not (nil? subj))
-    (s/replace (if (> (count subj) 80)
-                 (subs subj 0 80)
-                 subj) #"\n" " ")))
 
 (defn- render-tool-calls [subj]
   (->> subj
