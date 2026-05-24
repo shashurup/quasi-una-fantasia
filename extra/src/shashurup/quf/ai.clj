@@ -271,6 +271,10 @@
                         (dissoc :log)
                         (interact topic tools-callback)))))
 
+(defn fork
+  ([] (fork *current*))
+  ([context] (atom (select-keys @context [:config]))))
+
 (defn status
   ([] (status @*current* :default))
   ([context] (status context :default))
@@ -323,7 +327,7 @@
                   #(r/report-progress (ui/text (:log @context))))
    (status @context topic)))
 
-(defn start
+(defn s
   "Initiate model interactions. Args are:
    query - the prompt
    context - optional, atom keeping model interaction state
