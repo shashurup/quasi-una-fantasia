@@ -327,17 +327,17 @@
                   #(r/report-progress (ui/text (:log @context))))
    (status @context topic)))
 
-(defn s
+(defn sp
   "Initiate model interactions. Args are:
    query - the prompt
    context - optional, atom keeping model interaction state
              when omitted, *current* is used.
    topic - optional, a keyword representing a discussion topic
            topic holds separate context"
-  ([query] (start *current* :default query))
+  ([query] (sp *current* :default query))
   ([arg query] (if (keyword? arg)
-                 (start *current* arg query)
-                 (start arg :default query)))
+                 (sp *current* arg query)
+                 (sp arg :default query)))
   ([context topic query]
    (future
      (perform-query context topic query nil))))
