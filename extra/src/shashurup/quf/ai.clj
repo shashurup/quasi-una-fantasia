@@ -255,7 +255,7 @@
 (defn- perform-query [context topic query callback]
   (swap! context assoc :log ["Ensure MCP servers started"])
   (when callback (callback))
-  (ensure-mcp-servers-started)
+  (ensure-mcp-servers-started context)
   (let [entry (str "Querying " (get-in @context [:config :model]))
         tools-callback (fn [subj]
                          (let [entry (render-tool-call subj)]
