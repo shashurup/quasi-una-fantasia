@@ -223,13 +223,45 @@
                 (keep-indexed (fn [idx m] (if (msg-nums idx) nil m)))
                 vec))))
 
+(defn ensure-mcp-servers-started
+  "Ensure that all MCP servers started.
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used."
+  ([] (ensure-mcp-servers-started *current*))
+  ([context]
+   (doseq [{:keys [name] :as srv-cfg} (get-in @context [:config :servers])]
+     (when-not (get-in @context [:servers name])
+       (let [srv (init-server srv-cfg)]
+         (call-server srv
+                      "initialize"
+                      {:protocolVersion "2024-05-01"
+                       :capabilities {} 
+                       :clientInfo {:name "Quasi una fantasia"
+                                    :version "0.16"}})
+         (call-server srv "notifications/initialized" {})
+         (swap! context update :servers assoc name srv)
+         (let [tool-list (get-in (call-server srv "tools/list" {})
+                                 [:result :tools])
+               tools (for [tool tool-list]
+                       {:type "function"
+                        :function {:name (str name "__" (:name tool))
+                                   :description (:description tool)
+                                   :parameters (:inputSchema tool)}})
+               dispatch (into {} (for [{tool-name :name} tool-list]
+                                   [(str name "__" tool-name) [name tool-name]]))]
+           (swap! context update :tools concat tools)
+           (swap! context update :dispatch merge dispatch)))))))
+
 (defn- perform-query [context topic query callback]
+  (swap! context assoc :log ["Ensure MCP servers started"])
+  (when callback (callback))
+  (ensure-mcp-servers-started)
   (let [entry (str "Querying " (get-in @context [:config :model]))
         tools-callback (fn [subj]
                          (let [entry (render-tool-call subj)]
                            (swap! context update :log conj entry)
                            (when callback (callback))))]
-    (swap! context assoc :log [entry])
+    (swap! context update :log conj entry)
     (when callback (callback))
     (reset! context (-> @context
                         (ensure-system-message topic)
@@ -240,7 +272,7 @@
                         (interact topic tools-callback)))))
 
 (defn status
-  ([] (status *current* :default))
+  ([] (status @*current* :default))
   ([context] (status context :default))
   ([context topic]
    (if-let [log (:log context)]
@@ -321,35 +353,6 @@
    (let [topic (keyword (str "btw-" (swap! btw-current-id inc)))]
      (p context topic query))))
 
-
-(defn ensure-mcp-servers-started
-  "Ensure that all MCP servers started.
-   context - optional, atom keeping model interaction state
-             when omitted, *current* is used."
-  ([] (ensure-mcp-servers-started *current*))
-  ([context]
-   (doseq [{:keys [name] :as srv-cfg} (get-in @context [:config :servers])]
-     (when-not (get-in @context [:servers name])
-       (let [srv (init-server srv-cfg)]
-         (call-server srv
-                      "initialize"
-                      {:protocolVersion "2024-05-01"
-                       :capabilities {} 
-                       :clientInfo {:name "Quasi una fantasia"
-                                    :version "0.16"}})
-         (call-server srv "notifications/initialized" {})
-         (swap! context update :servers assoc name srv)
-         (let [tool-list (get-in (call-server srv "tools/list" {})
-                                 [:result :tools])
-               tools (for [tool tool-list]
-                       {:type "function"
-                        :function {:name (str name "__" (:name tool))
-                                   :description (:description tool)
-                                   :parameters (:inputSchema tool)}})
-               dispatch (into {} (for [{tool-name :name} tool-list]
-                                   [(str name "__" tool-name) [name tool-name]]))]
-           (swap! context update :tools concat tools)
-           (swap! context update :dispatch merge dispatch)))))))
 
 (defn stop-mcp-servers
   "Stop all MCP servers.
