@@ -253,6 +253,7 @@
            (swap! context update :dispatch merge dispatch)))))))
 
 (defn- perform-query [context topic query callback]
+  (swap! context dissoc :exception)
   (swap! context assoc :log ["Ensure MCP servers started"])
   (when callback (callback))
   (ensure-mcp-servers-started context)
@@ -263,13 +264,16 @@
                            (when callback (callback))))]
     (swap! context update :log conj entry)
     (when callback (callback))
-    (reset! context (-> @context
-                        (ensure-system-message topic)
-                        (update-in [:messages topic]
-                                   conj {:role "user"
-                                         :content query})
-                        (dissoc :log)
-                        (interact topic tools-callback)))))
+    (try
+      (reset! context (-> @context
+                          (ensure-system-message topic)
+                          (update-in [:messages topic]
+                                     conj {:role "user"
+                                           :content query})
+                          (interact topic tools-callback)))
+      (catch Exception ex
+        (swap! context assoc :exception ex))
+      (finally (swap! context dissoc :log)))))
 
 (defn fork
   ([] (fork *current*))
@@ -279,14 +283,16 @@
   ([] (status @*current* :default))
   ([context] (status context :default))
   ([context topic]
-   (if-let [log (:log context)]
-     (ui/text log)
-     (-> context
-         (get-in [:messages topic])
-         last
-         :content
-         vector
-         (r/hint :markdown)))))
+   (if-let [ex (:exception context)]
+     (ui/text (ex-message ex))
+     (if-let [log (:log context)]
+       (ui/text log)
+       (-> context
+           (get-in [:messages topic])
+           last
+           :content
+           vector
+           (r/hint :markdown))))))
 
 (defn clear
   "Clear model context. Args can be:
