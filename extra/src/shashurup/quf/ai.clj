@@ -189,7 +189,14 @@
                             messages
                             tools)
           message (-> resp :choices first :message)
-          context (update-in context [:messages topic] conj message)]
+          {pt :prompt_tokens
+           ct :completion_tokens} (:usage resp)
+          context (-> context
+                      (update-in [:messages topic] conj message)
+                      (update :usage assoc
+                              :prompt_tokens pt :completion_tokens ct)
+                      (update-in [:usage :prompt_tokens_total] (fnil + 0) pt)
+                      (update-in [:usage :completion_tokens_total] (fnil + 0) ct))]
       (if-let [tool_calls (:tool_calls message)]
         (let [context (call-tools context topic tool_calls tools-callback)]
           (interact context topic tools-callback))
@@ -286,7 +293,7 @@
    (if-let [ex (:exception context)]
      (ui/text (ex-message ex))
      (if-let [log (:log context)]
-       (ui/text log)
+       (ui/text (take-last 16 log))
        (-> context
            (get-in [:messages topic])
            last
@@ -315,7 +322,7 @@
        (doseq [[topic pairs] (group-by first arg)]
          (let [nums (set (map second pairs))]
            (delete-messages context topic nums)))))
-   arg))
+   nil))
 
 (defn p
   "Prompt the model. Args are:
