@@ -4,7 +4,7 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :refer [includes?]]
-            [shashurup.quf.response :as resp]))
+            [shashurup.quf.view :as v]))
 
 (defn- lightness [r g b]
   (/ (+ (max r g b) (min r g b)) 2))
@@ -80,6 +80,6 @@
                  (string? pred) #(includes? % pred)
                  (keyword? pred) (predef pred (constantly false))
                  :else (constantly false))]
-     (resp/hint
+     (v/hint
       (filter match (map from-base16 base16))
       [:list :shashurup.quf.theme/theme [:preview :name]]))))

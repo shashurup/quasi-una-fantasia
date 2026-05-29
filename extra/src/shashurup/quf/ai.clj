@@ -2,8 +2,7 @@
   (:require [clojure.string :as s]
             [clj-http.client :as http]
             [shashurup.quf.secrets :as secrets]
-            [shashurup.quf.response :as r]
-            [shashurup.quf.ui :as ui]
+            [shashurup.quf.view :as v]
             [cheshire.core :as json])
   (:import (java.io BufferedReader InputStreamReader OutputStreamWriter)
            (java.lang ProcessBuilder)
@@ -291,15 +290,15 @@
   ([context] (status context :default))
   ([context topic]
    (if-let [ex (:exception context)]
-     (ui/text (ex-message ex))
+     (v/text (ex-message ex))
      (if-let [log (:log context)]
-       (ui/text (take-last 16 log))
+       (v/text (take-last 16 log))
        (-> context
            (get-in [:messages topic])
            last
            :content
            vector
-           (r/hint :markdown))))))
+           (v/hint :markdown))))))
 
 (defn clear
   "Clear model context. Args can be:
@@ -337,7 +336,7 @@
                  (p arg :default query)))
   ([context topic query]
    (perform-query context topic query
-                  #(r/report-progress (ui/text (:log @context))))
+                  #(v/report-progress (v/text (:log @context))))
    (status @context topic)))
 
 (defn sp
@@ -390,7 +389,7 @@
              when omitted, *current* is used."
   ([] (tools *current*))
   ([context]
-   (ui/table
+   (v/table
     [:name :params :description]
     (for [{{fun :name
             {params :properties} :parameters
@@ -408,7 +407,7 @@
              when omitted, *current* is used."
   ([] (servers *current*))
   ([context]
-   (ui/table
+   (v/table
     [:name :started :cmd]
     (for [srv (get-in @context [:config :servers])]
       (assoc srv :started (when (get-in @context [:servers (:name srv)])
@@ -423,10 +422,10 @@
 (defn- render-log-entry [subj]
   (let [{:keys [content tool_calls role] :as all} subj]
     (assoc all :content (if tool_calls
-                          (ui/html [:span.quf-keyword
+                          (v/html [:span.quf-keyword
                                     (render-tool-calls tool_calls)])
                           (if (= role "tool")
-                            (ui/html [:span.quf-string
+                            (v/html [:span.quf-string
                                       (cut-content content)])
                             (cut-content content))))))
 
@@ -441,7 +440,7 @@
   ([] (log *current*))
   ([arg] (if (keyword? arg)
            (log *current* arg)
-           (ui/table
+           (v/table
             [:idx :topic :role :content]
             (map render-log-entry
                  (apply concat (for [[topic recs] (:messages @arg)]
@@ -449,7 +448,7 @@
                                               recs)))))
            ))
   ([context topic]
-   (ui/table
+   (v/table
     [:idx :role :content]
     (map render-log-entry
          (map-indexed #(assoc %2 :idx %1)

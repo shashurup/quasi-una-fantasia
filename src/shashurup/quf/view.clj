@@ -1,4 +1,5 @@
-(ns shashurup.quf.response)
+(ns shashurup.quf.view
+  (:require [clojure.string :as s]))
 
 (defn hint [obj hint]
   (when obj
@@ -13,6 +14,35 @@
   (binding [*print-meta* true]
     (pr (hint subj hint_))
     (flush)))
+
+(defn table
+  ([cols subj] (hint subj [:table cols]))
+  ([subj] (hint subj :table)))
+
+(defn tree
+  ([opts subj] (hint subj [:tree opts]))
+  ([subj] (hint subj :tree)))
+
+(defn pack [subj] (hint subj :sequence))
+
+(defn text [subj]
+  (if (string? subj)
+    (hint [subj] :text)
+    (hint subj :text)))
+
+(defn code [subj & args]
+  (let [hint (if (empty? args)
+               :code
+               [:code args])]
+    (if (string? subj)
+      (hint [subj] hint)
+      (hint subj hint))))
+
+(defn html [subj] (hint subj :html))
+
+(defn keymap [subj] (hint subj :keymap))
+
+(defn raw [subj] (vary-meta subj dissoc :shashurup.quf/hint))
 
 (def ^:dynamic expect-background-events (fn [cancel]))
 
@@ -33,12 +63,6 @@
                           {:value value
                            :max max})))))
 
-(defn client-modules []
-  (->> (loaded-libs)
-       (map meta)
-       (map :shashurup.quf/client-module)
-       (filter identity)))
-
 (defn track
   ([subj] (track subj identity))
   ([subj conv]
@@ -58,3 +82,17 @@
      (expect-background-events untrack)
      (add-watch subj key handler)
      (conv @subj))))
+
+(defn client-modules []
+  (->> (loaded-libs)
+       (map meta)
+       (map :shashurup.quf/client-module)
+       (filter identity)))
+
+(defn load-cells [source]
+  (hint (if (symbol? source)
+          source
+          [(slurp source)]) :cells))
+
+(defn store-cells [path cells]
+  (spit path (s/join "\n\n" cells)))

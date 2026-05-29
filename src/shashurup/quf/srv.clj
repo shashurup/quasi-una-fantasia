@@ -1,7 +1,6 @@
 (ns shashurup.quf.srv
   (:gen-class)
-  (:require [shashurup.quf.response :as response]
-            [shashurup.quf.vars :as vars]
+  (:require [shashurup.quf.vars :as vars]
             [shashurup.quf.pruner :as pruner]
             [shashurup.quf.evt :as evt]
             [compojure.core :refer :all]

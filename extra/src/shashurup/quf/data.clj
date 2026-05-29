@@ -4,7 +4,7 @@
             [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [clojure.string :as s]
-            [shashurup.quf.ui :as ui]))
+            [shashurup.quf.view :as v]))
 
 (defn as-hiccup [{tag :tag attrs :attrs content :content}]
   (let [rest (map #(if (map? %) (as-hiccup %) %) content)]
@@ -23,14 +23,14 @@
   (as-hiccup (xml/parse subj)))
 
 (defn as-text [subj]
-  (ui/text
+  (v/text
     (if (instance? java.io.Reader subj)
       (line-seq subj)
       (with-open [r (io/reader subj)]
         (doall (line-seq r))))))
 
 (defn from-csv [subj]
-  (ui/table
+  (v/table
     (cond
       ;; (coll? subj) (csv/read-string (s/join "\n" subj))
       (instance? java.io.Reader subj) (csv/read-csv subj)

@@ -7,9 +7,8 @@
            [java.time.temporal ChronoUnit]
            [org.apache.tika Tika])
   (:require [clojure.string :as s]
-            [shashurup.quf.response :as resp]
             [shashurup.quf.data :as data]
-            [shashurup.quf.ui :as ui]))
+            [shashurup.quf.view :as v]))
 
 (def permission-map
   {PosixFilePermission/OWNER_READ :owner-read
@@ -238,8 +237,8 @@
                     :1 [:name]}
                    (or  list-flag :1))]
      (if (= mode :tree)
-       (resp/hint (add-tree-meta subj (or list-flag :m)) [mode ::file nil])
-       (resp/hint subj [mode ::file cols])))))
+       (v/hint (add-tree-meta subj (or list-flag :m)) [mode ::file nil])
+       (v/hint subj [mode ::file cols])))))
 
 (defn ord
   "Sorts file list.
@@ -389,11 +388,11 @@
         obj (assoc obj :mime-type mt)]
     (if (text? mt)
       (if-let [hint (get known-hints mt)]
-        (resp/hint (data/as-text (:path obj)) hint)
+        (v/hint (data/as-text (:path obj)) hint)
         (if-let [lang (get lang-map mt)]
-          (ui/code (data/as-text (:path obj)) lang)
-          (ui/code (data/as-text (:path obj)))))
-      (resp/hint obj [:object-attr ::file :content]))))
+          (v/code (data/as-text (:path obj)) lang)
+          (v/code (data/as-text (:path obj)))))
+      (v/hint obj [:object-attr ::file :content]))))
 
 
 (defn t

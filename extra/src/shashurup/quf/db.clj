@@ -4,7 +4,7 @@
    [clojure.set :as set]
    [clojure.java.jdbc :as jdbc]
    [shashurup.quf.secrets :as secrets]
-   [shashurup.quf.ui :as ui])
+   [shashurup.quf.view :as v])
   (:import [java.sql Types]))
 
 (def ^:dynamic *current*)
@@ -211,27 +211,27 @@
    field-map))
 
 (defn- get-object-details [db schema object]
-  (let [cols (ui/table [:column :data-type :null :default :remarks]
-                       (get-columns db schema object))]
+  (let [cols (v/table [:column :data-type :null :default :remarks]
+                      (get-columns db schema object))]
     (if (empty? cols)
-      (ui/code (get-function-bodies db schema object) "pgsql" "sql")
+      (v/code (get-function-bodies db schema object) "pgsql" "sql")
       (if-let [view (get-view-query db schema object)]
-        (ui/sequence [cols
-                      (ui/html [:h3 "Query"])
-                      (ui/code view "sql")])
-        (let [ind (ui/table [:name :column :filter]
-                            (get-indicies db schema object))
-              pks (ui/table [:name :column]
-                            (get-primary-keys db schema object))
-              fks (ui/table [:name :column :schema2 :table2 :column2]
-                            (get-foreign-keys db schema object))]
-          (ui/sequence [cols
-                        (ui/html [:h3 "Primary keys"])
-                        pks
-                        (ui/html [:h3 "Indexes"])
-                        ind
-                        (ui/html [:h3 "Foreign keys"])
-                        fks]))))))
+        (v/pack [cols
+                 (v/html [:h3 "Query"])
+                 (v/code view "sql")])
+        (let [ind (v/table [:name :column :filter]
+                           (get-indicies db schema object))
+              pks (v/table [:name :column]
+                           (get-primary-keys db schema object))
+              fks (v/table [:name :column :schema2 :table2 :column2]
+                           (get-foreign-keys db schema object))]
+          (v/pack [cols
+                   (v/html [:h3 "Primary keys"])
+                   pks
+                   (v/html [:h3 "Indexes"])
+                   ind
+                   (v/html [:h3 "Foreign keys"])
+                   fks]))))))
 
 (defn- pattern? [subj]
   (some #{\* \?} subj))
@@ -259,7 +259,7 @@
   (let [[db _] (preprocess args)
         arg (first (filter string? args))]
     (cond
-      (empty? arg) (ui/tree
+      (empty? arg) (v/tree
                     {:actions {:default `(d ~db)}}
                     (for [sch (get-schemas db)
                           :let [pattern (str sch ".*")]]
@@ -270,13 +270,13 @@
                                     :shashurup.quf/more `(d ~db ~sch)})}))
       (pattern? arg) (let [[schema obj] (parse-arg arg)
                            data (get-objects db schema obj)]
-                       (ui/tree {:actions {:default `(d ~db)}}
-                                (map name-with-schema data)))
+                       (v/tree {:actions {:default `(d ~db)}}
+                               (map name-with-schema data)))
       (string? arg) (let [[schema table] (parse-arg arg)]
                       (if table
                         (get-object-details db schema table)
-                        (ui/table [:type :name :remarks]
-                                  (get-objects db schema "%")))))))
+                        (v/table [:type :name :remarks]
+                                 (get-objects db schema "%")))))))
 
 (defn- make-table-name [subj]
   (str \" (:table_schem subj) "\".\"" (:table_name subj) \"))

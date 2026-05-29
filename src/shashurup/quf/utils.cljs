@@ -116,7 +116,7 @@
         (str (.-nodeName node) " " (subs content  0 8) suffix)))))
 
 (defn reload-client-modules [callback]
-  (nrepl/send-eval-aux "(shashurup.quf.response/client-modules)"
+  (nrepl/send-eval-aux "(shashurup.quf.view/client-modules)"
                        (fn [{value :value status :status}]
                          (when-not (nrepl/terminated? status)
                            (let [modules (set (filter module? value))

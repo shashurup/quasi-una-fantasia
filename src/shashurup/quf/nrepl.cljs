@@ -147,7 +147,7 @@
    (send-op (merge {:op "eval"
                     :code (serialize-code expr)
                     :nrepl.middleware.print/print
-                      "shashurup.quf.response/pr-with-meta"}
+                      "shashurup.quf.view/pr-with-meta"}
                    extra)
             (fn [reply]
               (let [reply (read-values reply [:value :x-data :event])]

@@ -2,7 +2,7 @@
   "Geodata display"
   {:shashurup.quf/client-module :ol}
   (:require [clojure.set :as set]
-            [shashurup.quf.response :as resp]))
+            [shashurup.quf.view :as v]))
 
 (defn normalize-data [data]
   (cond
@@ -30,4 +30,4 @@
           :tag or :type to automatically color objects
         a collection of vectors with [geometry label tag]"
   [subj]
-  (resp/hint (normalize-data subj) :geodata))
+  (v/hint (normalize-data subj) :geodata))

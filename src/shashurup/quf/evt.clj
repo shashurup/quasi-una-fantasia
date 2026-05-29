@@ -1,5 +1,5 @@
 (ns shashurup.quf.evt
-  (:require [shashurup.quf.response :as r]
+  (:require [shashurup.quf.view :as v]
             [nrepl.middleware :as mwre]
             [nrepl.middleware.session :refer [session]]
             [nrepl.transport :as t]))
@@ -27,9 +27,9 @@
                                              #{:no-more-background-events})
                                nil)]
                  (swap! session assoc
-                        #'r/report-event re
-                        #'r/expect-background-events ev-start
-                        #'r/no-more-background-events ev-stop)
+                        #'v/report-event re
+                        #'v/expect-background-events ev-start
+                        #'v/no-more-background-events ev-stop)
                  (h msg))
         "cancel-events" (if-let [cancel (get-in @cancel-fns [session-id id])]
                           (do (swap! cancel-fns update session-id dissoc id)

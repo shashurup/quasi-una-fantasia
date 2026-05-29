@@ -2,7 +2,7 @@
   "Chart drawing library"
   {:shashurup.quf/client-module :chartjs}
   (:require [clojure.math :as math]
-            [shashurup.quf.response :as resp]))
+            [shashurup.quf.view :as v]))
 
 (def grid [10 15 20 25 30 40 50 60 70 80 90 100])
 
@@ -23,7 +23,7 @@
   (for [x data]
     (if (coll? x) x [(str x) x])))
 
-(defn show [data type] (resp/hint (normalize data) [:chart type]))
+(defn show [data type] (v/hint (normalize data) [:chart type]))
 
 (defn bar [data] (show data :bar))
 
@@ -33,7 +33,7 @@
 
 (defn doughnut [data] (show data :doughnut))
 
-(defn scatter [data] (resp/hint data [:chart :scatter]))
+(defn scatter [data] (v/hint data [:chart :scatter]))
 
 (defn histogram
   ([data] (histogram 11 data))

@@ -6,7 +6,7 @@
             [clojure.string :as s]
             [shashurup.quf.data :as d]
             [shashurup.quf.fs :as fs]
-            [shashurup.quf.response :as resp]
+            [shashurup.quf.view :as v]
             [shashurup.quf.vars :refer [*term-dimensions*]])
   (:import [java.lang ProcessBuilder ProcessBuilder$Redirect]
            [com.pty4j PtyProcessBuilder WinSize]))
@@ -97,8 +97,8 @@
     (loop []
       (let [size (.read from buffer)]
         (when (pos? size)
-          (resp/report-event {:type :terminal
-                              :out (String. buffer 0 size)})
+          (v/report-event {:type :terminal
+                           :out (String. buffer 0 size)})
           (recur))))))
 
 (defn process-input [from to resize]
@@ -125,4 +125,4 @@
       (stream-events out)
       (future-cancel in-handler))
     (wait))
-  (resp/report-event {:type :terminal :status #{:done}}))
+  (v/report-event {:type :terminal :status #{:done}}))
