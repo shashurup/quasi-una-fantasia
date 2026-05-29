@@ -234,28 +234,34 @@
   (when-let [title-el (first (gdom/getElementsByTagName "title"))]
     (gdom/setTextContent title-el (str (:ns @nrepl/state) " - " title))))
 
+(defn last-cell? [subj]
+  (not (when-let [next (.-nextElementSibling subj)]
+         (.contains (.-classList next) "quf-cell"))))
+
 (defn handle-eval-reply-inner [id
                                expr
                                {:keys [x-data status] :as reply}
                                go-next]
-  (when (:expect-background-events status)
-    (gdom/appendChild (get-cell-element id)
-                      (create-cancel-events-button id (:id reply))))
-  (when (:no-more-background-events status)
-    (gdom/removeNode (gdom/getElement (str "events-" id))))
-  (render-reply id expr reply)
-  (.scrollIntoView (get-cell-element id))
-  (when (nrepl/terminated? status)
-    (remove-progress-bar id)
-    (.requestIdleCallback js/window update-title)
-    (.requestIdleCallback js/window store-cell-exprs)
-    (.dispatchEvent js/document (js/Event. "evalComplete"))
-    (when (and go-next
-               (.hasChildNodes
-                (get-result-element id)))
-      (let [next-id (get-id (focus-next-cell id))]
-        (gdom/setTextContent (get-prompt-element next-id)
-                             (prompt next-id (:ns @nrepl/state)))))))
+  (let [cell (get-cell-element id)]
+    (when (:expect-background-events status)
+      (gdom/appendChild cell
+                        (create-cancel-events-button id (:id reply))))
+    (when (:no-more-background-events status)
+      (gdom/removeNode (gdom/getElement (str "events-" id))))
+    (render-reply id expr reply)
+    (when (last-cell? cell)
+       (.scrollIntoView cell false))
+    (when (nrepl/terminated? status)
+      (remove-progress-bar id)
+      (.requestIdleCallback js/window update-title)
+      (.requestIdleCallback js/window store-cell-exprs)
+      (.dispatchEvent js/document (js/Event. "evalComplete"))
+      (when (and go-next
+                 (.hasChildNodes
+                  (get-result-element id)))
+        (let [next-id (get-id (focus-next-cell id))]
+          (gdom/setTextContent (get-prompt-element next-id)
+                               (prompt next-id (:ns @nrepl/state))))))))
 
 (def impl-not-found-msg "implementation-not-found")
 
