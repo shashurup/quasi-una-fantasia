@@ -413,24 +413,28 @@
        (map render-tool-call)
        (s/join "\n")))
 
-(defn wrap-details [subj f]
+(defn wrap-details [subj f color]
   (when subj
     (let [content (f subj)]
       (if (re-find #"\n" subj)
-        (v/details (first (s/split-lines subj)) content)
-        content))))
+        (v/details (-> subj
+                       s/split-lines
+                       first
+                       (v/highlight color)) content)
+        (v/highlight subj color)))))
 
 (defn- render-log-entry [subj]
   (let [{:keys [content tool_calls role reasoning] :as all} subj]
     (assoc all :content (if tool_calls
                           (wrap-details (render-tool-calls tool_calls)
-                                        #(v/code % "js"))
+                                        #(v/code % "js")
+                                        "symbol")
                           (if (= role "tool")
-                            (wrap-details content v/text)
+                            (wrap-details content v/text "class")
                             (wrap-details content
-                                          #(v/hint [%] :markdown))))
-               :reasoning (wrap-details reasoning
-                                        #(v/hint [%] :markdown)))))
+                                          #(v/hint [%] :markdown)
+                                          (when (= role "user")
+                                            "keyword")))))))
 
 (defn log
   "Show conversation logs. The log also contains MCP server interactions.
