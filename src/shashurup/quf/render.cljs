@@ -475,4 +475,13 @@
      [:div.quf-tree-right {:id (str tree-id "-content")}]]))
 
 (defmethod render :details [[summary details]]
-  [:details [:summary summary] (render details)])
+  [:details [:summary (if (string? summary)
+                        summary
+                        (render summary))]
+   (if (string? details)
+     details
+     (render details))])
+
+(defmethod render :highlight [subj]
+  (let [[_ color] (hint-args subj)]
+    [:span {:class (str "quf-" color)} (first subj)]))

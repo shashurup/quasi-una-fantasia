@@ -47,6 +47,9 @@
 (defn details [summary details]
   (hint [summary details] :details))
 
+(defn highlight [subj color]
+  (hint [subj] [:highlight color]))
+
 (def ^:dynamic expect-background-events (fn [cancel]))
 
 (def ^:dynamic no-more-background-events (fn []))
