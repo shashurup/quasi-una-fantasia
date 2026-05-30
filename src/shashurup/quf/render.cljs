@@ -483,5 +483,8 @@
      (render details))])
 
 (defmethod render :highlight [subj]
-  (let [[_ color] (hint-args subj)]
-    [:span {:class (str "quf-" color)} (first subj)]))
+  (let [[_ color] (hint-args subj)
+        text (first subj)]
+    (if color
+      [:span {:class (str "hljs-" color)} text]
+      [:span text])))

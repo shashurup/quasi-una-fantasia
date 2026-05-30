@@ -197,6 +197,7 @@ span.quf-closing-paren {
     color: var(--color-comment);
 }
 
+.hljs-class,
 .hljs-selector-class {
     color: var(--color-class);
 }
