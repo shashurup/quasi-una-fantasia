@@ -155,17 +155,11 @@
                                     :content (or config-message
                                                  *default-message*)}]))))
 
-(defn- cut-content [subj]
-  (when (not (nil? subj))
-    (s/replace (if (> (count subj) 80)
-                 (subs subj 0 80)
-                 subj) #"\n" " ")))
-
 (defn render-tool-call [{:keys [name arguments]}]
   (str name "(" (->> (json/parse-string arguments)
                      (map (fn [[k v]]
-                            (str k ": " (cut-content (str v)))))
-                     (s/join ", ")) ")"))
+                            (str k "=" (pr-str v))))
+                     (s/join ", ")) ");"))
 
 (defn interact
   "Perform model interaction cycle.
@@ -417,16 +411,14 @@
   (->> subj
        (map :function)
        (map render-tool-call)
-       (s/join "; ")))
+       (s/join "\n")))
 
 (defn- render-log-entry [subj]
   (let [{:keys [content tool_calls role reasoning] :as all} subj]
     (assoc all :content (if tool_calls
-                          (v/html [:span.quf-keyword
-                                    (render-tool-calls tool_calls)])
+                          (v/code (render-tool-calls tool_calls) "js")
                           (if (= role "tool")
-                            (v/html [:span.quf-string
-                                      (cut-content content)])
+                            content
                             (v/hint [content] :markdown)))
                :reasoning (v/hint [reasoning] :markdown))))
 

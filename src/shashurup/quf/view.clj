@@ -31,12 +31,12 @@
     (hint subj :text)))
 
 (defn code [subj & args]
-  (let [hint (if (empty? args)
+  (let [hint_ (if (empty? args)
                :code
                [:code args])]
     (if (string? subj)
-      (hint [subj] hint)
-      (hint subj hint))))
+      (hint [subj] hint_)
+      (hint subj hint_))))
 
 (defn html [subj] (hint subj :html))
 
