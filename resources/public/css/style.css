@@ -71,6 +71,7 @@ p.quf-out {
     white-space: pre-wrap;
 }
 
+.hljs-error,
 p.quf-err {
     color: var(--color-error);
     white-space: pre-wrap;

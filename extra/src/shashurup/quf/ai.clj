@@ -279,20 +279,27 @@
   ([] (fork *current*))
   ([context] (atom (select-keys @context [:config]))))
 
+(defn- view-with-reason [content reasoning]
+  (if reasoning
+    (v/pack [content
+             (v/details "Reasoning"
+                        (v/hint [reasoning] :markdown))])
+    content))
+
 (defn status
   ([] (status @*current* :default))
   ([context] (status context :default))
   ([context topic]
    (if-let [ex (:exception context)]
-     (v/text (ex-message ex))
+     (v/highlight (ex-message ex) "error")
      (if-let [log (:log context)]
        (v/text (take-last 16 log))
-       (-> context
-           (get-in [:messages topic])
-           last
-           :content
-           vector
-           (v/hint :markdown))))))
+       (let [{:keys [content
+                     reasoning]} (-> context
+                                     (get-in [:messages topic])
+                                     last)]
+         (view-with-reason (v/hint [content] :markdown)
+                           reasoning))))))
 
 (defn clear
   "Clear model context. Args can be:
@@ -413,28 +420,27 @@
        (map render-tool-call)
        (s/join "\n")))
 
-(defn wrap-details [subj f color]
-  (when subj
-    (let [content (f subj)]
-      (if (re-find #"\n" subj)
-        (v/details (-> subj
-                       s/split-lines
-                       first
-                       (v/highlight color)) content)
-        (v/highlight subj color)))))
-
 (defn- render-log-entry [subj]
-  (let [{:keys [content tool_calls role reasoning] :as all} subj]
-    (assoc all :content (if tool_calls
-                          (wrap-details (render-tool-calls tool_calls)
-                                        #(v/code % "js")
-                                        "symbol")
-                          (if (= role "tool")
-                            (wrap-details content v/text "class")
-                            (wrap-details content
-                                          #(v/hint [%] :markdown)
-                                          (when (= role "user")
-                                            "keyword")))))))
+  (let [{:keys [content tool_calls role reasoning] :as all} subj
+        content (if tool_calls
+                  (render-tool-calls tool_calls)
+                  content)
+        summary (if (re-find #"\n" content)
+                  (first (s/split-lines content))
+                  (if reasoning
+                    content))
+        color (cond tool_calls      "symbol"
+                    (= role "user") "keyword"
+                    (= role "tool") "class")
+        build (cond tool_calls      #(v/code % "js")
+                    (= role "tool") v/text
+                    :else           #(v/hint [%] :markdown))]
+    (assoc all :content
+           (if summary
+             (v/details (v/highlight summary color)
+                        (view-with-reason (build content)
+                                          reasoning))
+             (v/highlight content color)))))
 
 (defn log
   "Show conversation logs. The log also contains MCP server interactions.
