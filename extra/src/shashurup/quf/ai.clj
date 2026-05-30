@@ -420,14 +420,15 @@
        (s/join "; ")))
 
 (defn- render-log-entry [subj]
-  (let [{:keys [content tool_calls role] :as all} subj]
+  (let [{:keys [content tool_calls role reasoning] :as all} subj]
     (assoc all :content (if tool_calls
                           (v/html [:span.quf-keyword
                                     (render-tool-calls tool_calls)])
                           (if (= role "tool")
                             (v/html [:span.quf-string
                                       (cut-content content)])
-                            (cut-content content))))))
+                            (v/hint [content] :markdown)))
+               :reasoning (v/hint [reasoning] :markdown))))
 
 (defn log
   "Show conversation logs. The log also contains MCP server interactions.
