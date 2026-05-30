@@ -273,6 +273,7 @@ td.quf {
     border-top-style: none;
     border-right-style: solid;
     white-space: pre;
+    vertical-align: top;
 }
 
 th.quf {
@@ -288,6 +289,27 @@ td.quf:last-child {
 
 th.quf:last-child {
     border-right-style: none;
+}
+
+td.quf {
+    max-width: 50vw;
+}
+
+td.quf-collapsed {
+    max-width: 3ch;
+}
+
+td.quf-full {
+    max-width: unset;
+}
+
+td.quf div {
+    display: contents;
+    white-space: normal;
+}
+
+td.quf > :first-child, td.quf > div > :first-child {
+  margin-top: 0;
 }
 
 td.quf-number-cell {

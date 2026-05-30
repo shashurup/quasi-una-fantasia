@@ -276,9 +276,9 @@
       (keys row)
       (range (count row)))))
 
-(def col-width-cycle {"" "quf-wide"
-                      "quf-wide" "quf-width-collapsed"
-                      "quf-width-collapsed" ""})
+(def col-width-cycle {"" "quf-full"
+                      "quf-full" "quf-collapsed"
+                      "quf-collapsed" ""})
 
 (defn cycle-col-width [table col-idx]
   (let [tbody (first (gdom/getElementsByTagName "tbody" table))
