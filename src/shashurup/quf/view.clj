@@ -44,6 +44,9 @@
 
 (defn raw [subj] (vary-meta subj dissoc :shashurup.quf/hint))
 
+(defn details [summary details]
+  (hint [summary details] :details))
+
 (def ^:dynamic expect-background-events (fn [cancel]))
 
 (def ^:dynamic no-more-background-events (fn []))

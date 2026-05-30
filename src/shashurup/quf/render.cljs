@@ -473,3 +473,6 @@
       (render-tree-level data [render-fn children-key tree-id
                                actions get-key])]
      [:div.quf-tree-right {:id (str tree-id "-content")}]]))
+
+(defmethod render :details [[summary details]]
+  [:details [:summary summary] (render details)])

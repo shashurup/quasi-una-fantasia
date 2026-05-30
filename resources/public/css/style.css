@@ -312,6 +312,10 @@ td.quf > :first-child, td.quf > div > :first-child {
   margin-top: 0;
 }
 
+td.quf > :last-child, td.quf > div > :last-child {
+  margin-bottom: 0;
+}
+
 td.quf-number-cell {
     text-align: right;
 }
