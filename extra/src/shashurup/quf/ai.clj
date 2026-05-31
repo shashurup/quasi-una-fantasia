@@ -455,11 +455,13 @@
            (log *current* arg)
            (v/table
             [:idx :topic :role :content]
-            (map render-log-entry
-                 (apply concat (for [[topic recs] (:messages @arg)]
-                                 (map-indexed #(assoc %2 :topic topic :idx %1)
-                                              recs)))))
-           ))
+            (with-meta
+              (map render-log-entry
+                   (apply concat (for [[topic recs] (:messages @arg)]
+                                   (map-indexed #(assoc %2 :topic topic :idx %1)
+                                                recs))))
+              ;; Just a hack - tables dont expect complex cell content
+              {:shashurup.quf/range {:more? false}}))))
   ([context topic]
    (v/table
     [:idx :role :content]
