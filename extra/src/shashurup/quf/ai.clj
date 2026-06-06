@@ -108,9 +108,9 @@
 
 (defmethod close-server :fn [_])
 
-(defn- call-tool [context fun args]
-  (let [[server-name name] (get-in context [:dispatch fun])
-        srv (get-in context [:servers server-name])]
+(defn- call-tool [dispatch servers fun args]
+  (let [[server-name name] (dispatch fun)
+        srv (servers server-name)]
     (call-server srv "tools/call" {:name name
                                    :arguments (json/parse-string args)})))
 
@@ -131,19 +131,17 @@
                                    :messages messages
                                    :tools tools}})))
 
-(defn- call-tools [context topic subj tools-callback]
-  (update-in context
-             [:messages topic]
-             into (for [{{:keys [name arguments]
-                          :as tc} :function
-                         id :id} subj]
-                    (do
-                      (when tools-callback
-                        (tools-callback tc))
-                      (let [r (call-tool context name arguments)]
-                        {:role "tool"
-                         :tool_call_id id
-                         :content (extract-tool-text r)})))))
+(defn- call-tools [dispatch servers topic subj tools-callback]
+  (for [{{:keys [name arguments]
+          :as tc} :function
+         id :id} subj]
+    (do
+      (when tools-callback
+        (tools-callback tc))
+      (let [r (call-tool dispatch servers name arguments)]
+        {:role "tool"
+         :tool_call_id id
+         :content (extract-tool-text r)}))))
 
 (defn- ensure-system-message [context topic]
   (let [messages (get-in context [:messages topic])
@@ -152,14 +150,24 @@
       context
       (assoc-in context
                 [:messages topic] [{:role "system"
-                                    :content (or config-message
-                                                 *default-message*)}]))))
+                                    :content [(or config-message
+                                                  *default-message*)]}]))))
 
-(defn render-tool-call [{:keys [name arguments]}]
+(defn- render-tool-call [{:keys [name arguments]}]
   (str name "(" (->> (json/parse-string arguments)
                      (map (fn [[k v]]
                             (str k "=" (pr-str v))))
                      (s/join ", ")) ");"))
+
+(defn- split-lines [subj]
+  (cond-> subj
+    (:content subj) (update :content s/split-lines)
+    (:reasoning subj) (update :reasoning s/split-lines)))
+
+(defn- join-lines [subj]
+  (cond-> subj
+      (:content subj) (update :content #(s/join "\n" %))
+      (:reasoning subj) (update :reasoning #(s/join "\n" %))))
 
 (defn interact
   "Perform model interaction cycle.
@@ -179,9 +187,9 @@
                             (or endpoint *default-endpoint*)
                             key
                             model
-                            messages
+                            (map join-lines messages)
                             tools)
-          message (-> resp :choices first :message)
+          message (-> resp :choices first :message split-lines)
           {pt :prompt_tokens
            ct :completion_tokens} (:usage resp)
           context (-> context
@@ -191,7 +199,15 @@
                       (update-in [:usage :prompt_tokens_total] (fnil + 0) pt)
                       (update-in [:usage :completion_tokens_total] (fnil + 0) ct))]
       (if-let [tool_calls (:tool_calls message)]
-        (let [context (call-tools context topic tool_calls tools-callback)]
+        (let [tools_result (call-tools (:dispatch context)
+                                       (:servers context)
+                                       topic
+                                       tool_calls
+                                       tools-callback)
+              context (update-in context
+                                 [:messages topic]
+                                 into
+                                 (map split-lines tools_result))]
           (interact context topic tools-callback))
         context))))
 
@@ -269,7 +285,7 @@
                           (ensure-system-message topic)
                           (update-in [:messages topic]
                                      conj {:role "user"
-                                           :content query})
+                                           :content (s/split-lines query)})
                           (interact topic tools-callback)))
       (catch Exception ex
         (swap! context assoc :exception ex))
@@ -283,7 +299,7 @@
   (if reasoning
     (v/pack [content
              (v/details "Reasoning"
-                        (v/hint [reasoning] :markdown))])
+                        (v/hint reasoning :markdown))])
     content))
 
 (defn status
@@ -298,7 +314,7 @@
                      reasoning]} (-> context
                                      (get-in [:messages topic])
                                      last)]
-         (view-with-reason (v/hint [content] :markdown)
+         (view-with-reason (v/hint content :markdown)
                            reasoning))))))
 
 (defn clear
@@ -417,30 +433,29 @@
 (defn- render-tool-calls [subj]
   (->> subj
        (map :function)
-       (map render-tool-call)
-       (s/join "\n")))
+       (map render-tool-call)))
 
 (defn- render-log-entry [subj]
   (let [{:keys [content tool_calls role reasoning] :as all} subj
         content (if tool_calls
                   (render-tool-calls tool_calls)
                   content)
-        summary (if (re-find #"\n" content)
-                  (first (s/split-lines content))
+        summary (if (> (count content) 1)
+                  (first content)
                   (if reasoning
-                    content))
+                    (first content)))
         color (cond tool_calls      "symbol"
                     (= role "user") "keyword"
                     (= role "tool") "class")
         build (cond tool_calls      #(v/code % "js")
                     (= role "tool") v/text
-                    :else           #(v/hint [%] :markdown))]
+                    :else           #(v/hint % :markdown))]
     (assoc all :content
            (if summary
              (v/details (v/highlight summary color)
                         (view-with-reason (build content)
                                           reasoning))
-             (v/highlight content color)))))
+             (v/highlight (first content) color)))))
 
 (defn log
   "Show conversation logs. The log also contains MCP server interactions.
