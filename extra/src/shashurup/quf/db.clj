@@ -5,7 +5,7 @@
    [clojure.java.jdbc :as jdbc]
    [shashurup.quf.secrets :as secrets]
    [shashurup.quf.view :as v])
-  (:import [java.sql Types]))
+  (:import [java.sql Types SQLFeatureNotSupportedException]))
 
 (def ^:dynamic *current*)
 
@@ -61,6 +61,20 @@
                      meta)))]
     (jdbc/db-query-with-resultset (resolve-creds db) args handle)))
 
+(defn exec
+  "Execute a non-query statement, args are:
+   database query param1 param2 ....
+   (q :sales-db \"select * from order where id = ?\" 123)
+   database - optional, a keyword to lookup in the *book*
+              *current* is used when ommited
+   statement - for SQL databases it is a query string
+               parameter placeholder is ?
+               or db specific structure for other databases.
+  "
+  [& args]
+  (let [[db args] (preprocess args)]
+    (jdbc/execute! (resolve-creds db) args)))
+
 (defn- preprocess [args]
   (if (keyword? (first args))
     [(get *book* (first args)) (rest args)]
@@ -107,10 +121,12 @@
                          renames) subj))
 
 (defn- get-schemas [db]
-  (map
-   :table_schem
-   (jdbc/with-db-metadata [m (resolve-creds db)]
-     (jdbc/metadata-query (.getSchemas m)))))
+  (try
+    (map
+     :table_schem
+     (jdbc/with-db-metadata [m (resolve-creds db)]
+       (jdbc/metadata-query (.getSchemas m))))
+    (catch SQLFeatureNotSupportedException e [])))
 
 (def ^:private field-map {:table_type :type
                           :table_schem :schema
@@ -161,10 +177,14 @@
                                             schema
                                             obj
                                             (into-array String ["TABLE" "VIEW"])))
-           (map #(assoc % :table_type "FUNCTION")
-                (jdbc/metadata-query (.getFunctions m nil schema obj)))
-           (map #(assoc % :table_type "PROCEDURE")
-                (jdbc/metadata-query (.getProcedures m nil schema obj))))
+           (try
+             (map #(assoc % :table_type "FUNCTION")
+                  (jdbc/metadata-query (.getFunctions m nil schema obj)))
+             (catch SQLFeatureNotSupportedException e []))
+           (try
+             (map #(assoc % :table_type "PROCEDURE")
+                  (jdbc/metadata-query (.getProcedures m nil schema obj)))
+             (catch SQLFeatureNotSupportedException e [])))
           field-map)
          (map add-object-key)
          (group-by :key)
@@ -247,7 +267,7 @@
         [arg' nil]))))
 
 (defn- name-with-schema [{:keys [:name :schema] :as subj}]
-  (assoc subj :name (str schema "." name)))
+  (assoc subj :name (str schema (when schema ".") name)))
 
 (defn d
   "Describe database table, args are:
@@ -259,15 +279,18 @@
   (let [[db _] (preprocess args)
         arg (first (filter string? args))]
     (cond
-      (empty? arg) (v/tree
-                    {:actions {:default `(d ~db)}}
-                    (for [sch (get-schemas db)
-                          :let [pattern (str sch ".*")]]
-                      {:name sch
-                       :key sch
-                       :children (with-meta []
-                                   {:shashurup.quf/range {:more? true}
-                                    :shashurup.quf/more `(d ~db ~sch)})}))
+      (empty? arg) (let [schemas (not-empty (get-schemas db))]
+                     (if schemas
+                       (v/tree
+                        {:actions {:default `(d ~db)}}
+                        (for [sch schemas
+                              :let [pattern (str sch ".*")]]
+                          {:name sch
+                           :key sch
+                           :children (with-meta []
+                                       {:shashurup.quf/range {:more? true}
+                                        :shashurup.quf/more `(d ~db ~sch)})}))
+                       (d db "*")))
       (pattern? arg) (let [[schema obj] (parse-arg arg)
                            data (get-objects db schema obj)]
                        (v/tree {:actions {:default `(d ~db)}}

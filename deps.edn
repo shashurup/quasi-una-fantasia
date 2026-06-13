@@ -19,7 +19,8 @@
                                 org.apache.tika/tika-core {:mvn/version "3.2.3"}
                                 org.apache.tika/tika-parsers-standard-package {:mvn/version "3.2.3"}
                                 org.jetbrains.pty4j/pty4j {:mvn/version "0.13.11"}
-                                clj-commons/clj-yaml {:mvn/version "1.0.29"}}
+                                clj-commons/clj-yaml {:mvn/version "1.0.29"}
+                                org.xerial/sqlite-jdbc {:mvn/version "3.53.2.0"}}
                    :extra-paths ["extra/src" "extra/resources"]}
            :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
                                com.bhauman/figwheel-main {:mvn/version "0.2.20"}
