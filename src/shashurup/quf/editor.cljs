@@ -33,10 +33,11 @@
 
 (defn get-anchor-offset [selection] (.-anchorOffset selection))
 
-(defn at-the-end? [selection]
-  (when-let [node (get-anchor-node selection)]
-    (= (count (.-textContent node))
-       (get-anchor-offset selection))))
+(defn at-the-end?
+  ([node offset] (>= offset (count (.-textContent node))))
+  ([selection]
+   (when-let [node (get-anchor-node selection)]
+     (at-the-end? node (get-anchor-offset selection)))))
 
 (defn get-focus-node [selection] (.-focusNode selection))
 
@@ -169,6 +170,12 @@
 (defn sibling-elements-after [node]
   (filter element?
           (nodes-after node)))
+
+(defn next-sibling-element [node]
+  (first (sibling-elements-after node)))
+
+(defn prev-sibling-element [node]
+  (first (sibling-elements-before node)))
 
 (defn right-edge-of? [sel]
   (when (collapsed? sel)
@@ -345,9 +352,9 @@
                    (.-length (.-childNodes node)))))
 
 (defn select-whole-atom! [selection node]
-  (let [parent (parent-element node)
+  (let [atom (if (text-node? node) (parent-element node) node)
         range (get-range-0 selection)]
-    (.selectNode range parent)))
+    (.selectNode range atom)))
 
 (defn select-string-interior! [selection node]
   (let [text (.-textContent node)
@@ -356,6 +363,15 @@
 
 (defn select-whole-sexp! [selection node]
   (.selectNode (get-range-0 selection) node))
+
+(defn select-element! [selection node]
+  (doto (get-range-0 selection)
+    (.collapse)
+    (.selectNode node)))
+
+(defn select-element-by-text! [selection node]
+  (.selectNode (get-range-0 selection)
+               (parent-element node)))
 
 (defn select-sexp-interior! [selection node]
   (let [first-child (.-firstChild node)
@@ -704,6 +720,195 @@
   [id]
   (insert-text-at-caret @clipboard)
   (restructure (get-input-element id)))
+
+;; new sexp mode
+
+(defn- chars-around [node offset]
+  (let [text (.-wholeText node)]
+    (cond (= offset 0) [nil (nth text offset)]
+          (= offset (count text)) [(nth text (dec offset)) nil]
+          :else [(nth text (dec offset)) (nth text offset)])))
+
+(defn- alphanum? [subj]
+  (when subj
+    (or
+     (.test (js/RegExp. "\\p{L}" "u") subj)
+     (.test (js/RegExp. "\\p{Nd}" "u") subj))))
+
+(defn- split-to-words [subj]
+  (->> (js/RegExp. "[\\p{L}\\p{Nd}]+" "gu")
+       (.matchAll subj)
+       (map #(vector (.-index %) (first %)))))
+
+(defn- node-at-offset [parent offset]
+  (let [after-last (= offset (.-length parent))]
+    (.item (.-childNodes parent)
+           (if after-last (dec offset) offset))))
+
+(defn- sexp-selection-kind [node offset]
+  (if (text-node? node)
+    (cond
+      (in-atom? node) (cond (= offset 0) :atom-text-begin
+                            (at-the-end? node offset) :atom-text-end
+                            :else :atom-text-middle)
+      (open-paren? (parent-element node)) (if (= offset 0)
+                                            :open-text-begin
+                                            :open-text-end)
+      (closing-paren? (parent-element node)) (if (= offset 0)
+                                               :close-text-begin
+                                               :close-text-end)
+      (whitespace? node) (cond (= offset 0) :whitespace-begin
+                               (at-the-end? node offset) :whitespace-end
+                               :else :whitespace-middle))
+    (let [after-last (= offset (.-length node))
+          node (.item (.-childNodes node)
+                      (if after-last (dec offset) offset))]
+      (cond (atom? node) (if after-last :atom-end :atom-begin)
+            (open-paren? node) :open-begin
+            (closing-paren? node) (if after-last :close-end :close-begin)
+            (element? node) (if after-last :container-end :container-begin)))))
+
+(defn- sexp-adjust-selection []
+  (let [sel (get-selection)]
+    (when (or (collapsed? sel)
+              (not (identical? (get-anchor-node sel)
+                               (get-focus-node sel))))
+      (let [anchor (get-anchor-node sel)
+            offset (get-anchor-offset sel)
+            kind (sexp-selection-kind anchor offset)]
+        (cond
+          (= :atom-text-middle kind) (.setEnd (get-range-0 sel)
+                                              anchor
+                                              (inc offset))
+          (#{:atom-text-begin
+             :atom-text-end} kind) (select-element-by-text! sel anchor)
+          (= :whitespace-begin kind) (select-element!
+                                      sel (or (prev-sibling-element anchor)
+                                              (next-sibling-element anchor)
+                                              (parent-element anchor)))
+          (#{:whitespace-middle
+             :whitespace-end} kind) (select-element!
+                                     sel (or (next-sibling-element anchor)
+                                             (prev-sibling-element anchor)
+                                             (parent-element anchor)))
+          (#{:open-text-begin
+             :close-text-end} kind) (select-element!
+                                     sel (parent-element
+                                          (parent-element anchor)))
+          (= :open-text-end kind) (let [paren (parent-element anchor)]
+                                    (select-element!
+                                     sel (or (next-sibling-element paren)
+                                             (parent-element paren))))
+          (= :close-text-begin kind) (let [paren (parent-element anchor)]
+                                       (select-element!
+                                        sel (or (prev-sibling-element paren)
+                                                (parent-element paren))))
+          (#{:atom-begin
+             :atom-end
+             :container-begin
+             :container-end} kind) (select-element!
+                                    sel (node-at-offset anchor offset))
+          (#{:open-begin
+             :close-end} kind) (select-element! sel anchor)
+          (= :close-begin kind) (select-element!
+                                 sel (or (prev-sibling-element
+                                          (node-at-offset anchor offset))
+                                         anchor)))))))
+
+(defn- sexp-selection-level [sel]
+  (let [anchor (get-anchor-node sel)]
+    (cond (or (sexp? anchor)
+              (root? anchor)) :element
+          (text-node? anchor) (let [a-offset (get-anchor-offset sel)
+                                    focus (get-focus-node sel)
+                                    f-offset (get-focus-offset sel)
+                                    [ap an] (chars-around anchor a-offset)
+                                    [fp fn] (chars-around focus f-offset)]
+                                (if (and (not (alphanum? ap))
+                                         (alphanum? an)
+                                         (alphanum? fp)
+                                         (not (alphanum? fn)))
+                                  :word
+                                  :char)))))
+
+(defn forward []
+  (let [sel (get-selection)
+        anchor (get-anchor-node sel)
+        offset (get-anchor-offset sel)]
+    (condp = (sexp-selection-level sel)
+      :element (let [subj (node-at-offset anchor offset)]
+                 (when-let [target (next-sibling-element subj)]
+                   (select-element! sel target)))
+      :word (let [f-offset (get-focus-offset sel)]
+              (when-let [[p w] (->> (.-textContent anchor)
+                                    split-to-words
+                                    (drop-while #(< (first %) f-offset))
+                                    first)]
+                (doto (get-range-0 sel)
+                  (.setStart anchor p)
+                  (.setEnd anchor (+ p (count w))))))
+      :char (when-not (at-the-end? anchor (inc offset))
+              (doto (get-range-0 sel)
+                (.setStart anchor (inc offset))
+                (.setEnd anchor (+ offset 2)))))))
+
+(defn backward []
+  (let [sel (get-selection)
+        anchor (get-anchor-node sel)
+        offset (get-anchor-offset sel)]
+    (condp = (sexp-selection-level sel)
+      :element (let [subj (node-at-offset anchor offset)]
+                 (when-let [target (prev-sibling-element subj)]
+                   (select-element! sel target)))
+      :word (when-let [[p w] (->> (.-textContent anchor)
+                                  split-to-words
+                                  (take-while #(< (first %) offset))
+                                  last)]
+        (doto (get-range-0 sel)
+          (.setStart anchor p)
+          (.setEnd anchor (+ p (count w)))))
+      :char (when (> offset 0)
+              (doto (get-range-0 sel)
+                (.setStart anchor (dec offset))
+                (.setEnd anchor offset))))))
+
+(defn upward []
+  (let [sel (get-selection)
+        anchor (get-anchor-node sel)]
+    (condp = (sexp-selection-level sel)
+      :char (let [offset (get-anchor-offset sel)]
+              (when-let [[p w] (->> (.-textContent anchor)
+                                    split-to-words
+                                    (take-while #(<= (first %) offset))
+                                    last)]
+                (doto (get-range-0 sel)
+                  (.setStart anchor p)
+                  (.setEnd anchor (+ p (count w))))))
+      :word (select-element! sel (parent-element anchor))
+      :element (select-element! sel anchor))))
+
+(defn downward []
+  (let [sel (get-selection)
+        anchor (get-anchor-node sel)
+        offset (get-anchor-offset sel)]
+    (condp = (sexp-selection-level sel)
+      :word (.setEnd (get-range-0 sel) anchor (inc offset))
+      :element (let [node (node-at-offset anchor offset)]
+                 (cond
+                   (sexp? node) (when-let [subj (->> (children node)
+                                                     (filter element?)
+                                                     first)]
+                                  (select-element! sel subj))
+                   (atom? node) (when-let [txt (first (children node))]
+                                  (if-let [[p w] (->> (.-textContent txt)
+                                                      split-to-words
+                                                      first)]
+                                    (doto (get-range-0 sel)
+                                      (.setStart txt p)
+                                      (.setEnd txt (+ p (count w))))
+                                    (doto (get-range-0 sel)
+                                      (.setStart txt 0)
+                                      (.setEnd txt 1)))))))))
 
 
 ;; auto pairs
