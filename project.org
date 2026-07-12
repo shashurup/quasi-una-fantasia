@@ -4,7 +4,7 @@
 * TODO Сложный контент в ячейках таблицы требует работу с pruner
   Иначе в ячейках бывает пусто
 * TODO Допилить pruner для адекватного распределения лимита по нодам дерева
-* TODO Притащить xerial/sqlite-jdbc
+* DONE Притащить xerial/sqlite-jdbc
 * TODO Интегрировать Google's piped SQL (or maybe PRQL)
   ZetaSQL вроде содержит транслятор в классический SQL
 * TODO need to do something with cljs reader
