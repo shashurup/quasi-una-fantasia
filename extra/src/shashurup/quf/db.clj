@@ -61,6 +61,11 @@
                      meta)))]
     (jdbc/db-query-with-resultset (resolve-creds db) args handle)))
 
+(defn- preprocess [args]
+  (if (keyword? (first args))
+    [(get *book* (first args)) (rest args)]
+    [*current* args]))
+
 (defn exec
   "Execute a non-query statement, args are:
    database query param1 param2 ....
@@ -74,11 +79,6 @@
   [& args]
   (let [[db args] (preprocess args)]
     (jdbc/execute! (resolve-creds db) args)))
-
-(defn- preprocess [args]
-  (if (keyword? (first args))
-    [(get *book* (first args)) (rest args)]
-    [*current* args]))
 
 (defn q
   "Query a database, args are:
