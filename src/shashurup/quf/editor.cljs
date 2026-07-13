@@ -396,6 +396,114 @@
 
 ;; sexp mode
 
+(defn- chars-around [node offset]
+  (let [text (.-wholeText node)]
+    (cond (= offset 0) [nil (nth text offset)]
+          (= offset (count text)) [(nth text (dec offset)) nil]
+          :else [(nth text (dec offset)) (nth text offset)])))
+
+(defn- alphanum? [subj]
+  (when subj
+    (or
+     (.test (js/RegExp. "\\p{L}" "u") subj)
+     (.test (js/RegExp. "\\p{Nd}" "u") subj))))
+
+(defn- split-to-words [subj]
+  (->> (js/RegExp. "[\\p{L}\\p{Nd}]+" "gu")
+       (.matchAll subj)
+       (map #(vector (.-index %) (first %)))))
+
+(defn- node-at-offset [parent offset]
+  (let [after-last (= offset (.-length parent))]
+    (.item (.-childNodes parent)
+           (if after-last (dec offset) offset))))
+
+(defn- sexp-selection-kind [node offset]
+  (if (text-node? node)
+    (cond
+      (in-atom? node) (cond (= offset 0) :atom-text-begin
+                            (at-the-end? node offset) :atom-text-end
+                            :else :atom-text-middle)
+      (open-paren? (parent-element node)) (if (= offset 0)
+                                            :open-text-begin
+                                            :open-text-end)
+      (closing-paren? (parent-element node)) (if (= offset 0)
+                                               :close-text-begin
+                                               :close-text-end)
+      (whitespace? node) (cond (= offset 0) :whitespace-begin
+                               (at-the-end? node offset) :whitespace-end
+                               :else :whitespace-middle))
+    (let [after-last (= offset (.-length node))
+          node (.item (.-childNodes node)
+                      (if after-last (dec offset) offset))]
+      (cond (atom? node) (if after-last :atom-end :atom-begin)
+            (open-paren? node) :open-begin
+            (closing-paren? node) (if after-last :close-end :close-begin)
+            (element? node) (if after-last :container-end :container-begin)))))
+
+(defn- sexp-adjust-selection []
+  (let [sel (get-selection)]
+    (when (or (collapsed? sel)
+              (not (identical? (get-anchor-node sel)
+                               (get-focus-node sel))))
+      (let [anchor (get-anchor-node sel)
+            offset (get-anchor-offset sel)
+            kind (sexp-selection-kind anchor offset)]
+        (cond
+          (= :atom-text-middle kind) (.setEnd (get-range-0 sel)
+                                              anchor
+                                              (inc offset))
+          (#{:atom-text-begin
+             :atom-text-end} kind) (select-element-by-text! sel anchor)
+          (= :whitespace-begin kind) (select-element!
+                                      sel (or (prev-sibling-element anchor)
+                                              (next-sibling-element anchor)
+                                              (parent-element anchor)))
+          (#{:whitespace-middle
+             :whitespace-end} kind) (select-element!
+                                     sel (or (next-sibling-element anchor)
+                                             (prev-sibling-element anchor)
+                                             (parent-element anchor)))
+          (#{:open-text-begin
+             :close-text-end} kind) (select-element!
+                                     sel (parent-element
+                                          (parent-element anchor)))
+          (= :open-text-end kind) (let [paren (parent-element anchor)]
+                                    (select-element!
+                                     sel (or (next-sibling-element paren)
+                                             (parent-element paren))))
+          (= :close-text-begin kind) (let [paren (parent-element anchor)]
+                                       (select-element!
+                                        sel (or (prev-sibling-element paren)
+                                                (parent-element paren))))
+          (#{:atom-begin
+             :atom-end
+             :container-begin
+             :container-end} kind) (select-element!
+                                    sel (node-at-offset anchor offset))
+          (#{:open-begin
+             :close-end} kind) (select-element! sel anchor)
+          (= :close-begin kind) (select-element!
+                                 sel (or (prev-sibling-element
+                                          (node-at-offset anchor offset))
+                                         anchor)))))))
+
+(defn- sexp-selection-level [sel]
+  (let [anchor (get-anchor-node sel)]
+    (cond (or (sexp? anchor)
+              (root? anchor)) :element
+          (text-node? anchor) (let [a-offset (get-anchor-offset sel)
+                                    focus (get-focus-node sel)
+                                    f-offset (get-focus-offset sel)
+                                    [ap an] (chars-around anchor a-offset)
+                                    [fp fn] (chars-around focus f-offset)]
+                                (if (and (not (alphanum? ap))
+                                         (alphanum? an)
+                                         (alphanum? fp)
+                                         (not (alphanum? fn)))
+                                  :word
+                                  :char)))))
+
 (defn sexp-mode? [id]
   (gcls/contains (get-input-element id) "quf-sexp-mode"))
 
@@ -403,7 +511,8 @@
   "Turn on sexp mode - vim like mode for input expressions editing."
   {:keymap/key :sexp-mode}
   [id]
-  (gcls/add (get-input-element id) "quf-sexp-mode"))
+  (gcls/add (get-input-element id) "quf-sexp-mode")
+  (sexp-adjust-selection))
 
 (defn insert-mode
   "Return back into insert mode."
@@ -452,33 +561,33 @@
   [id]
   (next-element id set-position-at-end!))
 
-(defn move-forward
-  "Move forward a character."
-  {:keymap/key :move-forward}
-  [id]
-  (when-let [sel (get-selection)]
-    (.modify sel "move" "forward" "character")))
-
-(defn move-back
-  "Move backwards a character."
-  {:keymap/key :move-back}
-  [id]
-  (when-let [sel (get-selection)]
-    (.modify sel "move" "backward" "character")))
-
-(defn move-up
-  "Move up a line."
-  {:keymap/key :move-up}
-  [id]
-  (when-let [sel (get-selection)]
-    (.modify sel "move" "backward" "line")))
-
-(defn move-down
-  "Move down a line."
-  {:keymap/key :move-down}
-  [id]
-  (when-let [sel (get-selection)]
-    (.modify sel "move" "forward" "line")))
+;; (defn move-forward
+;;   "Move forward a character."
+;;   {:keymap/key :move-forward}
+;;   [id]
+;;   (when-let [sel (get-selection)]
+;;     (.modify sel "move" "forward" "character")))
+;; 
+;; (defn move-back
+;;   "Move backwards a character."
+;;   {:keymap/key :move-back}
+;;   [id]
+;;   (when-let [sel (get-selection)]
+;;     (.modify sel "move" "backward" "character")))
+;; 
+;; (defn move-up
+;;   "Move up a line."
+;;   {:keymap/key :move-up}
+;;   [id]
+;;   (when-let [sel (get-selection)]
+;;     (.modify sel "move" "backward" "line")))
+;; 
+;; (defn move-down
+;;   "Move down a line."
+;;   {:keymap/key :move-down}
+;;   [id]
+;;   (when-let [sel (get-selection)]
+;;     (.modify sel "move" "forward" "line")))
 
 (defn move-start
   "Move to the start of the input field."
@@ -728,115 +837,10 @@
 
 ;; new sexp mode
 
-(defn- chars-around [node offset]
-  (let [text (.-wholeText node)]
-    (cond (= offset 0) [nil (nth text offset)]
-          (= offset (count text)) [(nth text (dec offset)) nil]
-          :else [(nth text (dec offset)) (nth text offset)])))
-
-(defn- alphanum? [subj]
-  (when subj
-    (or
-     (.test (js/RegExp. "\\p{L}" "u") subj)
-     (.test (js/RegExp. "\\p{Nd}" "u") subj))))
-
-(defn- split-to-words [subj]
-  (->> (js/RegExp. "[\\p{L}\\p{Nd}]+" "gu")
-       (.matchAll subj)
-       (map #(vector (.-index %) (first %)))))
-
-(defn- node-at-offset [parent offset]
-  (let [after-last (= offset (.-length parent))]
-    (.item (.-childNodes parent)
-           (if after-last (dec offset) offset))))
-
-(defn- sexp-selection-kind [node offset]
-  (if (text-node? node)
-    (cond
-      (in-atom? node) (cond (= offset 0) :atom-text-begin
-                            (at-the-end? node offset) :atom-text-end
-                            :else :atom-text-middle)
-      (open-paren? (parent-element node)) (if (= offset 0)
-                                            :open-text-begin
-                                            :open-text-end)
-      (closing-paren? (parent-element node)) (if (= offset 0)
-                                               :close-text-begin
-                                               :close-text-end)
-      (whitespace? node) (cond (= offset 0) :whitespace-begin
-                               (at-the-end? node offset) :whitespace-end
-                               :else :whitespace-middle))
-    (let [after-last (= offset (.-length node))
-          node (.item (.-childNodes node)
-                      (if after-last (dec offset) offset))]
-      (cond (atom? node) (if after-last :atom-end :atom-begin)
-            (open-paren? node) :open-begin
-            (closing-paren? node) (if after-last :close-end :close-begin)
-            (element? node) (if after-last :container-end :container-begin)))))
-
-(defn- sexp-adjust-selection []
-  (let [sel (get-selection)]
-    (when (or (collapsed? sel)
-              (not (identical? (get-anchor-node sel)
-                               (get-focus-node sel))))
-      (let [anchor (get-anchor-node sel)
-            offset (get-anchor-offset sel)
-            kind (sexp-selection-kind anchor offset)]
-        (cond
-          (= :atom-text-middle kind) (.setEnd (get-range-0 sel)
-                                              anchor
-                                              (inc offset))
-          (#{:atom-text-begin
-             :atom-text-end} kind) (select-element-by-text! sel anchor)
-          (= :whitespace-begin kind) (select-element!
-                                      sel (or (prev-sibling-element anchor)
-                                              (next-sibling-element anchor)
-                                              (parent-element anchor)))
-          (#{:whitespace-middle
-             :whitespace-end} kind) (select-element!
-                                     sel (or (next-sibling-element anchor)
-                                             (prev-sibling-element anchor)
-                                             (parent-element anchor)))
-          (#{:open-text-begin
-             :close-text-end} kind) (select-element!
-                                     sel (parent-element
-                                          (parent-element anchor)))
-          (= :open-text-end kind) (let [paren (parent-element anchor)]
-                                    (select-element!
-                                     sel (or (next-sibling-element paren)
-                                             (parent-element paren))))
-          (= :close-text-begin kind) (let [paren (parent-element anchor)]
-                                       (select-element!
-                                        sel (or (prev-sibling-element paren)
-                                                (parent-element paren))))
-          (#{:atom-begin
-             :atom-end
-             :container-begin
-             :container-end} kind) (select-element!
-                                    sel (node-at-offset anchor offset))
-          (#{:open-begin
-             :close-end} kind) (select-element! sel anchor)
-          (= :close-begin kind) (select-element!
-                                 sel (or (prev-sibling-element
-                                          (node-at-offset anchor offset))
-                                         anchor)))))))
-
-(defn- sexp-selection-level [sel]
-  (let [anchor (get-anchor-node sel)]
-    (cond (or (sexp? anchor)
-              (root? anchor)) :element
-          (text-node? anchor) (let [a-offset (get-anchor-offset sel)
-                                    focus (get-focus-node sel)
-                                    f-offset (get-focus-offset sel)
-                                    [ap an] (chars-around anchor a-offset)
-                                    [fp fn] (chars-around focus f-offset)]
-                                (if (and (not (alphanum? ap))
-                                         (alphanum? an)
-                                         (alphanum? fp)
-                                         (not (alphanum? fn)))
-                                  :word
-                                  :char)))))
-
-(defn forward []
+(defn move-forward
+  "Move current selection forward."
+  {:keymap/key :move-forward}
+  []
   (let [sel (get-selection)
         anchor (get-anchor-node sel)
         offset (get-anchor-offset sel)]
@@ -853,7 +857,10 @@
       :char (when-not (at-the-end? anchor (inc offset))
               (select-text! sel anchor (inc offset) 1)))))
 
-(defn backward []
+(defn move-backward
+  "Move current selection backward."
+  {:keymap/key :move-back}
+  []
   (let [sel (get-selection)
         anchor (get-anchor-node sel)
         offset (get-anchor-offset sel)]
@@ -869,7 +876,10 @@
       :char (when (> offset 0)
               (select-text! sel anchor (dec offset) 1)))))
 
-(defn upward []
+(defn move-upward
+  "Select parent element."
+  {:keymap/key :move-up}
+  []
   (let [sel (get-selection)
         anchor (get-anchor-node sel)]
     (condp = (sexp-selection-level sel)
@@ -882,7 +892,10 @@
       :word (select-element! sel (parent-element anchor))
       :element (select-element! sel anchor))))
 
-(defn downward []
+(defn move-downward
+  "Select first child element."
+  {:keymap/key :move-down}
+  []
   (let [sel (get-selection)
         anchor (get-anchor-node sel)
         offset (get-anchor-offset sel)]
