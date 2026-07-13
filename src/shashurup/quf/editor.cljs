@@ -369,6 +369,11 @@
     (.collapse)
     (.selectNode node)))
 
+(defn select-text! [sel node begin len]
+  (doto (get-range-0 sel)
+    (.setStart node begin)
+    (.setEnd node (+ begin len))))
+
 (defn select-element-by-text! [selection node]
   (.selectNode (get-range-0 selection)
                (parent-element node)))
@@ -844,13 +849,9 @@
                                     split-to-words
                                     (drop-while #(< (first %) f-offset))
                                     first)]
-                (doto (get-range-0 sel)
-                  (.setStart anchor p)
-                  (.setEnd anchor (+ p (count w))))))
+                (select-text! sel anchor p (count w))))
       :char (when-not (at-the-end? anchor (inc offset))
-              (doto (get-range-0 sel)
-                (.setStart anchor (inc offset))
-                (.setEnd anchor (+ offset 2)))))))
+              (select-text! sel anchor (inc offset) 1)))))
 
 (defn backward []
   (let [sel (get-selection)
@@ -864,13 +865,9 @@
                                   split-to-words
                                   (take-while #(< (first %) offset))
                                   last)]
-        (doto (get-range-0 sel)
-          (.setStart anchor p)
-          (.setEnd anchor (+ p (count w)))))
+              (select-text! sel anchor p (count w)))
       :char (when (> offset 0)
-              (doto (get-range-0 sel)
-                (.setStart anchor (dec offset))
-                (.setEnd anchor offset))))))
+              (select-text! sel anchor (dec offset) 1)))))
 
 (defn upward []
   (let [sel (get-selection)
@@ -881,9 +878,7 @@
                                     split-to-words
                                     (take-while #(<= (first %) offset))
                                     last)]
-                (doto (get-range-0 sel)
-                  (.setStart anchor p)
-                  (.setEnd anchor (+ p (count w))))))
+                (select-text! sel anchor p (count w))))
       :word (select-element! sel (parent-element anchor))
       :element (select-element! sel anchor))))
 
@@ -903,12 +898,8 @@
                                   (if-let [[p w] (->> (.-textContent txt)
                                                       split-to-words
                                                       first)]
-                                    (doto (get-range-0 sel)
-                                      (.setStart txt p)
-                                      (.setEnd txt (+ p (count w))))
-                                    (doto (get-range-0 sel)
-                                      (.setStart txt 0)
-                                      (.setEnd txt 1)))))))))
+                                    (select-text! sel txt p (count w))
+                                    (select-text! sel txt 0 1))))))))
 
 
 ;; auto pairs
