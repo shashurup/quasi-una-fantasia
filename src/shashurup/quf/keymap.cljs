@@ -35,12 +35,13 @@
                                  "y" :yank
                                  "p" :paste
                                  "h" :move-back
+                                 "S-H" :move-first
                                  "l" :move-forward
+                                 "S-L" :move-last
                                  "j" :move-down
+                                 "S-J" :move-bottom
                                  "k" :move-up
-                                 "w" :next-element-begin
-                                 "e" :next-element-end
-                                 "b" :prev-element
+                                 "S-K" :move-top
                                  "v" :extend-selection
                                  "S-(" :wrap-with-a-paren
                                  "[" :wrap-with-a-bracket
@@ -49,10 +50,7 @@
                                  "u" :unwrap
                                  "S->" :smart-slurp
                                  "S-<" :smart-barf
-                                 "r" :raise-sexp
-                                 "S-^" :move-start
-                                 "S-$" :move-end
-                                 "0" :move-start}})
+                                 "r" :raise-sexp}})
 
 (defonce keymap (atom default-keymap))
 

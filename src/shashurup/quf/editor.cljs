@@ -374,6 +374,16 @@
     (.setStart node begin)
     (.setEnd node (+ begin len))))
 
+(defn select-segment! [sel subj]
+  (if (vector? subj)
+    (let [[node begin len] subj]
+      (doto (get-range-0 sel)
+        (.setStart node begin)
+        (.setEnd node (+ begin len))))
+    (doto (get-range-0 sel)
+      (.collapse)
+      (.selectNode subj))))
+
 (defn select-element-by-text! [selection node]
   (.selectNode (get-range-0 selection)
                (parent-element node)))
@@ -519,91 +529,6 @@
   {:keymap/key :insert-mode}
   [id]
   (gcls/remove (get-input-element id) "quf-sexp-mode"))
-
-(defn prev-element
-  "Move to the beginning of the previous s-expression element."
-  {:keymap/key :prev-element}
-  [id]
-  (when-let [sel (get-selection)]
-    (if (collapsed? sel)
-      ;; move caret backwards
-      (let [node (get-anchor-node sel)]
-        (if (> (get-anchor-offset sel) 0)
-          (set-position! sel node)
-          (when-let [node (prev-atom-text node)]
-            (set-position! sel node))))
-      ;; extend selection backwards
-      (let [start (get-start-element sel)]
-        (when-let [node (first (sibling-elements-before start))]
-          (.setStartBefore (get-range-0 sel) node))))))
-
-(defn next-element [id sel-fn]
-  (when-let [sel (get-selection)]
-    (if (collapsed? sel)
-      ;; move caret backwards
-      (let [node (get-anchor-node sel)]
-        (when-let [node (next-atom-text node)]
-          (sel-fn sel node)))
-      ;; extend selection backwards
-      (let [end (get-end-element sel)]
-        (when-let [node (first (sibling-elements-after end))]
-          (.setEndAfter (get-range-0 sel) node))))))
-
-(defn next-element-begin
-  "Move to the beginning of the next s-expression element."
-  {:keymap/key :next-element-begin}
-  [id]
-  (next-element id set-position!))
-
-(defn next-element-end
-  "Move to the end of the next s-expression element."
-  {:keymap/key :next-element-end}
-  [id]
-  (next-element id set-position-at-end!))
-
-;; (defn move-forward
-;;   "Move forward a character."
-;;   {:keymap/key :move-forward}
-;;   [id]
-;;   (when-let [sel (get-selection)]
-;;     (.modify sel "move" "forward" "character")))
-;; 
-;; (defn move-back
-;;   "Move backwards a character."
-;;   {:keymap/key :move-back}
-;;   [id]
-;;   (when-let [sel (get-selection)]
-;;     (.modify sel "move" "backward" "character")))
-;; 
-;; (defn move-up
-;;   "Move up a line."
-;;   {:keymap/key :move-up}
-;;   [id]
-;;   (when-let [sel (get-selection)]
-;;     (.modify sel "move" "backward" "line")))
-;; 
-;; (defn move-down
-;;   "Move down a line."
-;;   {:keymap/key :move-down}
-;;   [id]
-;;   (when-let [sel (get-selection)]
-;;     (.modify sel "move" "forward" "line")))
-
-(defn move-start
-  "Move to the start of the input field."
-  {:keymap/key :move-start}
-  [id]
-  (when-let [sel (get-selection)]
-    (set-position! sel (first (text-node-seq (get-input-element id))))))
-
-(defn move-end
-  "Move to the end of the input field."
-  {:keymap/key :move-end}
-  [id]
-  (when-let [sel (get-selection)]
-    (.setEndAfter (get-range-0 sel)
-                  (last (text-node-seq (get-input-element id))))
-    (.collapseToEnd sel)))
 
 (defn intra-atom-selection-state [sel]
   (when (identical? (get-anchor-node sel)
@@ -835,84 +760,164 @@
   (insert-text-at-caret @clipboard)
   (restructure (get-input-element id)))
 
-;; new sexp mode
-
-(defn move-forward
-  "Move current selection forward."
-  {:keymap/key :move-forward}
-  []
-  (let [sel (get-selection)
-        anchor (get-anchor-node sel)
+(defn next-segment [sel]
+  (let [anchor (get-anchor-node sel)
         offset (get-anchor-offset sel)]
     (condp = (sexp-selection-level sel)
       :element (let [subj (node-at-offset anchor offset)]
-                 (when-let [target (next-sibling-element subj)]
-                   (select-element! sel target)))
+                 (next-sibling-element subj))
       :word (let [f-offset (get-focus-offset sel)]
               (when-let [[p w] (->> (.-textContent anchor)
                                     split-to-words
                                     (drop-while #(< (first %) f-offset))
                                     first)]
-                (select-text! sel anchor p (count w))))
+                [anchor p (count w)]))
       :char (when-not (at-the-end? anchor (inc offset))
-              (select-text! sel anchor (inc offset) 1)))))
+              [anchor (inc offset) 1]))))
 
-(defn move-backward
-  "Move current selection backward."
-  {:keymap/key :move-back}
-  []
-  (let [sel (get-selection)
-        anchor (get-anchor-node sel)
+(defn first-segment [sel]
+  (let [anchor (get-anchor-node sel)
+        offset (get-anchor-offset sel)]
+    (condp = (sexp-selection-level sel)
+      :element (first (filter element? (children anchor)))
+      :word (when-let [[p w] (->> (.-textContent anchor)
+                                  split-to-words
+                                  first)]
+              [anchor p (count w)])
+      :char [anchor 0 1])))
+
+(defn prev-segment [sel]
+  (let [anchor (get-anchor-node sel)
         offset (get-anchor-offset sel)]
     (condp = (sexp-selection-level sel)
       :element (let [subj (node-at-offset anchor offset)]
-                 (when-let [target (prev-sibling-element subj)]
-                   (select-element! sel target)))
+                 (prev-sibling-element subj))
       :word (when-let [[p w] (->> (.-textContent anchor)
                                   split-to-words
                                   (take-while #(< (first %) offset))
                                   last)]
-              (select-text! sel anchor p (count w)))
+              [anchor p (count w)])
       :char (when (> offset 0)
-              (select-text! sel anchor (dec offset) 1)))))
+              [anchor (dec offset) 1]))))
 
-(defn move-upward
-  "Select parent element."
-  {:keymap/key :move-up}
-  []
-  (let [sel (get-selection)
-        anchor (get-anchor-node sel)]
+(defn last-segment [sel]
+  (let [anchor (get-anchor-node sel)
+        offset (get-anchor-offset sel)]
+    (condp = (sexp-selection-level sel)
+      :element (last (filter element? (children anchor)))
+      :word (when-let [[p w] (->> (.-textContent anchor)
+                                  split-to-words
+                                  last)]
+              [anchor p (count w)])
+      :char (when-not (at-the-end? anchor (inc offset))
+              (let [len (count (.-textContent anchor))]
+                [anchor (dec len) 1])))))
+
+(defn parent-segment [sel]
+  (let [anchor (get-anchor-node sel)]
     (condp = (sexp-selection-level sel)
       :char (let [offset (get-anchor-offset sel)]
               (when-let [[p w] (->> (.-textContent anchor)
                                     split-to-words
                                     (take-while #(<= (first %) offset))
                                     last)]
-                (select-text! sel anchor p (count w))))
-      :word (select-element! sel (parent-element anchor))
-      :element (select-element! sel anchor))))
+                [anchor p (count w)]))
+      :word (parent-element anchor)
+      :element anchor)))
 
-(defn move-downward
-  "Select first child element."
-  {:keymap/key :move-down}
-  []
-  (let [sel (get-selection)
-        anchor (get-anchor-node sel)
+(defn top-segment [sel]
+  (let [anchor (get-anchor-node sel)]
+    (last (parent-nodes anchor))))
+
+(defn first-child-segment [sel]
+  (let [anchor (get-anchor-node sel)
         offset (get-anchor-offset sel)]
     (condp = (sexp-selection-level sel)
-      :word (.setEnd (get-range-0 sel) anchor (inc offset))
+      :word [anchor offset 1]
       :element (let [node (node-at-offset anchor offset)]
                  (cond
-                   (sexp? node) (when-let [subj (->> (children node)
-                                                     (filter element?)
-                                                     first)]
-                                  (select-element! sel subj))
+                   (sexp? node)  (->> (children node)
+                                      (filter element?)
+                                      first)
                    (atom? node) (when-let [txt (first (children node))]
                                   (if-let [[p w] (->> (.-textContent txt)
                                                       split-to-words
                                                       first)]
-                                    (select-text! sel txt p (count w))
-                                    (select-text! sel txt 0 1))))))))
+                                    [txt p (count w)]
+                                    [txt 0 1])))))))
+
+(defn first-character [sel]
+  (let [anchor (get-anchor-node sel)
+        offset (get-anchor-offset sel)
+        node (node-at-offset anchor offset)]
+    (when-let [txt (->> (text-node-seq node)
+                        (filter #(element? (parent-element %)))
+                        first)]
+      [txt 0 1])))
+
+(defn move-forward
+  "Move current selection forward."
+  {:keymap/key :move-forward}
+  []
+  (let [sel (get-selection)]
+    (when-let [seg (next-segment sel)]
+      (select-segment! sel seg))))
+
+(defn move-last
+  "Move current selection to the end."
+  {:keymap/key :move-last}
+  []
+  (let [sel (get-selection)]
+    (when-let [seg (last-segment sel)]
+      (select-segment! sel seg))))
+
+(defn move-backward
+  "Move current selection backward."
+  {:keymap/key :move-back}
+  []
+  (let [sel (get-selection)]
+    (when-let [seg (prev-segment sel)]
+      (select-segment! sel seg))))
+
+(defn move-first
+  "Move current selection to the beginning."
+  {:keymap/key :move-first}
+  []
+  (let [sel (get-selection)]
+    (when-let [seg (first-segment sel)]
+      (select-segment! sel seg))))
+
+(defn move-up
+  "Select parent element."
+  {:keymap/key :move-up}
+  []
+  (let [sel (get-selection)]
+    (when-let [seg (parent-segment sel)]
+      (select-segment! sel seg))))
+
+(defn move-top
+  "Select topmost element."
+  {:keymap/key :move-top}
+  []
+  (let [sel (get-selection)]
+    (when-let [seg (top-segment sel)]
+      (select-segment! sel seg))))
+
+(defn move-down
+  "Select first child element."
+  {:keymap/key :move-down}
+  []
+  (let [sel (get-selection)]
+    (when-let [seg (first-child-segment sel)]
+      (select-segment! sel seg))))
+
+(defn move-bottom
+  "Select first character."
+  {:keymap/key :move-bottom}
+  []
+  (let [sel (get-selection)]
+    (when-let [seg (first-character sel)]
+      (select-segment! sel seg))))
 
 
 ;; auto pairs
