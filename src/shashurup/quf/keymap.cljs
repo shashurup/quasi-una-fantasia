@@ -32,6 +32,7 @@
                      :sexp-mode {"i" :insert-mode
                                  "d" :delete-selection
                                  "c" :change-selection
+                                 "a" :append
                                  "y" :yank
                                  "p" :paste
                                  "h" :move-back

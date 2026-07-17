@@ -531,6 +531,13 @@
   (.collapse (get-range-0 (get-selection)) true)
   (gcls/remove (get-input-element id) "quf-sexp-mode"))
 
+(defn append
+  "Return back into insert mode at the end of the selection."
+  {:keymap/key :append}
+  [id]
+  (.collapse (get-range-0 (get-selection)))
+  (gcls/remove (get-input-element id) "quf-sexp-mode"))
+
 (defn intra-atom-selection-state [sel]
   (when (identical? (get-anchor-node sel)
                     (get-focus-node sel))
