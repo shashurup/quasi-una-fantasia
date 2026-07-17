@@ -366,7 +366,7 @@
 
 (defn select-element! [selection node]
   (doto (get-range-0 selection)
-    (.collapse)
+    (.collapse true)
     (.selectNode node)))
 
 (defn select-text! [sel node begin len]
@@ -381,7 +381,7 @@
         (.setStart node begin)
         (.setEnd node (+ begin len))))
     (doto (get-range-0 sel)
-      (.collapse)
+      (.collapse true)
       (.selectNode subj))))
 
 (defn select-element-by-text! [selection node]
@@ -528,6 +528,7 @@
   "Return back into insert mode."
   {:keymap/key :insert-mode}
   [id]
+  (.collapse (get-range-0 (get-selection)) true)
   (gcls/remove (get-input-element id) "quf-sexp-mode"))
 
 (defn intra-atom-selection-state [sel]
