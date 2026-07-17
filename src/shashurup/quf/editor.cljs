@@ -374,15 +374,24 @@
     (.setStart node begin)
     (.setEnd node (+ begin len))))
 
+;; Looks a bit overcomplicated
+;; however recreating ranges allows
+;; to get rid of side effect such as
+;; when you move the selection visually
+;; it extends rater than move
 (defn select-segment! [sel subj]
-  (if (vector? subj)
-    (let [[node begin len] subj]
-      (doto (get-range-0 sel)
-        (.setStart node begin)
-        (.setEnd node (+ begin len))))
-    (doto (get-range-0 sel)
-      (.collapse true)
-      (.selectNode subj))))
+  (let [range (.createRange js/document)]
+    (if (vector? subj)
+      (let [[node begin len] subj]
+        (doto range
+          (.setStart node begin)
+          (.setEnd node (+ begin len))))
+      (doto range
+        (.collapse true)
+        (.selectNode subj)))
+    (doto sel
+      (.removeAllRanges)
+      (.addRange range))))
 
 (defn select-element-by-text! [selection node]
   (.selectNode (get-range-0 selection)
