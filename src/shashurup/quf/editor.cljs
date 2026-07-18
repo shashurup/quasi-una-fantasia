@@ -539,7 +539,8 @@
     (reset! clipboard (.toString sel))))
 
 (defn- paste [id after?]
-  (let [sel (get-selection)
+  (let [input (get-input-element id)
+        sel (get-selection)
         text (if (text-node? (get-anchor-node sel))
                @clipboard
                (str (when after? " ")
@@ -550,7 +551,8 @@
       (.collapseToStart sel))
     (.insertNode (get-range-0 sel)
                  (make-text-node text))
-    (restructure (get-input-element id))
+    (.normalize input)
+    (restructure input)
     (sexp-adjust-selection)))
 
 (defn paste-before
@@ -845,7 +847,9 @@
 (defn restructure [el]
   (let [text (.-textContent el)
         markup (markup/parse text)]
+    (.log js/console markup)
     (when (not= (skeleton markup) (skeleton el))
+      (.log js/console "restructuring")
       (let [pos (get-caret-position el)]
         (replace-content el (structure->html markup))
         (set-caret-position! el pos)))))
