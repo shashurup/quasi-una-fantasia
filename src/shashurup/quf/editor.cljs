@@ -597,19 +597,6 @@
          (remove paren?)
          first)))
 
-(defn extend-selection
-  "Extends current selection to the enclosing element/container."
-  {:keymap/key :extend-selection}
-  [id]
-  (fix-selection! (get-selection))
-  (when-let [sel (get-selection)]
-    (condp = (selection-state sel)
-      :in-atom         (select-whole-atom! sel (get-anchor-node sel))
-      :in-string       (select-string-interior! sel (get-anchor-node sel))
-      :in-sexp         (select-sexp-interior! sel (find-container-node sel))
-      :sexp-interior   (select-whole-sexp! sel (find-container-node sel))
-      true)))
-
 (declare restructure)
 
 (defn wrap [id open]
@@ -779,18 +766,19 @@
 
 (defn next-segment [sel]
   (let [anchor (get-anchor-node sel)
-        offset (get-anchor-offset sel)]
+        f-offset (get-focus-offset sel)]
     (condp = (sexp-selection-level sel)
-      :element (let [subj (node-at-offset anchor offset)]
-                 (next-sibling-element subj))
-      :word (let [f-offset (get-focus-offset sel)]
-              (when-let [[p w] (->> (.-textContent anchor)
-                                    split-to-words
-                                    (drop-while #(< (first %) f-offset))
-                                    first)]
-                [anchor p (count w)]))
-      :char (when-not (at-the-end? anchor (inc offset))
-              [anchor (inc offset) 1]))))
+      :element (let [subj (node-at-offset anchor f-offset)]
+                 (if (element? subj)
+                   subj
+                   (next-sibling-element subj)))
+      :word (when-let [[p w] (->> (.-textContent anchor)
+                                  split-to-words
+                                  (drop-while #(< (first %) f-offset))
+                                  first)]
+              [anchor p (count w)])
+      :char (when-not (at-the-end? anchor f-offset)
+              [anchor f-offset 1]))))
 
 (defn first-segment [sel]
   (let [anchor (get-anchor-node sel)
@@ -935,6 +923,17 @@
   (let [sel (get-selection)]
     (when-let [seg (first-character sel)]
       (select-segment! sel seg))))
+
+(defn extend-selection
+  "Extends current selection forward."
+  {:keymap/key :extend-selection}
+  [id]
+  (let [sel (get-selection)]
+    (when-let [seg (next-segment sel)]
+      (if (vector? seg)
+        (let [[node begin len] seg]
+          (.extend sel node (+ begin len)))
+        (.setEndAfter (get-range-0 sel) seg)))))
 
 
 ;; auto pairs
