@@ -548,14 +548,14 @@
   "Return back into insert mode."
   {:keymap/key :insert-mode}
   [id]
-  (.collapse (get-range-0 (get-selection)) true)
+  (.collapseToStart (get-selection))
   (gcls/remove (get-input-element id) "quf-sexp-mode"))
 
 (defn append
   "Return back into insert mode at the end of the selection."
   {:keymap/key :append}
   [id]
-  (.collapse (get-range-0 (get-selection)))
+  (.collapseToEnd (get-selection))
   (gcls/remove (get-input-element id) "quf-sexp-mode"))
 
 (defn intra-atom-selection-state [sel]
@@ -670,18 +670,23 @@
       (restructure (get-input-element id)))))
 
 (defn raise-sexp
-  "Deletes siblings before caret and unwraps."
+  "Deletes siblings before and after the selection and unwraps."
   {:keymap/key :raise-sexp}
   [id]
-  (when-let [sel (get-selection)]
-    (when-let [node (selected-sexp-child sel)]
-      (->> node
-           nodes-before
-           (filter #(not (paren? %)))
-           vec ;; makes a copy of node to delete
-           (map #(.removeChild (parent-element node) %))
-           doall)
-      (unwrap id))))
+  (let [sel (get-selection)
+        anchor (get-anchor-node sel)
+        start (if (text-node? anchor)
+                (parent-element anchor)
+                (node-at-offset anchor (get-anchor-offset sel)))
+        end (cond
+              (collapsed? sel) start
+              (text-node? anchor) (parent-element anchor)
+              :else (node-at-offset anchor (dec (get-focus-offset sel))))]
+    (->> (concat (nodes-before start)
+                 (nodes-after end))
+         vec ;; makes a copy of nodes to delete
+         (map #(.removeChild (parent-element start) %))
+         doall)))
 
 (defn forward-slurp
   "Move nearest closing brace one element forward."
@@ -779,9 +784,12 @@
   "Pastes local clipboard content."
   {:keymap/key :paste}
   [id]
-  (insert-text-at-caret @clipboard)
-  (restructure (get-input-element id))
-  (sexp-adjust-selection))
+  (let [sel (get-selection)]
+    (.collapseToStart sel)
+    (.insertNode (get-range-0 sel)
+                 (make-text-node @clipboard))
+    (restructure (get-input-element id))
+    (sexp-adjust-selection)))
 
 (defn next-segment [sel]
   (let [anchor (get-anchor-node sel)
