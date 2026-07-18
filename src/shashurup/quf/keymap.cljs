@@ -49,8 +49,6 @@
                                  "S-{" :wrap-with-a-brace
                                  "S-\"" :wrap-with-quotes
                                  "u" :unwrap
-                                 "S->" :smart-slurp
-                                 "S-<" :smart-barf
                                  "r" :raise-sexp}})
 
 (defonce keymap (atom default-keymap))

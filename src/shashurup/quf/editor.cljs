@@ -106,37 +106,6 @@
        (not (paren? (parent-element node)))
        (not (in-atom? node))))
 
-(defn atom-of-type? [node type]
-  (and (atom? node)
-       (gcls/contains node type)))
-
-(defn end-of-whitespace? [node offset]
-  (and (whitespace? node)
-       (= (.-length node) offset)))
-
-(defn string-atom? [node] (atom-of-type? node "quf-string"))
-
-(defn get-start-element [selection]
-  (let [range (get-range-0 selection)
-        start (.-startContainer range)
-        parent (parent-element start)
-        offset (.-startOffset range)]
-    (if (text-node? start)
-      (cond
-        (paren? parent) (parent-element parent)
-        (atom? parent) parent
-        :else start)
-      (.item (.-childNodes start) offset))))
-
-(defn get-end-element [selection]
-  (let [range (get-range-0 selection)
-        end (.-endContainer range)
-        parent (parent-element end)
-        offset (.-endOffset range)]
-    (if (text-node? end)
-      (if (atom? parent) parent end)
-      (.item (.-childNodes end) (dec offset)))))
-
 (defn parent-nodes [node]
   (take-while #(not (root? %))
               (iterate parent-element node)))
@@ -241,20 +210,6 @@
          (take-while identity)
          last)))
 
-(defn prev-atom-text [node]
-  (->> (iterate prev-leaf-node node)
-       (take-while identity)
-       rest
-       (filter in-atom?)
-       first))
-
-(defn next-atom-text [node]
-  (->> (iterate next-leaf-node node)
-       (take-while identity)
-       rest
-       (filter in-atom?)
-       first))
-
 (defn next-to-caret [sel]
   (let [node (get-anchor-node sel)
         offset (get-anchor-offset sel)]
@@ -292,19 +247,6 @@
          (take-while identity)
          (filter element?))))
 
-(defn selected-sexp-child [sel]
-  (let [node (get-common-ancestor sel)]
-    (if (or (right-edge-of-sexp? sel)
-            (left-edge-of-sexp? sel))
-      (->> node
-           parent-nodes
-           (filter sexp?)
-           first)
-      (let [parent (parent-element node)]
-        (if (sexp? parent)
-          node
-          parent)))))
-
 (defn enclosing-sexp [sel]
   (let [node (get-common-ancestor sel)
         which (if (or (right-edge-of-sexp? sel)
@@ -316,70 +258,18 @@
          (filter sexp?)
          which)))
 
-(defn first-text-node-or-self [node]
-  (when node
-    (if-let [text (.-firstChild node)]
-      (if (text-node? text) text node)
-      node)))
-
-(defn whole-node-selected? [sel]
-  (let [node (get-anchor-node sel)
-        start (get-anchor-offset sel)
-        end (get-focus-offset sel)]
-    (= (abs (- end start))
-       (count (.-textContent node)))))
-
-(defn string-interior-range [text]
-  [(inc (or (s/index-of text "\"") 0))
-   (or (s/last-index-of text "\"")
-       (count text))])
-
-(defn string-interior-selected? [sel]
-  (= (sort [(get-anchor-offset sel) (get-focus-offset sel)])
-     (string-interior-range (.-textContent (get-anchor-node sel)))))
-
 (defn set-position!
   ([selection node] (set-position! selection node 0))
   ([selection node offset]
    (.setPosition selection node offset)
    selection))
 
-(defn set-position-at-end! [selection node]
-  (set-position! selection
-                 node
-                 (if (text-node? node)
-                   (count (.-textContent node))
-                   (.-length (.-childNodes node)))))
-
-(defn select-whole-atom! [selection node]
-  (let [atom (if (text-node? node) (parent-element node) node)
-        range (get-range-0 selection)]
-    (.selectNode range atom)))
-
-(defn select-string-interior! [selection node]
-  (let [text (.-textContent node)
-        [begin end] (string-interior-range text)]
-    (.setBaseAndExtent selection node begin node end)))
-
-(defn select-whole-sexp! [selection node]
-  (.selectNode (get-range-0 selection) node))
-
-(defn select-element! [selection node]
-  (doto (get-range-0 selection)
-    (.collapse true)
-    (.selectNode node)))
-
-(defn select-text! [sel node begin len]
-  (doto (get-range-0 sel)
-    (.setStart node begin)
-    (.setEnd node (+ begin len))))
-
 ;; Looks a bit overcomplicated
 ;; however recreating ranges allows
 ;; to get rid of side effect such as
 ;; when you move the selection visually
 ;; it extends rater than move
-(defn select-segment! [sel subj]
+(defn select! [sel subj]
   (let [range (.createRange js/document)]
     (if (vector? subj)
       (let [[node begin len] subj]
@@ -396,22 +286,6 @@
 (defn select-element-by-text! [selection node]
   (.selectNode (get-range-0 selection)
                (parent-element node)))
-
-(defn select-sexp-interior! [selection node]
-  (let [first-child (.-firstChild node)
-        last-child (.-lastChild node)]
-    (cond (root? node)
-              (doto (get-range-0 selection)
-                (.setStartBefore first-child)
-                (.setEndAfter last-child))
-
-          (and (paren? first-child)
-               (paren? last-child))
-              (doto (get-range-0 selection)
-                (.setStartAfter first-child)
-                (.setEndBefore last-child))
-
-          :else (select-whole-sexp! selection node))))
 
 ;; sexp mode
 
@@ -478,42 +352,42 @@
                                               (inc offset))
           (#{:atom-text-begin
              :atom-text-end} kind) (select-element-by-text! sel anchor)
-          (= :whitespace-text-begin kind) (select-element!
+          (= :whitespace-text-begin kind) (select!
                                            sel (or (prev-sibling-element anchor)
                                                    (next-sibling-element anchor)
                                                    (parent-element anchor)))
           (#{:whitespace-begin
              :whitespace-end} kind) (let [node (node-at-offset anchor offset)]
                                       (.log js/console node)
-                                      (select-element!
+                                      (select!
                                        sel (or (prev-sibling-element node)
                                                (next-sibling-element node)
                                                (parent-element node))))
           (#{:whitespace-text-middle
-             :whitespace-text-end} kind) (select-element!
+             :whitespace-text-end} kind) (select!
                                           sel (or (next-sibling-element anchor)
                                                   (prev-sibling-element anchor)
                                                   (parent-element anchor)))
           (#{:open-text-begin
-             :close-text-end} kind) (select-element!
+             :close-text-end} kind) (select!
                                      sel (parent-element
                                           (parent-element anchor)))
           (= :open-text-end kind) (let [paren (parent-element anchor)]
-                                    (select-element!
+                                    (select!
                                      sel (or (next-sibling-element paren)
                                              (parent-element paren))))
           (= :close-text-begin kind) (let [paren (parent-element anchor)]
-                                       (select-element!
+                                       (select!
                                         sel (or (prev-sibling-element paren)
                                                 (parent-element paren))))
           (#{:atom-begin
              :atom-end
              :container-begin
-             :container-end} kind) (select-element!
+             :container-end} kind) (select!
                                     sel (node-at-offset anchor offset))
           (#{:open-begin
-             :close-end} kind) (select-element! sel anchor)
-          (= :close-begin kind) (select-element!
+             :close-end} kind) (select! sel anchor)
+          (= :close-begin kind) (select!
                                  sel (or (prev-sibling-element
                                           (node-at-offset anchor offset))
                                          anchor)))))))
@@ -557,56 +431,6 @@
   [id]
   (.collapseToEnd (get-selection))
   (gcls/remove (get-input-element id) "quf-sexp-mode"))
-
-(defn intra-atom-selection-state [sel]
-  (when (identical? (get-anchor-node sel)
-                    (get-focus-node sel))
-    (let [anchor-node (get-anchor-node sel)
-          parent (parent-element anchor-node)]
-      (when (atom? parent)
-        (when (not (whole-node-selected? sel))
-          (if (string-atom? parent)
-            (if (string-interior-selected? sel)
-              :in-atom
-              :in-string)
-            :in-atom))))) )
-
-(defn sexp-selection-state [sel]
-  (let [common-ancestor (get-common-ancestor sel)]
-    (let [first-child (.-firstChild common-ancestor)
-          last-child (.-lastChild common-ancestor)
-          range (get-range-0 sel)]
-      (if (and (paren? first-child)
-               (paren? last-child)
-               (not (range-includes? range first-child))
-               (not (range-includes? range last-child))
-               (every? #(range-includes? range %)
-                       (nodes-between first-child last-child)))
-        :sexp-interior
-        :in-sexp))))
-
-(defn selection-state [sel]
-  (or (intra-atom-selection-state sel)
-      (sexp-selection-state sel)))
-
-(defn fix-selection!
-  "Move selection to the more appropriate place.
-  For instance, when it is at the end of a whitespace
-  move it to the next element, etc."
-  [selection]
-  (when (and (collapsed? selection)
-             (at-the-end? selection))
-    (let [node (get-anchor-node selection)
-          parent (parent-element node)]
-      (when (or (whitespace? node) (paren? parent))
-        (set-position! selection (next-leaf-node node))))))
-
-(defn find-container-node [sel]
-  (let [node (get-common-ancestor sel)]
-    (->> (iterate parent-element node)
-         (remove text-node?)
-         (remove paren?)
-         first)))
 
 (declare restructure)
 
@@ -687,72 +511,6 @@
          vec ;; makes a copy of nodes to delete
          (map #(.removeChild (parent-element start) %))
          doall)))
-
-(defn forward-slurp
-  "Move nearest closing brace one element forward."
-  {:keymap/key :forward-slurp}
-  [id]
-  (when-let [sel (get-selection)]
-    (when-let [sexp (enclosing-sexp sel)]
-      (->> (nodes-after sexp)
-           (u/take-until element?)
-           (map #(.insertBefore sexp % (.-lastChild sexp)))
-           doall))))
-
-(defn backward-slurp
-  "Move nearest opening brace one element backwards."
-  {:keymap/key :backward-slurp}
-  [id]
-  (when-let [sel (get-selection)]
-    (when-let [sexp (enclosing-sexp sel)]
-      (->> (nodes-before sexp)
-           (u/take-until element?)
-           (map #(.insertBefore sexp % (.-nextSibling (.-firstChild sexp))))
-           doall))) )
-
-(defn forward-barf
-  "Move nearest closing brace one element backwards."
-  {:keymap/key :forward-barf}
-  [id]
-  (when-let [sel (get-selection)]
-    (when-let [sexp (enclosing-sexp sel)]
-      (->> (nodes-before (.-lastChild sexp))
-           (u/take-until whitespace?)
-           (map #(.insertBefore (parent-element sexp)
-                                %
-                                (next-sibling sexp)))
-           doall))))
-
-(defn backward-barf
-  "Move nearest opening brace one element forward."
-  {:keymap/key :backward-barf}
-  [id]
-  (when-let [sel (get-selection)]
-    (when-let [sexp (enclosing-sexp sel)]
-      (->> (nodes-after (.-firstChild sexp))
-           (u/take-until whitespace?)
-           (map #(.insertBefore (parent-element sexp) % sexp))
-           doall))))
-
-(defn smart-slurp
-  "Forward slurp when inside an sexp.
-   Backward barf when at opening brace."
-  {:keymap/key :smart-slurp}
-  [id]
-  (let [n (prev-to-caret (get-selection))]
-    (if (pairs n)
-      (backward-barf id)
-      (forward-slurp id))))
-
-(defn smart-barf
-  "Forward barf when inside an sexp.
-   Backward slurp when at opening brace."
-  {:keymap/key :smart-barf}
-  [id]
-  (let [n (prev-to-caret (get-selection))]
-    (if (pairs n)
-      (backward-slurp id)
-      (forward-barf id))))
 
 (defonce clipboard (atom ""))
 
@@ -893,7 +651,7 @@
   []
   (let [sel (get-selection)]
     (when-let [seg (next-segment sel)]
-      (select-segment! sel seg))))
+      (select! sel seg))))
 
 (defn move-last
   "Move current selection to the end."
@@ -901,7 +659,7 @@
   []
   (let [sel (get-selection)]
     (when-let [seg (last-segment sel)]
-      (select-segment! sel seg))))
+      (select! sel seg))))
 
 (defn move-backward
   "Move current selection backward."
@@ -909,7 +667,7 @@
   []
   (let [sel (get-selection)]
     (when-let [seg (prev-segment sel)]
-      (select-segment! sel seg))))
+      (select! sel seg))))
 
 (defn move-first
   "Move current selection to the beginning."
@@ -917,7 +675,7 @@
   []
   (let [sel (get-selection)]
     (when-let [seg (first-segment sel)]
-      (select-segment! sel seg))))
+      (select! sel seg))))
 
 (defn move-up
   "Select parent element."
@@ -925,7 +683,7 @@
   []
   (let [sel (get-selection)]
     (when-let [seg (parent-segment sel)]
-      (select-segment! sel seg))))
+      (select! sel seg))))
 
 (defn move-top
   "Select topmost element."
@@ -933,7 +691,7 @@
   []
   (let [sel (get-selection)]
     (when-let [seg (top-segment sel)]
-      (select-segment! sel seg))))
+      (select! sel seg))))
 
 (defn move-down
   "Select first child element."
@@ -941,7 +699,7 @@
   []
   (let [sel (get-selection)]
     (when-let [seg (first-child-segment sel)]
-      (select-segment! sel seg))))
+      (select! sel seg))))
 
 (defn move-bottom
   "Select first character."
@@ -949,7 +707,7 @@
   []
   (let [sel (get-selection)]
     (when-let [seg (first-character sel)]
-      (select-segment! sel seg))))
+      (select! sel seg))))
 
 (defn extend-selection
   "Extends current selection forward."
