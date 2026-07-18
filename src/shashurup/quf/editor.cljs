@@ -449,40 +449,51 @@
       (closing-paren? (parent-element node)) (if (= offset 0)
                                                :close-text-begin
                                                :close-text-end)
-      (whitespace? node) (cond (= offset 0) :whitespace-begin
-                               (at-the-end? node offset) :whitespace-end
-                               :else :whitespace-middle))
+      (whitespace? node) (cond (= offset 0) :whitespace-text-begin
+                               (at-the-end? node offset) :whitespace-text-end
+                               :else :whitespace-text-middle))
     (let [after-last (= offset (.-length node))
           node (.item (.-childNodes node)
                       (if after-last (dec offset) offset))]
       (cond (atom? node) (if after-last :atom-end :atom-begin)
             (open-paren? node) :open-begin
             (closing-paren? node) (if after-last :close-end :close-begin)
-            (element? node) (if after-last :container-end :container-begin)))))
+            (element? node) (if after-last :container-end :container-begin)
+            (whitespace? node) (if after-last :whitespace-end :whitespace-begin)))))
 
 (defn- sexp-adjust-selection []
   (let [sel (get-selection)]
+    (.log js/console "adjusting sexp selection")
     (when (or (collapsed? sel)
               (not (identical? (get-anchor-node sel)
                                (get-focus-node sel))))
       (let [anchor (get-anchor-node sel)
             offset (get-anchor-offset sel)
             kind (sexp-selection-kind anchor offset)]
+        (.log js/console anchor)
+        (.log js/console kind)
         (cond
           (= :atom-text-middle kind) (.setEnd (get-range-0 sel)
                                               anchor
                                               (inc offset))
           (#{:atom-text-begin
              :atom-text-end} kind) (select-element-by-text! sel anchor)
-          (= :whitespace-begin kind) (select-element!
-                                      sel (or (prev-sibling-element anchor)
-                                              (next-sibling-element anchor)
-                                              (parent-element anchor)))
-          (#{:whitespace-middle
-             :whitespace-end} kind) (select-element!
-                                     sel (or (next-sibling-element anchor)
-                                             (prev-sibling-element anchor)
-                                             (parent-element anchor)))
+          (= :whitespace-text-begin kind) (select-element!
+                                           sel (or (prev-sibling-element anchor)
+                                                   (next-sibling-element anchor)
+                                                   (parent-element anchor)))
+          (#{:whitespace-begin
+             :whitespace-end} kind) (let [node (node-at-offset anchor offset)]
+                                      (.log js/console node)
+                                      (select-element!
+                                       sel (or (prev-sibling-element node)
+                                               (next-sibling-element node)
+                                               (parent-element node))))
+          (#{:whitespace-text-middle
+             :whitespace-text-end} kind) (select-element!
+                                          sel (or (next-sibling-element anchor)
+                                                  (prev-sibling-element anchor)
+                                                  (parent-element anchor)))
           (#{:open-text-begin
              :close-text-end} kind) (select-element!
                                      sel (parent-element
@@ -754,7 +765,10 @@
   [id]
   (when-let [sel (js/getSelection)]
     (reset! clipboard (.toString sel))
-    (.deleteFromDocument sel)))
+    (.log js/console "delete selection")
+    (.deleteFromDocument sel)
+    (restructure (get-input-element id))
+    (sexp-adjust-selection)))
 
 (defn yank
   "Yanks the selected text into local clipboard."
@@ -768,7 +782,8 @@
   {:keymap/key :paste}
   [id]
   (insert-text-at-caret @clipboard)
-  (restructure (get-input-element id)))
+  (restructure (get-input-element id))
+  (sexp-adjust-selection))
 
 (defn next-segment [sel]
   (let [anchor (get-anchor-node sel)
@@ -1048,6 +1063,7 @@
     (set-position! (get-selection) node (- pos start))))
 
 (defn restructure [el]
+  (.log js/console "restructuring")
   (let [text (.-textContent el)
         markup (markup/parse text)]
     (when (not= (skeleton markup) (skeleton el))
