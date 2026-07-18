@@ -542,15 +542,16 @@
   (let [sel (get-selection)
         text (if (text-node? (get-anchor-node sel))
                @clipboard
-               (str " " @clipboard " "))]
+               (str (when after? " ")
+                    @clipboard
+                    (when-not after? " ")))]
     (if after?
       (.collapseToEnd sel)
       (.collapseToStart sel))
     (.insertNode (get-range-0 sel)
                  (make-text-node text))
     (restructure (get-input-element id))
-    (sexp-adjust-selection))
-  )
+    (sexp-adjust-selection)))
 
 (defn paste-before
   "Pastes local clipboard content."
