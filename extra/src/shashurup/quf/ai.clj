@@ -386,6 +386,17 @@
    (let [topic (keyword (str "btw-" (swap! btw-current-id inc)))]
      (p context topic query))))
 
+(defn btww
+  "Prompt the model with the context of previous btw.
+   Args, are:
+   query - the prompt
+   context - optional, atom keeping model interaction state
+             when omitted, *current* is used."
+  ([query] (btww *current* query))
+  ([context query]
+   (let [topic (keyword (str "btw-" @btw-current-id))]
+     (p context topic query))))
+
 
 (defn stop-mcp-servers
   "Stop all MCP servers.
