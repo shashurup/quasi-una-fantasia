@@ -765,9 +765,7 @@
   [id]
   (when-let [sel (js/getSelection)]
     (reset! clipboard (.toString sel))
-    (.log js/console "delete selection")
     (.deleteFromDocument sel)
-    (restructure (get-input-element id))
     (sexp-adjust-selection)))
 
 (defn yank
@@ -1063,7 +1061,6 @@
     (set-position! (get-selection) node (- pos start))))
 
 (defn restructure [el]
-  (.log js/console "restructuring")
   (let [text (.-textContent el)
         markup (markup/parse text)]
     (when (not= (skeleton markup) (skeleton el))
