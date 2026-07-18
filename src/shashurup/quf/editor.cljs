@@ -337,15 +337,12 @@
 
 (defn- sexp-adjust-selection []
   (let [sel (get-selection)]
-    (.log js/console "adjusting sexp selection")
     (when (or (collapsed? sel)
               (not (identical? (get-anchor-node sel)
                                (get-focus-node sel))))
       (let [anchor (get-anchor-node sel)
             offset (get-anchor-offset sel)
             kind (sexp-selection-kind anchor offset)]
-        (.log js/console anchor)
-        (.log js/console kind)
         (cond
           (= :atom-text-middle kind) (.setEnd (get-range-0 sel)
                                               anchor
@@ -358,7 +355,6 @@
                                                    (parent-element anchor)))
           (#{:whitespace-begin
              :whitespace-end} kind) (let [node (node-at-offset anchor offset)]
-                                      (.log js/console node)
                                       (select!
                                        sel (or (prev-sibling-element node)
                                                (next-sibling-element node)
@@ -827,10 +823,16 @@
        (reduce +)))
 
 (defn get-caret-position [el]
-  (let [range (get-range-0 (get-selection))
-        start-el (.-startContainer range)
-        start-pos (.-startOffset range)]
-    (+ (get-node-text-offset start-el el) start-pos)))
+  (let [sel (get-selection)
+        anchor (get-anchor-node sel)
+        offset (get-anchor-offset sel)
+        txt (if (text-node? anchor)
+              anchor
+              (->> (node-at-offset anchor offset)
+                   text-node-seq
+                   first))
+        pos (if (text-node? anchor) offset 0)]
+    (+ (get-node-text-offset txt el) pos)))
 
 (defn set-caret-position! [el pos]
   (when-let [[start _ node]
@@ -847,9 +849,7 @@
 (defn restructure [el]
   (let [text (.-textContent el)
         markup (markup/parse text)]
-    (.log js/console markup)
     (when (not= (skeleton markup) (skeleton el))
-      (.log js/console "restructuring")
       (let [pos (get-caret-position el)]
         (replace-content el (structure->html markup))
         (set-caret-position! el pos)))))
