@@ -35,6 +35,7 @@
                                  "a" :append
                                  "y" :yank
                                  "p" :paste
+                                 "S-P" :paste-after
                                  "h" :move-back
                                  "S-H" :move-first
                                  "l" :move-forward

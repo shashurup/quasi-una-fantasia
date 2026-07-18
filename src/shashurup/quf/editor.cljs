@@ -538,16 +538,31 @@
   (when-let [sel (js/getSelection)]
     (reset! clipboard (.toString sel))))
 
-(defn paste
+(defn- paste [id after?]
+  (let [sel (get-selection)
+        text (if (text-node? (get-anchor-node sel))
+               @clipboard
+               (str " " @clipboard " "))]
+    (if after?
+      (.collapseToEnd sel)
+      (.collapseToStart sel))
+    (.insertNode (get-range-0 sel)
+                 (make-text-node text))
+    (restructure (get-input-element id))
+    (sexp-adjust-selection))
+  )
+
+(defn paste-before
   "Pastes local clipboard content."
   {:keymap/key :paste}
   [id]
-  (let [sel (get-selection)]
-    (.collapseToStart sel)
-    (.insertNode (get-range-0 sel)
-                 (make-text-node @clipboard))
-    (restructure (get-input-element id))
-    (sexp-adjust-selection)))
+  (paste id false))
+
+(defn paste-after
+  "Pastes local clipboard content after the selection."
+  {:keymap/key :paste-after}
+  [id]
+  (paste id true))
 
 (defn next-segment [sel]
   (let [anchor (get-anchor-node sel)
