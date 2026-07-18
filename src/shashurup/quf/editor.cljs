@@ -600,11 +600,16 @@
 (declare restructure)
 
 (defn wrap [id open]
-  (fix-selection! (get-selection))
   (let [close (get pairs open)
         sel (get-selection)
-        start (get-start-element sel)
-        end (if (collapsed? sel) start (get-end-element sel))
+        anchor (get-anchor-node sel)
+        start (if (text-node? anchor)
+                (parent-element anchor)
+                (node-at-offset anchor (get-anchor-offset sel)))
+        end (cond
+              (collapsed? sel) start
+              (text-node? anchor) (parent-element anchor)
+              :else (node-at-offset anchor (dec (get-focus-offset sel))))
         open-node (make-text-node (str open " "))]
     (.insertBefore (parent-element start)
                    open-node
@@ -613,7 +618,8 @@
                    (make-text-node close)
                    (next-sibling end))
     (set-position! sel open-node 1)
-    (restructure (get-input-element id))))
+    (restructure (get-input-element id))
+    (insert-mode id)))
 
 (defn wrap-with-a-paren
   "Wrap current selection with parens."
