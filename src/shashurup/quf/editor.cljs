@@ -648,7 +648,8 @@
                                                       split-to-words
                                                       first)]
                                     [txt p (count w)]
-                                    [txt 0 1])))))))
+                                    [txt 0 1]))))
+      nil)))
 
 (defn first-character [sel]
   (let [anchor (get-anchor-node sel)
