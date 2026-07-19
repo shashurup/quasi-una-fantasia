@@ -1,5 +1,6 @@
 (ns shashurup.quf.keymap
   (:require [cljs.tools.reader :refer [read-string]]
+            [clojure.string :as s]
             [shashurup.quf.assistant :as assistant]
             [shashurup.quf.editor :as editor]
             [shashurup.quf.render :refer [render]]
@@ -35,24 +36,56 @@
                                  "a" :append
                                  "y" :yank
                                  "p" :paste
-                                 "S-P" :paste-after
+                                 "S-p" :paste-after
                                  "h" :move-back
-                                 "S-H" :move-first
+                                 "S-h" :move-first
                                  "l" :move-forward
-                                 "S-L" :move-last
+                                 "S-l" :move-last
                                  "j" :move-down
-                                 "S-J" :move-bottom
+                                 "S-j" :move-bottom
                                  "k" :move-up
-                                 "S-K" :move-top
+                                 "S-k" :move-top
                                  "v" :extend-selection
-                                 "S-(" :wrap-with-a-paren
+                                 "S-9" :wrap-with-a-paren
                                  "[" :wrap-with-a-bracket
-                                 "S-{" :wrap-with-a-brace
-                                 "S-\"" :wrap-with-quotes
+                                 "S-[" :wrap-with-a-brace
+                                 "S-'" :wrap-with-quotes
                                  "u" :unwrap
                                  "r" :raise-sexp}})
 
-(defonce keymap (atom default-keymap))
+(defonce symbol-codes {"=" "Equal"
+                       "[" "BracketLeft"
+                       "]" "BracketRight"
+                       ";" "Semicolon"
+                       "'" "Quote"
+                       "`" "BackQuote"
+                       "\\" "Backslash"
+                       "," "Comma"
+                       "." "Period"
+                       "/" "Slash"})
+
+(defn- canonize [subj]
+  (let [parts (s/split (s/trim subj) #"-")
+        code (last parts)
+        mods (butlast parts)]
+    (let [mods (vec (sort mods))
+          code (if (> (count code) 1)
+                 code
+                 (cond
+                   (re-matches #"[a-zA-Z]" code) (str "key" code)
+                   (re-matches #"[0-9]" code) (str "digit" code)
+                   :else (get symbol-codes code code)))]
+      (->> (conj mods code)
+           (s/join "-")
+           s/lower-case))))
+
+(defn- canonize-keymap [subj]
+  (-> subj
+      (update :base update-keys canonize)
+      (update :completions update-keys canonize)
+      (update :sexp-mode update-keys canonize)))
+
+(defonce keymap (atom (canonize-keymap default-keymap)))
 
 (defonce fn-map (atom {}))
 
@@ -68,10 +101,10 @@
                                (map #(vector (:keymap/key (meta %)) %))))))
 
 (defn- key-event->str [e]
-  (str (when (.-altKey e) "A-")
-       (when (.-ctrlKey e) "C-")
-       (when (.-shiftKey e) "S-")
-       (.-key e)))
+  (str (when (.-altKey e) "a-")
+       (when (.-ctrlKey e) "c-")
+       (when (.-shiftKey e) "s-")
+       (s/lower-case (.-code e))))
 
 (defn- handler-fn [mode key]
   (when-let [fn-key (get-in @keymap [mode key])]
@@ -105,10 +138,12 @@
 (def item-name "keymap")
 
 (defn merge-keymap! [subj]
-  (u/store-item item-name (swap! keymap #(merge-with merge % subj))))
+  (u/store-item item-name
+                (swap! keymap
+                       #(merge-with merge % (canonize-keymap subj)))))
 
 (defn replace-keymap! [subj]
-  (u/store-item item-name (reset! keymap subj)))
+  (u/store-item item-name (reset! keymap (canonize-keymap subj))))
 
 (def mode-names {:base "Basic"
                  :completions "Completions mode"
