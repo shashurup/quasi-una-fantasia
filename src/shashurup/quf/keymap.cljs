@@ -104,7 +104,7 @@
   (str (when (.-altKey e) "a-")
        (when (.-ctrlKey e) "c-")
        (when (.-shiftKey e) "s-")
-       (s/lower-case (.-code e))))
+       (s/lower-case (or (.-code e) ""))))
 
 (defn- handler-fn [mode key]
   (when-let [fn-key (get-in @keymap [mode key])]
