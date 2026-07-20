@@ -22,11 +22,11 @@
                             "C-p" :search-history
                             "C-h" :toggle-doc
                             "C-s" :cycle-result-height
-                            "C-=" :load-ns-dialog
+                            "C-." :load-ns-dialog
                             "A-C-t" :new-tab
                             "C-m" :show-checkboxes
                             "C-e" :expand-client-vars
-                            "C-;" :sexp-mode}
+                            "C-[" :sexp-mode}
                      :completions {"C-j" :use-next-candidate
                                    "C-k" :use-prev-candidate
                                    "Escape" :hide-completion-candidates}
@@ -85,7 +85,14 @@
       (update :completions update-keys canonize)
       (update :sexp-mode update-keys canonize)))
 
-(defonce keymap (atom (canonize-keymap default-keymap)))
+(defonce keymap (atom default-keymap))
+
+(defonce keymap-canon (atom (canonize-keymap default-keymap)))
+
+(add-watch keymap
+           :update-canon
+           (fn [_ _ _ new]
+             (reset! keymap-canon (canonize-keymap new))))
 
 (defonce fn-map (atom {}))
 
@@ -107,7 +114,7 @@
        (s/lower-case (or (.-code e) ""))))
 
 (defn- handler-fn [mode key]
-  (when-let [fn-key (get-in @keymap [mode key])]
+  (when-let [fn-key (get-in @keymap-canon [mode key])]
     (get @fn-map fn-key)))
 
 (defn- find-handler [id key]
@@ -140,10 +147,10 @@
 (defn merge-keymap! [subj]
   (u/store-item item-name
                 (swap! keymap
-                       #(merge-with merge % (canonize-keymap subj)))))
+                       #(merge-with merge % subj))))
 
 (defn replace-keymap! [subj]
-  (u/store-item item-name (reset! keymap (canonize-keymap subj))))
+  (u/store-item item-name (reset! keymap subj)))
 
 (def mode-names {:base "Basic"
                  :completions "Completions mode"
