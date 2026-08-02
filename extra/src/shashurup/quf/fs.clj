@@ -2,7 +2,9 @@
   "Files related functions"
   {:shashurup.quf/client-module :fs}
   (:import [java.nio.file Files Paths LinkOption CopyOption]
-           [java.nio.file.attribute PosixFilePermission FileAttribute]
+           [java.nio.file.attribute PosixFilePermission
+                                    PosixFileAttributes
+                                    FileAttribute]
            [java.time Instant]
            [java.time.temporal ChronoUnit]
            [org.apache.tika Tika])
@@ -65,45 +67,81 @@
        (map permission-map)
        (into #{})))
 
-(defn- symlink? [subj]
-  (.get subj "isSymbolicLink"))
+(def unix-attrs "unix:size,isDirectory,isRegularFile,isSymbolicLink,uid,gid,lastModifiedTime,creationTime,lastAccessTime")
+(def no-links-opts (into-array [LinkOption/NOFOLLOW_LINKS]))
+(def user-id-name-mapping (atom {}))
+(def group-id-name-mapping (atom {}))
 
-(defn- convert-attrs [subj]
-  {:size (.get subj "size")
-   :directory? (.get subj "isDirectory")
-   :regular-file? (.get subj "isRegularFile")
-   :symlink? (symlink? subj)
-   :user (.getName (.get subj "owner"))
-   :group (.getName (.get subj "group"))
-   :permissions (convert-permissions (.get subj "permissions")) ;TODO figure how to store them
-   :modified (.toMillis (.get subj "lastModifiedTime"))
-   :created (.toMillis (.get subj "creationTime"))
-   :accessed (.toMillis (.get subj "lastAccessTime"))
-   }
-  )
+(defn- get-user-and-group [attrs path]
+  (let [uid (.get attrs "uid")
+        gid (.get attrs "gid")
+        user (get @user-id-name-mapping uid)
+        group (get @group-id-name-mapping gid)]
+    (if (and user group)
+      [user group]
+      (let [ug-attrs (Files/readAttributes path
+                                           PosixFileAttributes
+                                           no-links-opts)]
+        (when-not user
+          (swap! user-id-name-mapping assoc uid (.getName (.owner ug-attrs))))
+        (when-not user
+          (swap! group-id-name-mapping assoc gid (.getName (.group ug-attrs))))
+        (get-user-and-group attrs path)))))
 
-(defn attrs [path]
-  (let [path (as-path path)
-        attrs (Files/readAttributes path
-                                    "posix:*"
-                                    (into-array [LinkOption/NOFOLLOW_LINKS]))]
-    (merge (convert-attrs attrs)
-           {:path (str path)
-            :name (str (.getFileName path))
-            :mime-type (Files/probeContentType path)}
-           (when (symlink? attrs)
-             {:link-target (.toString (Files/readSymbolicLink path))}))))
+(defn- supports-unix-attrs [path]
+  (.supportsFileAttributeView (Files/getFileStore path) "unix"))
+
+(defn- read-attributes [path unix-attrs?]
+  (if unix-attrs?
+    (let [attrs (Files/readAttributes path unix-attrs no-links-opts)
+          [user group] (get-user-and-group attrs path)]
+      {:size (.get attrs "size")
+       :directory? (.get attrs "isDirectory")
+       :regular-file? (.get attrs "isRegularFile")
+       :symlink? (.get attrs "isSymbolicLink")
+       :user user
+       :group group
+       :permissions (convert-permissions (.get attrs "permissions"))
+       :modified (.toMillis (.get attrs "lastModifiedTime"))
+       :created (.toMillis (.get attrs "creationTime"))
+       :accessed (.toMillis (.get attrs "lastAccessTime"))
+       })
+    (let [attrs (Files/readAttributes path PosixFileAttributes no-links-opts)]
+      {:size (.size attrs)
+       :directory? (.isDirectory attrs)
+       :regular-file? (.isRegularFile attrs)
+       :symlink? (.isSymbolicLink attrs)
+       :user (.getName (.owner attrs))
+       :group (.getName (.group attrs))
+       :permissions (convert-permissions (.permissions attrs))
+       :modified (.toMillis (.lastModifiedTime attrs))
+       :created (.toMillis (.creationTime attrs))
+       :accessed (.toMillis (.lastAccessTime attrs))})))
+
+(defn attrs
+  ([path] (attrs path false))
+  ([path unix-attrs?]
+   (let [path (as-path path)
+         attrs (read-attributes path (or unix-attrs?
+                                         (supports-unix-attrs path)))]
+     (merge attrs
+            {:path (str path)
+             :name (str (.getFileName path))
+             :mime-type (Files/probeContentType path)}
+            (when (:symlink? attrs)
+              {:link-target (.toString (Files/readSymbolicLink path))})))))
 
 (defn files [dir]
   (let [dir (if (map? dir)
                (:path dir)
-               dir)]
-    (->> dir
-         as-path
+               dir)
+        path (as-path dir)
+        unix-attrs? (supports-unix-attrs path)]
+    (->> path
          Files/list
          .iterator
          iterator-seq
-         (map attrs))))
+         (map #(attrs % unix-attrs?)))))
 
 (defn tree [root pred]
   (let [root (if (string? root)
