@@ -72,6 +72,11 @@
     {:path (str p)
      :name (str (.getFileName p))}))
 
+(defn- relative-attrs [path base]
+  (let [p (as-path path)]
+    {:path (str p)
+     :name (relative-path base path)}))
+
 (defn- read-attributes [path]
   (let [attrs (Files/readAttributes path PosixFileAttributes no-links-opts)]
     {:size (.size attrs)
@@ -107,13 +112,13 @@
 (defn descendants
   ([dir] (descendants dir nil))
   ([dir pred]
-   (->> dir
-        as-path
-        (tree-seq #(and (Files/isDirectory % no-links-opts)
-                        (or (nil? pred)
-                            (pred (basic-attrs %))))
-                  nio-file-seq)
-        (map basic-attrs))))
+   (let [base (as-path dir)]
+     (->> base
+          (tree-seq #(and (Files/isDirectory % no-links-opts)
+                          (or (nil? pred)
+                              (pred (relative-attrs % base))))
+                    nio-file-seq)
+          (map #(relative-attrs % base))))))
 
 (defn name-key [subj]
   (s/lower-case (:name subj)))
@@ -137,11 +142,17 @@
 
 (defn- build-regex [subj]
   (if (regex? subj)
-    subj
-    (re-pattern (-> subj
-                    (s/replace "." "\\.")
-                    (s/replace "*" ".*")
-                    (s/replace "?" ".")))))
+    [subj nil]
+    (let [pattern
+          (re-pattern (-> subj
+                          (s/replace "." "\\.")
+                          (s/replace "**/" "/-/-/")
+                          (s/replace "*" "[^/]*")
+                          (s/replace "/-/-/" ".*")
+                          (s/replace "?" ".")))]
+      (if (s/includes? subj "/")
+        [pattern nil]
+        [nil pattern]))))
 
 (def time-units {:second 1000
                  :minute (* 60 1000)
@@ -186,8 +197,11 @@
     (and (seq? subj)
          (not-empty subj)) (apply every-pred (map build-filter subj))
     (or (regex? subj)
-        (string? subj)) (let [pattern (build-regex subj)]
-                          #(re-matches pattern (:name %)))
+        (string? subj)) (let [[p-pattern f-pattern] (build-regex subj)]
+                          #(if p-pattern
+                             (re-matches p-pattern (:name %))
+                             (re-matches f-pattern
+                                         (str (path-file-name (:name %))))))
     :else any?))
 
 (defn- find-early-filters [subj]
@@ -336,7 +350,6 @@
          (map attrs)
          (filter filter1)
          (filter filter2)
-         (map #(assoc % :name (relative-path path (:path %))))
          (ord ord-flag)
          (fmt fmt-flags))))
 
