@@ -323,9 +323,9 @@
    :N - to sort by name descending,
   "
   [& args]
-  (let [[args flags] (extract-flags args #{:m :l :c :t :T :s :S :n :N} #{:skip})
+  (let [[args flags] (extract-flags args #{:m :l :c :t :T :s :S :n :N :r} #{:skip})
         path (resolve-path *cwd* (first-of file-arg? args "."))
-        fmt-flags (keep #{:m :l :c} (keys flags))
+        fmt-flags (keep #{:m :l :c :r} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
         [f0 f2] (find-early-filters args)
         filter0 (build-filter f0)
