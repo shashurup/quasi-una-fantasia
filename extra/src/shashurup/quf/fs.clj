@@ -190,6 +190,13 @@
                           #(re-matches pattern (:name %)))
     :else any?))
 
+(defn- find-early-filters [subj]
+  (let [pred #(or (pattern? %)
+                  (and (vector? %)
+                       (every? pattern? %)))]
+    [(filter pred subj)
+     (remove pred subj)]))
+
 (defn- extract-flags [args singles paired]
   (subvec (reduce (fn [[args flags cur] arg]
                     (cond
@@ -281,11 +288,14 @@
         path (resolve-path *cwd* (first-of file-arg? args "."))
         fmt-flags (keep #{:m :l :c :r} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
+        [f0 f2] (find-early-filters args)
+        filter0 (build-filter f0)
         filter1 (if (:h flags) any? not-hidden?)
-        filter2 (build-filter (filter filter? args))
+        filter2 (build-filter f2)
         file-attrs (attrs path)]
     (if (:directory? file-attrs)
       (->> (children path)
+           (filter filter0)
            (filter filter1)
            (map attrs)
            (filter filter2)
@@ -317,9 +327,12 @@
         path (resolve-path *cwd* (first-of file-arg? args "."))
         fmt-flags (keep #{:m :l :c} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
+        [f0 f2] (find-early-filters args)
+        filter0 (build-filter f0)
         filter1 (complement (build-filter (:skip flags (constantly false))))
-        filter2 (build-filter (filter filter? args))]
+        filter2 (build-filter f2)]
     (->> (descendants path filter1)
+         (filter filter0)
          (map attrs)
          (filter filter1)
          (filter filter2)
