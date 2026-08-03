@@ -31,8 +31,8 @@
 (defn- as-path [subj]
   (if (path? subj)
     subj
-    (Paths/get (str subj)
-               (into-array java.lang.String []))))
+    (let [p (if (map? subj) (:path subj) (str subj))]
+      (Paths/get p (into-array java.lang.String [])))))
 
 (defn- exists? [path]
   (Files/exists (as-path path) no-opts))
@@ -67,91 +67,53 @@
        (map permission-map)
        (into #{})))
 
-(def unix-attrs "unix:size,isDirectory,isRegularFile,isSymbolicLink,uid,gid,lastModifiedTime,creationTime,lastAccessTime")
-(def no-links-opts (into-array [LinkOption/NOFOLLOW_LINKS]))
-(def user-id-name-mapping (atom {}))
-(def group-id-name-mapping (atom {}))
+(defn- basic-attrs [path]
+  (let [p (as-path path)]
+    {:path (str p)
+     :name (str (.getFileName p))}))
 
-(defn- get-user-and-group [attrs path]
-  (let [uid (.get attrs "uid")
-        gid (.get attrs "gid")
-        user (get @user-id-name-mapping uid)
-        group (get @group-id-name-mapping gid)]
-    (if (and user group)
-      [user group]
-      (let [ug-attrs (Files/readAttributes path
-                                           PosixFileAttributes
-                                           no-links-opts)]
-        (when-not user
-          (swap! user-id-name-mapping assoc uid (.getName (.owner ug-attrs))))
-        (when-not user
-          (swap! group-id-name-mapping assoc gid (.getName (.group ug-attrs))))
-        (get-user-and-group attrs path)))))
+(defn- read-attributes [path]
+  (let [attrs (Files/readAttributes path PosixFileAttributes no-links-opts)]
+    {:size (.size attrs)
+     :directory? (.isDirectory attrs)
+     :regular-file? (.isRegularFile attrs)
+     :symlink? (.isSymbolicLink attrs)
+     :user (.getName (.owner attrs))
+     :group (.getName (.group attrs))
+     :permissions (convert-permissions (.permissions attrs))
+     :modified (.toMillis (.lastModifiedTime attrs))
+     :created (.toMillis (.creationTime attrs))
+     :accessed (.toMillis (.lastAccessTime attrs))}))
 
-(defn- supports-unix-attrs [path]
-  (.supportsFileAttributeView (Files/getFileStore path) "unix"))
+(defn attrs [subj]
+  (let [path (as-path subj)
+        base (if (map? subj) subj (basic-attrs path))
+        attrs (read-attributes path)]
+    (merge base
+           attrs
+           {:mime-type (Files/probeContentType path)}
+           (when (:symlink? attrs)
+             {:link-target (.toString (Files/readSymbolicLink path))}))))
 
-(defn- read-attributes [path unix-attrs?]
-  (if unix-attrs?
-    (let [attrs (Files/readAttributes path unix-attrs no-links-opts)
-          [user group] (get-user-and-group attrs path)]
-      {:size (.get attrs "size")
-       :directory? (.get attrs "isDirectory")
-       :regular-file? (.get attrs "isRegularFile")
-       :symlink? (.get attrs "isSymbolicLink")
-       :user user
-       :group group
-       :permissions (convert-permissions (.get attrs "permissions"))
-       :modified (.toMillis (.get attrs "lastModifiedTime"))
-       :created (.toMillis (.get attrs "creationTime"))
-       :accessed (.toMillis (.get attrs "lastAccessTime"))
-       })
-    (let [attrs (Files/readAttributes path PosixFileAttributes no-links-opts)]
-      {:size (.size attrs)
-       :directory? (.isDirectory attrs)
-       :regular-file? (.isRegularFile attrs)
-       :symlink? (.isSymbolicLink attrs)
-       :user (.getName (.owner attrs))
-       :group (.getName (.group attrs))
-       :permissions (convert-permissions (.permissions attrs))
-       :modified (.toMillis (.lastModifiedTime attrs))
-       :created (.toMillis (.creationTime attrs))
-       :accessed (.toMillis (.lastAccessTime attrs))})))
+(defn- nio-file-seq [path]
+  (->> path Files/list .iterator iterator-seq))
 
-(defn attrs
-  ([path] (attrs path false))
-  ([path unix-attrs?]
-   (let [path (as-path path)
-         attrs (read-attributes path (or unix-attrs?
-                                         (supports-unix-attrs path)))]
-     (merge attrs
-            {:path (str path)
-             :name (str (.getFileName path))
-             :mime-type (Files/probeContentType path)}
-            (when (:symlink? attrs)
-              {:link-target (.toString (Files/readSymbolicLink path))})))))
+(defn children [dir]
+  (->> dir
+       as-path
+       nio-file-seq
+       (map basic-attrs)))
 
-(defn files [dir]
-  (let [dir (if (map? dir)
-               (:path dir)
-               dir)
-        path (as-path dir)
-        unix-attrs? (supports-unix-attrs path)]
-    (->> path
-         Files/list
-         .iterator
-         iterator-seq
-         (map #(attrs % unix-attrs?)))))
-
-(defn tree [root pred]
-  (let [root (if (string? root)
-               (attrs root)
-               root)]
-    (tree-seq #(and (:directory? %)
-                    pred
-                    (pred %))
-              files
-              root)))
+(defn descendants
+  ([dir] (descendants dir nil))
+  ([dir pred]
+   (->> dir
+        as-path
+        (tree-seq #(and (Files/isDirectory % no-links-opts)
+                        (or (nil? pred)
+                            (pred (basic-attrs %))))
+                  nio-file-seq)
+        (map basic-attrs))))
 
 (defn name-key [subj]
   (s/lower-case (:name subj)))
@@ -325,7 +287,8 @@
         filter2 (build-filter (first-of filter? args any?))
         file-attrs (attrs path)]
     (if (:directory? file-attrs)
-      (->> (files path)
+      (->> (children path)
+           (map attrs)
            (filter filter1)
            (filter filter2)
            (ord ord-flag)
@@ -359,7 +322,8 @@
         filter1 (complement (build-filter (:skip flags (constantly false))))
         filter2 (build-filter (first-of filter? args any?))
         ]
-    (->> (tree path filter1)
+    (->> (descendants path filter1)
+         (map attrs)
          (filter filter1)
          (filter filter2)
          (map #(assoc % :name (relative-path path (:path %))))
@@ -515,7 +479,7 @@
 (defn del-tree [subj]
   (conj 
    (when (:directory? (attrs subj))
-     (->> (files subj)
+     (->> (children subj)
           (map :path)
           (mapcat del-tree)
           doall))
