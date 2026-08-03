@@ -143,12 +143,6 @@
                     (s/replace "*" ".*")
                     (s/replace "?" ".")))))
 
-(defn fit?
-  ([subj pattern] (fit? subj :name pattern))
-  ([subj field pattern]
-   (let [regex (build-regex pattern)]
-     (re-matches regex (field subj)))))
-
 (def time-units {:second 1000
                  :minute (* 60 1000)
                  :hour (* 60 60 1000)
@@ -187,9 +181,13 @@
   (cond
     (fn? subj) subj
     (keyword? subj) subj
-    (vector? subj) (apply some-fn (map build-filter subj))
-    (regex? subj) #(fit? % subj)
-    (string? subj) #(fit? % subj)
+    (and (vector? subj)
+         (not-empty subj)) (apply some-fn (map build-filter subj))
+    (and (seq? subj)
+         (not-empty subj)) (apply every-pred (map build-filter subj))
+    (or (regex? subj)
+        (string? subj)) (let [pattern (build-regex subj)]
+                          #(re-matches pattern (:name %)))
     :else any?))
 
 (defn- extract-flags [args singles paired]
@@ -284,12 +282,12 @@
         fmt-flags (keep #{:m :l :c :r} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
         filter1 (if (:h flags) any? not-hidden?)
-        filter2 (build-filter (first-of filter? args any?))
+        filter2 (build-filter (filter filter? args))
         file-attrs (attrs path)]
     (if (:directory? file-attrs)
       (->> (children path)
-           (map attrs)
            (filter filter1)
+           (map attrs)
            (filter filter2)
            (ord ord-flag)
            (fmt fmt-flags))
@@ -320,8 +318,7 @@
         fmt-flags (keep #{:m :l :c} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
         filter1 (complement (build-filter (:skip flags (constantly false))))
-        filter2 (build-filter (first-of filter? args any?))
-        ]
+        filter2 (build-filter (filter filter? args))]
     (->> (descendants path filter1)
          (map attrs)
          (filter filter1)
