@@ -24,6 +24,7 @@
    PosixFilePermission/OTHERS_EXECUTE :others-execute})
 
 (def no-opts (into-array LinkOption []))
+(def no-links-opts (into-array [LinkOption/NOFOLLOW_LINKS]))
 
 (defn- path? [subj]
   (instance? java.nio.file.Path subj))
@@ -458,7 +459,7 @@
      [(str (Files/copy source target (make-array CopyOption 0)))]
      (when (:directory? (attrs source))
        (->> source
-            files
+            children
             (mapcat (fn [{p :path}]
                       (copy-tree p (mk-target-path p target))))
             doall)))))
