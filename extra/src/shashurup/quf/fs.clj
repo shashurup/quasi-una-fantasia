@@ -210,7 +210,8 @@
                   (and (vector? %)
                        (every? pattern? %)))]
     [(filter pred subj)
-     (remove pred subj)]))
+     (filter #(and (filter? %)
+                   (not (pred %))) subj)]))
 
 (defn- extract-flags [args singles paired]
   (subvec (reduce (fn [[args flags cur] arg]
