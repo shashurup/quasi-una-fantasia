@@ -89,6 +89,8 @@
      (add-watch subj key handler)
      (conv @subj))))
 
+(def ^:dynamic defer identity)
+
 (defn client-modules []
   (->> (loaded-libs)
        (map meta)

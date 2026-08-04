@@ -1,8 +1,9 @@
 (ns shashurup.quf.srv
   (:gen-class)
   (:require [shashurup.quf.vars :as vars]
-            [shashurup.quf.pruner :as pruner]
             [shashurup.quf.evt :as evt]
+            [shashurup.quf.pruner :as pruner]
+            [shashurup.quf.sweeper :as sweeper]
             [compojure.core :refer :all]
             [compojure.route :as route]
             [compojure.coercions :refer [as-int]]
@@ -35,6 +36,7 @@
         server (QueueTransport. cq sq)]
     (future (srv/handle (srv/default-handler #'vars/wrap-update-vars
                                              #'pruner/wrap-pruner
+                                             #'sweeper/wrap-sweeper
                                              #'evt/wrap-event-reporter)
                         server))
     client))
