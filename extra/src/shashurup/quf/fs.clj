@@ -9,6 +9,7 @@
            [java.time.temporal ChronoUnit]
            [org.apache.tika Tika])
   (:require [clojure.string :as s]
+            [clojure.java.io :as io]
             [shashurup.quf.data :as data]
             [shashurup.quf.view :as v]))
 
@@ -102,7 +103,9 @@
              {:link-target (.toString (Files/readSymbolicLink path))}))))
 
 (defn- nio-file-seq [path]
-  (->> path Files/list .iterator iterator-seq))
+  (let [dir-stream (Files/list path)]
+    (v/defer #(.close dir-stream))
+    (iterator-seq (.iterator dir-stream))))
 
 (defn children [dir]
   (->> dir
@@ -430,7 +433,9 @@
 (defmulti read-file {:private true} second)
 
 (defmethod read-file "text/csv" [[url _]]
-  (data/from-csv url))
+  (let [reader (io/reader url)]
+    (v/defer #(.close reader))
+    (data/from-csv reader)))
 
 (defmethod read-file "application/xml" [[url _]]
   (data/from-xml url))
@@ -440,7 +445,9 @@
 
 (defmethod read-file :default [[url mime-type]]
   (if (s/starts-with? mime-type "text/")
-    (data/as-text url)
+    (let [reader (io/reader url)]
+      (v/defer #(.close reader))
+      (data/as-text reader))
     (slurp url)))
 
 (defn r
