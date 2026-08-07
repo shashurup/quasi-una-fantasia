@@ -9,6 +9,7 @@
             [shashurup.quf.view :as v]
             [shashurup.quf.vars :refer [*term-dimensions*]])
   (:import [java.lang ProcessBuilder ProcessBuilder$Redirect]
+           [java.io IOException InputStreamReader]
            [com.pty4j PtyProcessBuilder WinSize]))
 
 (def ^:dynamic *shell* (or  (System/getenv "SHELL") "/bin/sh"))
@@ -18,60 +19,96 @@
 ;; for instance, ag thinks it needs to search stdin in this case
 ;; so here goes our own implementation
 
-(defn- start-process [cmd dir in]
-  (let [p (-> (ProcessBuilder. (into-array String cmd))
-              (.directory (io/as-file dir))
-              (.redirectInput (if in
-                                ProcessBuilder$Redirect/PIPE
-                                (io/as-file "/dev/null")))
-              .start)]
-    {:in (.getOutputStream p)
-     :out (io/reader (.getInputStream p))
-     :err (io/reader (.getErrorStream p))
-     :wait #(.waitFor p)}))
+(defn- write-lines [dest lines]
+  (let [wrtr (io/writer dest)]
+    (doseq [line lines]
+      (.write wrtr line)
+      (.write wrtr "\n"))
+    (.flush wrtr)))
 
-(defn !>
+(defn wrap-process-output [^java.io.InputStream subj
+                           ^java.lang.Process proc]
+  (io/reader
+   (proxy [java.io.InputStreamReader] [subj]
+     (read [buf offset len]
+       (let [result (proxy-super read buf offset len)]
+         (if (= result -1)
+           (let [exit (.waitFor proc)]
+             (if (= exit 0)
+               result
+               (throw (Exception. (str "Exit code " exit)))))
+           result))))))
+
+(defn pipe
   "Launches a subprocess to consume its output.
 
-    (!> \"ls -al\")
+    (cmd \"ls -al\")
 
   Standard input may also be specified:
 
-    (!> \"sort\" :input [\"def\" \"ghi\" \"abc\"])
+    (cmd \"sort\" [\"def\" \"ghi\" \"abc\"])
 
   it could be a list of string or anything that can be
   copied with clojure.java.io/copy.
-  By default the list of is returned. To change this
-  a conversion fn can be specified with :output
 
-    (!> \"echo [1, 2, 3]\" :output from-json)
+  By default java.io.Reader is returned. This can be changed
+  with options
 
-  (shahsurup.quf.data/as-text is a default conversion fn)
-  Another option is :dir for a directory to use.
-  Return value is a process output as a list of strings.
-  Exception is thrown when exit code is non zero."
-  [cmdline & opts]
-  (let [{:keys [input output dir]
-         :or {output d/as-text}} opts]
-    (let [{:keys [in out err wait]} (start-process [*shell* "-c" cmdline]
-                                                   (or dir fs/*cwd*)
-                                                   input)]
-      (when input
-        (future
-          (let [input (if (coll? input)
-                        (s/join "\n" input)
-                        input)]
-            (with-open [in' in]
-              (io/copy input in')))))
-      (let [error (future (slurp err))
-            result (let [o (output out)]
-                     (if (coll? o) (doall o) o))
-            exit (wait)]
-        (when (not-empty @error)
-          (print @error))
-        (if (= exit 0)
-          result
-          (throw (Exception. (str "Exit code " exit))))))))
+    (cmd \"sort\" :lines [\"def\" \"ghi\" \"abc\"])
+
+  returns process output as sequence of lines
+
+    (cmd \"cat file.xml\" :binary)
+
+  returns process output as java.io.InputStream so that
+  it could be consumed by xml/parse for instance
+
+  In place of a keyword a map can be used when there is
+  more than one option:
+
+  (cmd \"curl http://example.com\" {:dir \"/\" :lines true})
+  
+  curl is run in / and output is returned as a sequence of lines.
+
+  When the process returns non zero exit code
+  an exception is thrown. Standart error can be
+  captured into a stream:
+
+  (cmd \"curl http://example.com\" {:error *err*})
+  "
+
+  ([subj] (cmd subj {} nil))
+  ([subj arg] (if (or (keyword? arg) (map? arg))
+                (cmd subj arg nil)
+                (cmd subj {} arg)))
+  ([subj opts input]
+   (let [{:keys [dir binary lines error]} (if (keyword? opts)
+                                            {opts true}
+                                            opts)
+         dev-null (io/as-file "/dev/null")
+         p (-> (ProcessBuilder. (into-array String
+                                            [*shell* "-c" subj]))
+               (.directory (io/as-file (or dir fs/*cwd*)))
+               ;; TODO handle the environment
+               (.redirectInput (if input ProcessBuilder$Redirect/PIPE dev-null))
+               (.redirectError (if error ProcessBuilder$Redirect/PIPE dev-null))
+               .start)
+         output (.getInputStream p)]
+     (v/defer #(.destroy p))
+     (when input
+       (future
+         (try
+           (with-open [in (.getOutputStream p)]
+             (if (coll? input)
+               (write-lines in input)
+               (io/copy input in)))
+           (catch IOException _))))
+     (when error
+       (future (io/copy (.getErrorStream p) error)))
+     (cond
+       binary output
+       lines (line-seq (wrap-process-output output p))
+       :else (io/reader output)))))
 
 (defn- resize [process [cols rows]]
   (.setWinSize process (WinSize. (int cols) (int rows))))
