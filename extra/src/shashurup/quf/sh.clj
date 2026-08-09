@@ -9,8 +9,8 @@
             [shashurup.quf.view :as v]
             [shashurup.quf.vars :refer [*term-dimensions*]])
   (:import [java.lang ProcessBuilder ProcessBuilder$Redirect]
-           [java.io IOException InputStreamReader]
-           [com.pty4j PtyProcessBuilder WinSize]))
+           [java.io Reader Writer IOException InputStreamReader]
+           [com.pty4j PtyProcessBuilder PtyProcess WinSize]))
 
 (def ^:dynamic *shell* (or  (System/getenv "SHELL") "/bin/sh"))
 
@@ -110,7 +110,7 @@
        lines (line-seq (wrap-process-output output p))
        :else (io/reader output)))))
 
-(defn- resize [process [cols rows]]
+(defn- resize [^PtyProcess process [cols rows]]
   (.setWinSize process (WinSize. (int cols) (int rows))))
 
 (defn- start-process-with-pty [cmd dir]
@@ -129,7 +129,7 @@
      :wait #(.waitFor p)
      :resize #(resize p %)}))
 
-(defn stream-events [from]
+(defn stream-events [^Reader from]
   (let [buffer (char-array 1024)]
     (loop []
       (let [size (.read from buffer)]
@@ -138,7 +138,7 @@
                            :out (String. buffer 0 size)})
           (recur))))))
 
-(defn process-input [from to resize]
+(defn process-input [from ^Writer to resize]
   (loop []
     (let [data (edn/read from)]
       (if (= :resize (:cmd (meta data)))
