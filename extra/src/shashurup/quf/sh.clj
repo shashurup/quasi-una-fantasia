@@ -77,10 +77,10 @@
   (cmd \"curl http://example.com\" {:error *err*})
   "
 
-  ([subj] (cmd subj {} nil))
+  ([subj] (pipe subj {} nil))
   ([subj arg] (if (or (keyword? arg) (map? arg))
-                (cmd subj arg nil)
-                (cmd subj {} arg)))
+                (pipe subj arg nil)
+                (pipe subj {} arg)))
   ([subj opts input]
    (let [{:keys [dir binary lines error]} (if (keyword? opts)
                                             {opts true}

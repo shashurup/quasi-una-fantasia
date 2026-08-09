@@ -335,7 +335,7 @@ th.quf-check-cell {
 }
 
 .quf-visible-checks .quf-check {
-    display: block;
+    display: inline;
 }
 
 .quf-visible-checks .quf-check-cell {
