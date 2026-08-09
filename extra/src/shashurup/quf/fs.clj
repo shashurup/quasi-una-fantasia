@@ -118,8 +118,8 @@
        nio-file-seq
        (map basic-attrs)))
 
-(defn descendants
-  ([dir] (descendants dir nil))
+(defn subtree
+  ([dir] (subtree dir nil))
   ([dir pred]
    (let [base (as-path dir)]
      (->> base
@@ -355,7 +355,7 @@
         filter0 (build-filter f0)
         filter1 (complement (build-filter (:skip flags (constantly false))))
         filter2 (build-filter f2)]
-    (->> (descendants path filter1)
+    (->> (subtree path filter1)
          (filter filter0)
          (map attrs)
          (filter filter1)
