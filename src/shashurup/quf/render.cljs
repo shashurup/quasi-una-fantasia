@@ -406,7 +406,7 @@
 
 (defn render-tree-level [data [render-fn children-key
                                tree-id actions get-key :as params]]
-  [:div.quf-tree
+  [:div.quf-tree.quf-container
    (for [[idx item] (map-indexed vector data)]
      (let [id (str "tree-item-" (swap! cur-tree-id inc))
            b-id (str id "-b")
@@ -438,6 +438,8 @@
                                             {:onchange onchange}))]
            [:label {:for b-id} ""])
           [:span.quf-tree-button-space])
+        [:input.quf-check {:type "checkbox"
+                           :value (get-key item)}]
         [:input.quf-tree-item (merge  {:id r-id
                                        :name tree-id
                                        :type "radio"}
