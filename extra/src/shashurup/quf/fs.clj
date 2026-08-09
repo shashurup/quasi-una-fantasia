@@ -1,7 +1,7 @@
 (ns shashurup.quf.fs
   "Files related functions"
   {:shashurup.quf/client-module :fs}
-  (:import [java.nio.file Files Paths LinkOption CopyOption]
+  (:import [java.nio.file Files Paths Path LinkOption CopyOption]
            [java.nio.file.attribute PosixFilePermission
                                     PosixFileAttributes
                                     FileAttribute]
@@ -28,7 +28,7 @@
 (def no-links-opts (into-array [LinkOption/NOFOLLOW_LINKS]))
 
 (defn- path? [subj]
-  (instance? java.nio.file.Path subj))
+  (instance? Path subj))
 
 (defn- as-path [subj]
   (if (path? subj)
@@ -40,7 +40,8 @@
   (Files/exists (as-path path) no-opts))
 
 (defn- path-file-name [path]
-  (.getFileName (as-path path)))
+  (let [^Path p (as-path path)]
+    (.getFileName p)))
 
 (defn- expand-tilde [subj]
   (if (s/starts-with? subj "~")
@@ -48,12 +49,14 @@
     subj))
 
 (defn- resolve-path [base path]
-  (str (.normalize (.resolve (as-path base)
-                             (as-path (expand-tilde path))))))
+  (let [^Path b (as-path base)
+        ^Path r (as-path (expand-tilde path))]
+    (str (.normalize (.resolve b r)))))
 
 (defn relative-path [path other]
-  (str (.normalize (.relativize (as-path path)
-                                (as-path other)))))
+  (let [^Path p (as-path path)
+        ^Path o (as-path other)]
+    (str (.normalize (.relativize p o)))))
 
 (def ^:dynamic *cwd* (System/getProperty "user.dir"))
 
@@ -70,17 +73,19 @@
        (into #{})))
 
 (defn- basic-attrs [path]
-  (let [p (as-path path)]
+  (let [^Path p (as-path path)]
     {:path (str p)
-     :name (str (.getFileName p))}))
+     :name (str (path-file-name p))}))
 
 (defn- relative-attrs [path base]
-  (let [p (as-path path)]
+  (let [^Path p (as-path path)]
     {:path (str p)
      :name (relative-path base path)}))
 
 (defn- read-attributes [path]
-  (let [attrs (Files/readAttributes path PosixFileAttributes no-links-opts)]
+  (let [^PosixFileAttributes attrs (Files/readAttributes path
+                                                         PosixFileAttributes
+                                                         no-links-opts)]
     {:size (.size attrs)
      :directory? (.isDirectory attrs)
      :regular-file? (.isRegularFile attrs)
