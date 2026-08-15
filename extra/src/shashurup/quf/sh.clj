@@ -6,6 +6,7 @@
             [clojure.string :as s]
             [shashurup.quf.data :as d]
             [shashurup.quf.fs :as fs]
+            [shashurup.quf.proc :as proc]
             [shashurup.quf.view :as v]
             [shashurup.quf.vars :refer [*term-dimensions*]])
   (:import [java.lang ProcessBuilder ProcessBuilder$Redirect]
@@ -19,34 +20,14 @@
 ;; for instance, ag thinks it needs to search stdin in this case
 ;; so here goes our own implementation
 
-(defn- write-lines [dest lines]
-  (let [wrtr (io/writer dest)]
-    (doseq [line lines]
-      (.write wrtr line)
-      (.write wrtr "\n"))
-    (.flush wrtr)))
-
-(defn wrap-process-output [^java.io.InputStream subj
-                           ^java.lang.Process proc]
-  (io/reader
-   (proxy [java.io.InputStreamReader] [subj]
-     (read [buf offset len]
-       (let [result (proxy-super read buf offset len)]
-         (if (= result -1)
-           (let [exit (.waitFor proc)]
-             (if (= exit 0)
-               result
-               (throw (Exception. (str "Exit code " exit)))))
-           result))))))
-
 (defn pipe
   "Launches a subprocess to consume its output.
 
-    (cmd \"ls -al\")
+    (pipe \"ls -al\")
 
   Standard input may also be specified:
 
-    (cmd \"sort\" [\"def\" \"ghi\" \"abc\"])
+    (pipe \"sort\" [\"def\" \"ghi\" \"abc\"])
 
   it could be a list of string or anything that can be
   copied with clojure.java.io/copy.
@@ -54,11 +35,11 @@
   By default java.io.Reader is returned. This can be changed
   with options
 
-    (cmd \"sort\" :lines [\"def\" \"ghi\" \"abc\"])
+    (pipe \"sort\" :lines [\"def\" \"ghi\" \"abc\"])
 
   returns process output as sequence of lines
 
-    (cmd \"cat file.xml\" :binary)
+    (pipe \"cat file.xml\" :binary)
 
   returns process output as java.io.InputStream so that
   it could be consumed by xml/parse for instance
@@ -66,7 +47,8 @@
   In place of a keyword a map can be used when there is
   more than one option:
 
-  (cmd \"curl http://example.com\" {:dir \"/\" :lines true})
+  (pipe \"curl http://example.com\" {:dir \"/\" :lines true})
+  (pipe \"set\" {:env {\"var1\" \"val1\"}})
   
   curl is run in / and output is returned as a sequence of lines.
 
@@ -74,41 +56,26 @@
   an exception is thrown. Standart error can be
   captured into a stream:
 
-  (cmd \"curl http://example.com\" {:error *err*})
+  (pipe \"curl http://example.com\" {:error *err*})
   "
 
-  ([subj] (cmd subj {} nil))
+  ([subj] (pipe subj {} nil))
   ([subj arg] (if (or (keyword? arg) (map? arg))
-                (cmd subj arg nil)
-                (cmd subj {} arg)))
+                (pipe subj arg nil)
+                (pipe subj {} arg)))
   ([subj opts input]
-   (let [{:keys [dir binary lines error]} (if (keyword? opts)
-                                            {opts true}
-                                            opts)
-         dev-null (io/as-file "/dev/null")
-         p (-> (ProcessBuilder. (into-array String
-                                            [*shell* "-c" subj]))
-               (.directory (io/as-file (or dir fs/*cwd*)))
-               ;; TODO handle the environment
-               (.redirectInput (if input ProcessBuilder$Redirect/PIPE dev-null))
-               (.redirectError (if error ProcessBuilder$Redirect/PIPE dev-null))
-               .start)
-         output (.getInputStream p)]
-     (v/defer #(.destroy p))
-     (when input
-       (future
-         (try
-           (with-open [in (.getOutputStream p)]
-             (if (coll? input)
-               (write-lines in input)
-               (io/copy input in)))
-           (catch IOException _))))
-     (when error
-       (future (io/copy (.getErrorStream p) error)))
+   (let [{:keys [dir env binary lines error]} (if (keyword? opts)
+                                                {opts true}
+                                                opts)
+         b (proc/create [*shell* "-c" subj]
+                        :dir (or dir fs/*cwd*)
+                        :env env)
+         p (proc/start b input error)]
+     (v/defer #(proc/kill p))
      (cond
-       binary output
-       lines (line-seq (wrap-process-output output p))
-       :else (io/reader output)))))
+       binary (proc/output p)
+       lines (line-seq (proc/reader p))
+       :else (proc/reader p)))))
 
 (defn- resize [^PtyProcess process [cols rows]]
   (.setWinSize process (WinSize. (int cols) (int rows))))
