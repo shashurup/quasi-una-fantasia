@@ -75,7 +75,11 @@
   [subj]
   (io/reader (output subj)))
 
-(defn execute [cmd & opts]
-  (let [^ProcessBuilder b (apply create cmd opts)]
-    (.redirectOutput b (io/as-file "/dev/null"))
-    (.waitFor (start b))))
+(defn execute
+  "Executes a process synchronously
+   returning its output and exit code"
+  [cmd & {dir :dir env :env input :input error :error}]
+  (let [^ProcessBuilder b (create cmd :dir dir :env env)
+        ^Process p (start b input error)]
+    {:code (.waitFor p)
+     :output (-> p .getInputStream io/reader slurp)}))
