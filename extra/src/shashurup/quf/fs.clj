@@ -388,28 +388,39 @@
   (or (naive-mime-type url)
       (deep-mime-type url)))
 
-(def lang-map {"application/xml" "xml"
-               "application/x-sh" "bash"
-               "application/json" "json"
-               "text/x-python" "python"
-               "text/x-csrc" "c"
-               "text/x-clojure" "clojure"
-               "text/x-csharp" "csharp"
-               "text/css" "css"
-               "text/x-go" "go"
-               "text/x-java-source" "java"
-               "text/javascript" "javascript"
-               "text/x-common-lisp" "lisp"
-               "text/x-lua" "lua"
-               "text/x-web-markdown" "markdown"
-               "text/x-sql" "sql"})
+(defn- client-side-view [subj]
+  (v/hint subj [:object-attr ::file :content]))
 
-(def known-hints {"text/markdown" :markdown
-                  "text/x-web-markdown" :markdown})
+(defn- code-view [subj lang]
+  (v/code (data/as-text (:path subj)) lang))
 
-(defn- text? [mime-type]
-  (or (s/starts-with? mime-type "text/")
-      (get lang-map mime-type)))
+(defn- text-view
+  ([subj]
+   (v/text (data/as-text (:path subj))))
+  ([subj hint]
+   (v/hint (data/as-text (:path subj)) hint)))
+
+(def mime-map {"text/markdown" #(text-view % :markdown)
+               "text/x-web-markdown" #(text-view % :markdown)
+               "application/xml" #(code-view % "xml")
+               "application/x-sh" #(code-view % "bash")
+               "application/json" #(code-view % "json")
+               "text/x-python" #(code-view % "python")
+               "text/x-csrc" #(code-view % "c")
+               "text/x-clojure" #(code-view % "clojure")
+               "text/x-csharp" #(code-view % "csharp")
+               "text/css" #(code-view % "css")
+               "text/x-go" #(code-view % "go")
+               "text/x-java-source" #(code-view % "java")
+               "text/javascript" #(code-view % "javascript")
+               "text/x-common-lisp" #(code-view % "lisp")
+               "text/x-lua" #(code-view % "lua")
+               "text/x-sql" #(code-view % "sql")
+               "application/pdf" client-side-view})
+
+(def mime-type-map {"text" text-view
+                    "image" client-side-view
+                    "video" client-side-view})
 
 (defn v
   "View file content."
@@ -421,13 +432,14 @@
                (let [url (absolute-url (:path obj))]
                  (get-file-mime-type url)))
         obj (assoc obj :mime-type mt)]
-    (if (text? mt)
-      (if-let [hint (get known-hints mt)]
-        (v/hint (data/as-text (:path obj)) hint)
-        (if-let [lang (get lang-map mt)]
-          (v/code (data/as-text (:path obj)) lang)
-          (v/code (data/as-text (:path obj)))))
-      (v/hint obj [:object-attr ::file :content]))))
+    (if-let [view-fn (mime-map mt)]
+      (view-fn obj)
+      (if-let [view-fn (first
+                        (map (fn [[t f]]
+                               (when (s/starts-with? mt (str t "/")) f))
+                             mime-type-map))]
+        (view-fn obj)
+        (client-side-view obj)))))
 
 
 (defn t
