@@ -411,53 +411,45 @@
 
 (def bin-path-cache (atom {}))
 
-(defn- text-cmd-out-view [cmd subj]
-  (let [cmd1 (first cmd)]
-    (if-let [bin (@bin-path-cache cmd1)]
-      (-> (proc/create (concat [bin] (rest cmd) [(:path subj)]))
-          proc/start
-          proc/reader
-          line-seq
-          v/text)
+(defn- resolve-cmd-path [subj]
+  (let [cmd1 (first subj)]
+    (if-let [path (@bin-path-cache cmd1)]
+      (vec (concat [path] (rest subj)))
       (let [{code :code
              output :output} (proc/execute
-             ["/bin/sh" "-c"
-              (str "command -v " cmd1)])]
-        (if (= code 0)
-          (do
-            (swap! bin-path-cache assoc cmd1 (s/trim output))
-            (text-cmd-out-view cmd subj))
-          (hexdump-view subj))))))
+                              ["/bin/sh" "-c"
+                               (str "command -v " cmd1)])]
+        (when (= code 0)
+          (swap! bin-path-cache assoc cmd1 (s/trim output))
+          (resolve-cmd-path subj))))))
+
+(defn- text-cmd-out-view [cmd subj]
+  (if-let [cmd (resolve-cmd-path cmd)]
+    (let [p (-> cmd
+                (conj (:path subj))
+                proc/create
+                proc/start)]
+      (v/defer #(proc/kill p))
+      (-> p proc/reader line-seq v/text))
+    (hexdump-view subj)))
 
 (def libre-convert-cmd ["libreoffice" "--convert-to" "png" "--outdir"])
 
 (defn- libre-office-view [subj]
-  (let [cmd1 (first libre-convert-cmd)
-        path (:path subj)
-        tmp (Files/createTempDirectory "quf"
-                                       (into-array FileAttribute []))]
-    (if-let [bin (@bin-path-cache cmd1)]
-      (let [{code :code} (proc/execute (concat [bin]
-                                               (rest libre-convert-cmd)
-                                               [(str tmp)]
-                                               [path]))]
-        (if (= code 0)
-          (let [target (->> path
-                            path-file-name
-                            (resolve-path tmp)
-                            (replace-extension ".png"))]
-            (client-side-view {:path target
-                               :mime-type "image/png"}))
-          (hexdump-view subj)))
-      (let [{code :code
-             output :output} (proc/execute
-             ["/bin/sh" "-c"
-              (str "command -v " cmd1)])]
-        (if (= code 0)
-          (do
-            (swap! bin-path-cache assoc cmd1 (s/trim output))
-            (libre-office-view subj))
-          (hexdump-view subj))))))
+  (if-let [cmd (resolve-cmd-path libre-convert-cmd)]
+    (let [path (:path subj)
+          tmp (Files/createTempDirectory "quf"
+                                         (into-array FileAttribute []))
+          {code :code} (proc/execute (conj cmd (str tmp) path))]
+      (if (= code 0)
+        (let [target (->> path
+                          path-file-name
+                          (resolve-path tmp)
+                          (replace-extension ".png"))]
+          (client-side-view {:path target
+                             :mime-type "image/png"}))
+        (hexdump-view subj)))
+    (hexdump-view subj)))
 
 (def mime-map
   {"text/markdown" #(text-view % :markdown)
