@@ -59,6 +59,9 @@
         ^Path o (as-path other)]
     (str (.normalize (.relativize p o)))))
 
+(defn- replace-extension [new-ext subj]
+  (s/replace (str subj) #"\.\w+$" new-ext))
+
 (def ^:dynamic *cwd* (System/getProperty "user.dir"))
 
 (defn c
@@ -401,6 +404,11 @@
   ([subj hint]
    (v/hint (data/as-text (:path subj)) hint)))
 
+(declare text-cmd-out-view)
+
+(defn- hexdump-view [subj]
+  (text-cmd-out-view ["hexdump" "-C"] subj))
+
 (def bin-path-cache (atom {}))
 
 (defn- text-cmd-out-view [cmd subj]
@@ -419,10 +427,37 @@
           (do
             (swap! bin-path-cache assoc cmd1 (s/trim output))
             (text-cmd-out-view cmd subj))
-          (client-side-view subj))))))
+          (hexdump-view subj))))))
 
-(defn- hexdump-view [subj]
-  (text-cmd-out-view ["hexdump" "-C"] subj))
+(def libre-convert-cmd ["libreoffice" "--convert-to" "png" "--outdir"])
+
+(defn- libre-office-view [subj]
+  (let [cmd1 (first libre-convert-cmd)
+        path (:path subj)
+        tmp (Files/createTempDirectory "quf"
+                                       (into-array FileAttribute []))]
+    (if-let [bin (@bin-path-cache cmd1)]
+      (let [{code :code} (proc/execute (concat [bin]
+                                               (rest libre-convert-cmd)
+                                               [(str tmp)]
+                                               [path]))]
+        (if (= code 0)
+          (let [target (->> path
+                            path-file-name
+                            (resolve-path tmp)
+                            (replace-extension ".png"))]
+            (client-side-view {:path target
+                               :mime-type "image/png"}))
+          (hexdump-view subj)))
+      (let [{code :code
+             output :output} (proc/execute
+             ["/bin/sh" "-c"
+              (str "command -v " cmd1)])]
+        (if (= code 0)
+          (do
+            (swap! bin-path-cache assoc cmd1 (s/trim output))
+            (libre-office-view subj))
+          (hexdump-view subj))))))
 
 (def mime-map
   {"text/markdown" #(text-view % :markdown)
@@ -461,6 +496,18 @@
    "application/vnd.rar" #(text-cmd-out-view ["unrar" "l"] %)
    "application/x-rar-compressed" #(text-cmd-out-view ["unrar" "l"] %)
    "application/x-7z-compressed" #(text-cmd-out-view ["7z" "l"] %)
+   "application/msword" libre-office-view
+   "application/vnd.ms-excel" libre-office-view
+   "application/vnd.ms-powerpoint" libre-office-view
+   "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+   libre-office-view
+   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+   libre-office-view
+   "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+   libre-office-view
+   "application/vnd.oasis.opendocument.text" libre-office-view
+   "application/vnd.oasis.opendocument.spreadsheet" libre-office-view
+   "application/vnd.oasis.opendocument.presentation" libre-office-view
    })
 
 (def mime-type-map {"text" text-view
