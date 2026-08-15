@@ -11,7 +11,8 @@
   (:require [clojure.string :as s]
             [clojure.java.io :as io]
             [shashurup.quf.data :as data]
-            [shashurup.quf.view :as v]))
+            [shashurup.quf.view :as v]
+            [shashurup.quf.proc :as proc]))
 
 (def permission-map
   {PosixFilePermission/OWNER_READ :owner-read
@@ -400,23 +401,67 @@
   ([subj hint]
    (v/hint (data/as-text (:path subj)) hint)))
 
-(def mime-map {"text/markdown" #(text-view % :markdown)
-               "text/x-web-markdown" #(text-view % :markdown)
-               "application/xml" #(code-view % "xml")
-               "application/x-sh" #(code-view % "bash")
-               "application/json" #(code-view % "json")
-               "text/x-python" #(code-view % "python")
-               "text/x-csrc" #(code-view % "c")
-               "text/x-clojure" #(code-view % "clojure")
-               "text/x-csharp" #(code-view % "csharp")
-               "text/css" #(code-view % "css")
-               "text/x-go" #(code-view % "go")
-               "text/x-java-source" #(code-view % "java")
-               "text/javascript" #(code-view % "javascript")
-               "text/x-common-lisp" #(code-view % "lisp")
-               "text/x-lua" #(code-view % "lua")
-               "text/x-sql" #(code-view % "sql")
-               "application/pdf" client-side-view})
+(def bin-path-cache (atom {}))
+
+(defn- text-cmd-out-view [cmd subj]
+  (let [cmd1 (first cmd)]
+    (if-let [bin (@bin-path-cache cmd1)]
+      (-> (proc/create (concat [bin] (rest cmd) [(:path subj)]))
+          proc/start
+          proc/reader
+          line-seq
+          v/text)
+      (let [{code :code
+             output :output} (proc/execute
+             ["/bin/sh" "-c"
+              (str "command -v " cmd1)])]
+        (if (= code 0)
+          (do
+            (swap! bin-path-cache assoc cmd1 (s/trim output))
+            (text-cmd-out-view cmd subj))
+          (client-side-view subj))))))
+
+(defn- hexdump-view [subj]
+  (text-cmd-out-view ["hexdump" "-C"] subj))
+
+(def mime-map
+  {"text/markdown" #(text-view % :markdown)
+   "text/x-web-markdown" #(text-view % :markdown)
+   "application/xml" #(code-view % "xml")
+   "application/x-sh" #(code-view % "bash")
+   "application/json" #(code-view % "json")
+   "application/sql" #(code-view % "sql")
+   "text/x-python" #(code-view % "python")
+   "text/x-csrc" #(code-view % "c")
+   "text/x-clojure" #(code-view % "clojure")
+   "text/x-csharp" #(code-view % "csharp")
+   "text/css" #(code-view % "css")
+   "text/x-go" #(code-view % "go")
+   "text/x-java-source" #(code-view % "java")
+   "text/javascript" #(code-view % "javascript")
+   "text/x-common-lisp" #(code-view % "lisp")
+   "text/x-lua" #(code-view % "lua")
+   "text/x-sql" #(code-view % "sql")
+   "application/pdf" client-side-view
+   "application/tar" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/x-tar" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/gzip" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/x-gzip" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/bzip2" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/x-bzip2" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/zstd" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/x-xz-compressed-tar" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/x-lzip" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/x-lzma" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/x-lzop" #(text-cmd-out-view ["tar" "-tf"] %)
+   "application/zip" #(text-cmd-out-view ["unzip" "-l"] %)
+   "application/x-zip" #(text-cmd-out-view ["unzip" "-l"] %)
+   "application/x-zip-compressed" #(text-cmd-out-view ["unzip" "-l"] %)
+   "application/java-archive" #(text-cmd-out-view ["unzip" "-l"] %)
+   "application/vnd.rar" #(text-cmd-out-view ["unrar" "l"] %)
+   "application/x-rar-compressed" #(text-cmd-out-view ["unrar" "l"] %)
+   "application/x-7z-compressed" #(text-cmd-out-view ["7z" "l"] %)
+   })
 
 (def mime-type-map {"text" text-view
                     "image" client-side-view
@@ -434,12 +479,12 @@
         obj (assoc obj :mime-type mt)]
     (if-let [view-fn (mime-map mt)]
       (view-fn obj)
-      (if-let [view-fn (first
-                        (map (fn [[t f]]
-                               (when (s/starts-with? mt (str t "/")) f))
-                             mime-type-map))]
+      (if-let [view-fn (some (fn [[t f]]
+                               (when (s/starts-with? mt (str t "/"))
+                                 f))
+                             mime-type-map)]
         (view-fn obj)
-        (client-side-view obj)))))
+        (hexdump-view obj)))))
 
 
 (defn t
