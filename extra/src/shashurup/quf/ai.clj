@@ -211,25 +211,13 @@
           (interact context topic tools-callback))
         context))))
 
-(def ^:dynamic *current*)
+(def ^:dynamic *default*)
 
-(defn c
-  "Set current model connection. Stored in *current*.
-   An argument can be either:
-   map - connection configuration consisting of:
-     :host - model API host
-     :endpoint - optional API endpoint when differ from default
-     :key - API key (or a map to retrieve it from secrets)
-     :message - system message
-     :model - model name to use
-     :servers - MCP servers, vector of maps with:
-       :name - server name
-       :cmd - vector with command and args to start it
-       :url - remote server (not yet implemented)"
-  [subj]
-  (if (map? subj)
-    (def ^:dynamic *current* (atom {:config subj}))
-    (def ^:dynamic *current* subj)))
+(defn default []
+  (or
+   (when-let [v (ns-resolve *ns* '*ai-default*)]
+     (var-get v))
+   *default*))
 
 (defn- delete-messages [context topic msg-nums]
   (swap! context
@@ -242,8 +230,8 @@
 (defn ensure-mcp-servers-started
   "Ensure that all MCP servers started.
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used."
-  ([] (ensure-mcp-servers-started *current*))
+             when omitted, (default) is used."
+  ([] (ensure-mcp-servers-started (default)))
   ([context]
    (doseq [{:keys [name] :as srv-cfg} (get-in @context [:config :servers])]
      (when-not (get-in @context [:servers name])
@@ -292,7 +280,7 @@
       (finally (swap! context dissoc :log)))))
 
 (defn fork
-  ([] (fork *current*))
+  ([] (fork (default)))
   ([context] (atom (select-keys @context [:config]))))
 
 (defn- view-with-reason [content reasoning]
@@ -303,7 +291,7 @@
     content))
 
 (defn status
-  ([] (status @*current* :default))
+  ([] (status @(default) :default))
   ([context] (status context :default))
   ([context topic]
    (if-let [ex (:exception context)]
@@ -320,11 +308,11 @@
 (defn clear
   "Clear model context. Args can be:
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used.
+             when omitted, (default) is used.
    topic - optional, a keyword representing a topic to clear"
-  ([] (clear *current*))
+  ([] (clear (default)))
   ([arg] (if (or (coll? arg) (keyword? arg))
-           (clear *current* arg)
+           (clear (default) arg)
            (swap! arg dissoc :messages)))
   ([context arg]
    (if (keyword? arg)
@@ -344,12 +332,12 @@
   "Prompt the model. Args are:
    query - the prompt
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used.
+             when omitted, (default) is used.
    topic - optional, a keyword representing a discussion topic
            topic holds separate context"
-  ([query] (p *current* :default query))
+  ([query] (p (default) :default query))
   ([arg query] (if (keyword? arg)
-                 (p *current* arg query)
+                 (p (default) arg query)
                  (p arg :default query)))
   ([context topic query]
    (perform-query context topic query
@@ -360,12 +348,12 @@
   "Initiate model interactions. Args are:
    query - the prompt
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used.
+             when omitted, (default) is used.
    topic - optional, a keyword representing a discussion topic
            topic holds separate context"
-  ([query] (sp *current* :default query))
+  ([query] (sp (default) :default query))
   ([arg query] (if (keyword? arg)
-                 (sp *current* arg query)
+                 (sp (default) arg query)
                  (sp arg :default query)))
   ([context topic query]
    (future
@@ -380,8 +368,8 @@
    Args, are:
    query - the prompt
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used."
-  ([query] (btw *current* query))
+             when omitted, (default) is used."
+  ([query] (btw (default) query))
   ([context query]
    (let [topic (keyword (str "btw-" (swap! btw-current-id inc)))]
      (p context topic query))))
@@ -391,8 +379,8 @@
    Args, are:
    query - the prompt
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used."
-  ([query] (btww *current* query))
+             when omitted, (default) is used."
+  ([query] (btww (default) query))
   ([context query]
    (let [topic (keyword (str "btw-" @btw-current-id))]
      (p context topic query))))
@@ -401,8 +389,8 @@
 (defn stop-mcp-servers
   "Stop all MCP servers.
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used."
-  ([] (stop-mcp-servers *current*))
+             when omitted, (default) is used."
+  ([] (stop-mcp-servers (default)))
   ([context]
    (doseq [[name srv] (:servers @context)]
      (close-server srv)
@@ -414,8 +402,8 @@
 (defn tools
   "List tools available in started MCP servers.
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used."
-  ([] (tools *current*))
+             when omitted, (default) is used."
+  ([] (tools (default)))
   ([context]
    (v/table
     [:name :params :description]
@@ -432,8 +420,8 @@
 (defn servers
   "List configured MCP servers.
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used."
-  ([] (servers *current*))
+             when omitted, (default) is used."
+  ([] (servers (default)))
   ([context]
    (v/table
     [:name :started :cmd]
@@ -473,12 +461,12 @@
    Args are:
    query - the prompt
    context - optional, atom keeping model interaction state
-             when omitted, *current* is used.
+             when omitted, (default) is used.
    topic - optional, a keyword representing a discussion topic
            topic holds separate context"
-  ([] (log *current*))
+  ([] (log (default)))
   ([arg] (if (keyword? arg)
-           (log *current* arg)
+           (log (default) arg)
            (v/table
             [:idx :topic :role :content]
             (with-meta
