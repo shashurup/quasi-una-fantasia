@@ -7,23 +7,13 @@
    [shashurup.quf.view :as v])
   (:import [java.sql Types SQLFeatureNotSupportedException]))
 
-(def ^:dynamic *current*)
+(def ^:dynamic *default*)
 
-(def ^:dynamic *book*)
-
-(defn c
-  "Sets *current* database, used when it is absent in other functions.
-   subj - could be:
-          a map with :dbtype, :dbname, :host, :port, :user, :password
-          a connection string, database specific
-          a keyword to lookup a database in the *book*"
-  [subj]
-  (def ^:dynamic *current* (if (keyword? subj)
-                             (get *book* subj)
-                             subj)))
-
-(defn set-book! [subj]
-  (def ^:dynamic *book* subj))
+(defn default []
+  (or
+   (when-let [v (ns-resolve *ns* '*db-default*)]
+     (var-get v))
+   *default*))
 
 (defn- make-meta [rset]
   (let [rset-meta (.getMetaData rset)]
@@ -45,15 +35,11 @@
       db)))
 
 (defn get-db-type [db & _]
-  (if (string? db)
-    (.getScheme (java.net.URI. db))
-    (:dbtype db)))
+  (or (:dbtype db)
+      (.getScheme (java.net.URI. (:connection-uri db)))))
 
 (defn query [db & args]
-  (let [db (if (string? db)
-             {:connection-uri db}
-             db)
-        handle (fn [rset]
+  (let [handle (fn [rset]
                  (let [meta (make-meta rset)]
                    (with-meta 
                      (subvec
@@ -62,16 +48,15 @@
     (jdbc/db-query-with-resultset (resolve-creds db) args handle)))
 
 (defn- preprocess [args]
-  (if (keyword? (first args))
-    [(get *book* (first args)) (rest args)]
-    [*current* args]))
+  (if (map? (first args))
+    [(first args) (rest args)]
+    [(default) args]))
 
 (defn exec
   "Execute a non-query statement, args are:
    database query param1 param2 ....
    (q :sales-db \"select * from order where id = ?\" 123)
-   database - optional, a keyword to lookup in the *book*
-              *current* is used when ommited
+   database - optional, (default) is used when ommited
    statement - for SQL databases it is a query string
                parameter placeholder is ?
                or db specific structure for other databases.
@@ -84,8 +69,7 @@
   "Query a database, args are:
    database query param1 param2 ....
    (q :sales-db \"select * from order where id = ?\" 123)
-   database - optional, a keyword to lookup in the *book*
-              *current* is used when ommited
+   database - optional, (default) is used when ommited
    query - for SQL databases it is a query string
            parameter placeholder is ?
            or db specific structure for other databases.
