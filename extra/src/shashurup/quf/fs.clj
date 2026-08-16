@@ -64,11 +64,11 @@
 
 (def ^:dynamic *cwd* (System/getProperty "user.dir"))
 
-(defn c
-  "Change current directory."
-  [path]
-  (def ^:dynamic *cwd* (resolve-path *cwd* path))
-  *cwd*)
+(defn cwd []
+  (or
+   (when-let [v (ns-resolve *ns* '*fs-cwd*)]
+     (var-get v))
+   *cwd*))
 
 (defn- convert-permissions [subj]
   (->> subj
@@ -313,7 +313,7 @@
    :r - recursively, as a tree."
   [& args]
   (let [[args flags] (extract-flags args #{:m :l :c :r :t :T :s :S :n :N :h} #{})
-        path (resolve-path *cwd* (first-of file-arg? args "."))
+        path (resolve-path (cwd) (first-of file-arg? args "."))
         fmt-flags (keep #{:m :l :c :r} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
         [f0 f2] (find-early-filters args)
@@ -352,7 +352,7 @@
   "
   [& args]
   (let [[args flags] (extract-flags args #{:m :l :c :t :T :s :S :n :N :r} #{:skip})
-        path (resolve-path *cwd* (first-of file-arg? args "."))
+        path (resolve-path (cwd) (first-of file-arg? args "."))
         fmt-flags (keep #{:m :l :c :r} (keys flags))
         ord-flag (some #{:t :T :s :S :n :N} (keys flags))
         [f0 f2] (find-early-filters args)
@@ -374,7 +374,7 @@
 
 (defn- absolute-url [subj]
   (java.net.URL.
-   (java.net.URL. (str "file://" (add-trailing-slash *cwd*)))
+   (java.net.URL. (str "file://" (add-trailing-slash (cwd))))
    (expand-tilde subj)))
 
 (defn- get-file-url [subj]
@@ -511,7 +511,7 @@
   [subj]
   (let [obj (if (map? subj)
               subj
-              {:path (resolve-path *cwd* subj)})
+              {:path (resolve-path (cwd) subj)})
         mt (or (:mime-type obj)
                (let [url (absolute-url (:path obj))]
                  (get-file-mime-type url)))
@@ -581,7 +581,7 @@
 (defn- arg->path [subj]
   (if (map? subj)
     (:path subj)
-    (resolve-path *cwd* subj)))
+    (resolve-path (cwd) subj)))
 
 (defn- act-on-files 
   [f & args]

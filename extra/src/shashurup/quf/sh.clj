@@ -68,7 +68,7 @@
                                                 {opts true}
                                                 opts)
          b (proc/create [*shell* "-c" subj]
-                        :dir (or dir fs/*cwd*)
+                        :dir (or dir (fs/cwd))
                         :env env)
          p (proc/start b input error)]
      (v/defer #(proc/kill p))
@@ -124,7 +124,7 @@
   Return value is a process return code."
   [cmdline]
   (let [args [*shell* "-c" cmdline]
-        {:keys [in out wait resize]} (start-process-with-pty args fs/*cwd*)]
+        {:keys [in out wait resize]} (start-process-with-pty args (fs/cwd))]
     (let [in-handler (future (process-input *in* in resize))]
       (stream-events out)
       (future-cancel in-handler))
