@@ -130,7 +130,7 @@
   ([id]
    (fn [e]
      (when-let [f (find-handler id (key-event->str e))]
-       (. js/console debug "found a handler")
+       (. js/console debug "found a local handler")
        (f id)
        (.stopPropagation e)
        (.preventDefault e))))

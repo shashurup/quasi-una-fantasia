@@ -416,7 +416,7 @@
                   (ns-interns 'shashurup.quf.vars)])
     (vars/push-server-updates! '*quota* u/quota)
     (gevents/listen js/window "load" (fn [_] (append-cell)))
-    (gevents/listen js/document "keydown" (keymap/keydown-handler-for))))
+    (.addEventListener js/window "keydown" (keymap/keydown-handler-for))))
 
 ;; specify reload hook with ^:after-load metadata
 (defn ^:after-load on-reload []
