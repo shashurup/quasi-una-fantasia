@@ -23,6 +23,10 @@
 
 (defmulti render value-type)
 
+(defmulti re-render (fn [subj _] (value-type subj)))
+
+(defmethod re-render :default [_ _])
+
 (defmulti handle-event (fn [{:keys [type]} _] type))
 
 (defmethod handle-event :default [_ _]
@@ -73,9 +77,10 @@
 
 (defmethod handle-event :value [{:keys [action value]} id]
   (let [target (get-result-element id)]
-    (gdom/removeChildren target)
-    ;; TODO handle expr here
-    (render-result nil value target)))
+    (when-not (re-render value target)
+      (gdom/removeChildren target)
+      ;; TODO handle expr here
+      (render-result nil value target))))
 
 (defmethod handle-event :progress [{:keys [message value max]} id]
   (let [progress-el (gdom/getElement (str "progress-" id))]
