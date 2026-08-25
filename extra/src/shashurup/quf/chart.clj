@@ -40,4 +40,5 @@
                       (update a k #(inc (or % 0))))) {} data)
           (map (fn [[k v]] [(+ start (* step k)) v]))
           (sort-by first)
+          (map (fn [[k v]] {:x (str (int k)) :y v}))
           bar))))
