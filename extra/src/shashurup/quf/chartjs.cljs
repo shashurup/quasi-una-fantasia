@@ -38,7 +38,8 @@
      :data data
      :options (condp = type
                 :bar {:plugins {:legend {:display display-legend}}}
-                :line {:plugins {:legend {:display display-legend}}}
+                :line {:plugins {:legend {:display display-legend}}
+                       :animation false}
                 :scatter {:plugins {:legend {:display display-legend}}}
                 :pie {:maintainAspectRatio false}
                 :doughnut {:maintainAspectRatio false})}))
