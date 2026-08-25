@@ -7,22 +7,27 @@
 
 (u/begin-module-load! :chartjs)
 
+(defn convert-dataset [subj type]
+  (if (and (coll? subj)
+           (not (coll? (first subj)))
+           (#{:line :bar} type))
+    (if (= type :line)
+      (map-indexed #(hash-map :x (str %1) :y %2) subj)
+      (for [x subj] {:x (str x) :y x}))
+    subj))
+
 (defn chart-data [subj type]
   (cond
     (and (map? subj)
          (:datasets subj))
     subj
 
-    (and (coll? subj)
-         (not (coll? (first subj)))
-         (#{:line :bar} type))
-    {:datasets
-     [{:data (if (= type :line)
-               (map-indexed #(hash-map :x (str %1) :y %2) subj)
-               (for [x subj] {:x (str x) :y x}))}]}
+    (map? subj)
+    {:datasets (for [[k v] subj]
+                 {:label (name k) :data (convert-dataset v type)})}
 
     :else
-    {:datasets [{:data subj}]}))
+    {:datasets [{:data (convert-dataset subj type)}]}))
 
 (defn chart-input [data type]
   (let [data (chart-data data type)
