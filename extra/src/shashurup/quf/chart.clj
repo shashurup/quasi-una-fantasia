@@ -19,19 +19,13 @@
                    ffirst
                    (* (math/pow 10 n)))))))
 
-(defn normalize [data]
-  (for [x data]
-    (if (coll? x) x [(str x) x])))
+(defn bar [data] (v/hint data [:chart :bar]))
 
-(defn show [data type] (v/hint (normalize data) [:chart type]))
+(defn line [data] (v/hint data [:chart :line]))
 
-(defn bar [data] (show data :bar))
+(defn pie [data] (v/hint data [:chart :pie]))
 
-(defn line [data] (show data :line))
-
-(defn pie [data] (show data :pie))
-
-(defn doughnut [data] (show data :doughnut))
+(defn doughnut [data] (v/hint data [:chart :doughnut]))
 
 (defn scatter [data] (v/hint data [:chart :scatter]))
 

@@ -7,47 +7,41 @@
 
 (u/begin-module-load! :chartjs)
 
-(def colors ["#114b5f" "#1a936f" "#744253"
-             "#70798c" "#aec3b0" "#b36a5e"
-             "#9381ff" "#f3c26e" "#da8c5b"
-             "#ce5070" "#16f4d0"])
+(defn chart-data [subj type]
+  (cond
+    (and (map? subj)
+         (:datasets subj))
+    subj
 
-(def default-color "#9CAF88")
+    (and (coll? subj)
+         (not (coll? (first subj)))
+         (#{:line :bar} type))
+    {:datasets
+     [{:data (if (= type :line)
+               (map-indexed #(hash-map :x (str %1) :y %2) subj)
+               (for [x subj] {:x (str x) :y x}))}]}
 
-(defn compose-input [skeleton dataset options]
-  (-> skeleton
-      (assoc :options options)
-      (assoc-in [:data :datasets] [dataset])))
-
-(defn add-colors [subj amount]
-  (assoc subj :backgroundColor (take amount (cycle colors))))
+    :else
+    {:datasets [{:data subj}]}))
 
 (defn chart-input [data type]
-  (let [dataset {:data (map second data)}
-        skeleton {:type (name type)
-                  :data {:labels (map first data)}}]
-    (condp = type
-      :bar (compose-input skeleton dataset {:scales {:y {:beginAtZero true}}
-                                            :backgroundColor (first colors)
-                                            :plugins {:legend {:display false}}})
-      :line (compose-input skeleton dataset {:scales {:y {:beginAtZero true}}
-                                             :borderColor (first colors)
-                                             :plugins {:legend {:display false}}})
-      :pie (compose-input skeleton
-                          (add-colors dataset (count data))
-                          {:maintainAspectRatio false})
-      :doughnut (compose-input skeleton
-                               (add-colors dataset (count data))
-                               {:maintainAspectRatio false})
-      :scatter {:type type
-                :data {:datasets [{:data data
-                                   :backgroundColor (first colors)}]}
-                :options {:plugins {:legend {:display false}}}}
-      {})))
+  (let [data (chart-data data type)
+        display-legend (->> (:datasets data)
+                            (some :label))]
+    (.log js/console display-legend)
+    {:type (name type)
+     :data data
+     :options (condp = type
+                :bar {:plugins {:legend {:display display-legend}}}
+                :line {:plugins {:legend {:display display-legend}}}
+                :scatter {:plugins {:legend {:display display-legend}}}
+                :pie {:maintainAspectRatio false}
+                :doughnut {:maintainAspectRatio false})}))
 
 (defn create-chart-control [canvas data]
-  (let [[_ type] (:shashurup.quf/hint (meta data))]
-    (js/Chart. canvas (clj->js (chart-input data type)))))
+  (let [[_ type] (:shashurup.quf/hint (meta data))
+        input (chart-input data type)]
+    (js/Chart. canvas (clj->js input))))
 
 (defmethod render :chart [subj]
   (.log js/console "render chart")
