@@ -51,12 +51,15 @@
 
 (defmethod re-render :chart [subj target]
   (.log js/console "re-render chart")
-  (when-let [canvas (first (.getElementsByTagName target "canvas"))]
-    (when-let [chart (js/Chart.getChart canvas)]
-      (set! (.-labels (.-data chart))
-            (clj->js (map first subj)))
-      (set! (.-data (aget (.-datasets (.-data chart)) 0))
-            (clj->js (map second subj)))
+  (when-let [chart (some-> target
+                           (.getElementsByTagName "canvas")
+                           first
+                           js/Chart.getChart)]
+    (let [[_ type] (:shashurup.quf/hint (meta subj)) 
+          data (chart-data subj type)]
+      (doseq [[idx v] (map-indexed vector (:datasets data))]
+        (set! (.-data (aget (.-datasets (.-data chart)) idx))
+              (clj->js (:data v))))
       (.update chart)
       true)))
 
