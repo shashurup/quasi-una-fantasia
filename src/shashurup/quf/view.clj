@@ -83,11 +83,36 @@
                        (when (= (:reason (ex-data ex)) :timeout)
                          (remove-watch subj key)))))
          untrack (fn []
-                   (nmbe)
-                   (remove-watch subj key))]
+                   (remove-watch subj key)
+                   (nmbe))]
      (expect-background-events untrack)
      (add-watch subj key handler)
      (conv @subj))))
+
+(defn start
+  ([f] (start f identity nil))
+  ([f conv] (start f conv nil))
+  ([f conv init]
+   (let [state (atom init)
+         key (str "event-handler-" (random-uuid))
+         re report-event
+         handler (fn [key subj _ new-state]
+                   (try
+                     (re {:type :value
+                          :value (conv new-state)})
+                     (catch Exception ex
+                       (when (= (:reason (ex-data ex)) :timeout)
+                         (remove-watch subj key)))))]
+     (add-watch state key handler)
+     (let [nmbe no-more-background-events
+           fut (future
+                 (try
+                   (f state)
+                   (finally
+                     (remove-watch state key)
+                     (nmbe))))]
+       (expect-background-events #(future-cancel fut))
+       (conv @state)))))
 
 (def ^:dynamic defer identity)
 
