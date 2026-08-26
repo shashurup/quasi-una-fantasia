@@ -50,13 +50,11 @@
     (js/Chart. canvas (clj->js input))))
 
 (defmethod render :chart [subj]
-  (.log js/console "render chart")
   (let [canvas (crate/html [:canvas])]
     (defer #(create-chart-control canvas subj))
     [:div.quf-medium-sized canvas]))
 
 (defmethod re-render :chart [subj target]
-  (.log js/console "re-render chart")
   (when-let [chart (some-> target
                            (.getElementsByTagName "canvas")
                            first
