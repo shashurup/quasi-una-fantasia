@@ -69,19 +69,22 @@
                           {:value value
                            :max max})))))
 
+(defn- change-dispatcher [conv]
+  (let [re report-event]
+    (fn [key subj _ new-state]
+      (try
+        (re {:type :value
+             :value (conv new-state)})
+        (catch Exception ex
+          (when (= (:reason (ex-data ex)) :timeout)
+            (remove-watch subj key)))))))
+
 (defn track
   ([subj] (track subj identity))
   ([subj conv]
    (let [key (str "event-handler-" (random-uuid))
-         re report-event
          nmbe no-more-background-events
-         handler (fn [key subj _ new-state]
-                   (try
-                     (re {:type :value
-                          :value (conv new-state)})
-                     (catch Exception ex
-                       (when (= (:reason (ex-data ex)) :timeout)
-                         (remove-watch subj key)))))
+         handler (change-dispatcher conv)
          untrack (fn []
                    (remove-watch subj key)
                    (nmbe))]
@@ -95,14 +98,7 @@
   ([f conv init]
    (let [state (atom init)
          key (str "event-handler-" (random-uuid))
-         re report-event
-         handler (fn [key subj _ new-state]
-                   (try
-                     (re {:type :value
-                          :value (conv new-state)})
-                     (catch Exception ex
-                       (when (= (:reason (ex-data ex)) :timeout)
-                         (remove-watch subj key)))))]
+         handler (change-dispatcher conv)]
      (add-watch state key handler)
      (let [nmbe no-more-background-events
            fut (future
