@@ -279,7 +279,7 @@
         (swap! context assoc :exception ex))
       (finally (swap! context dissoc :log)))))
 
-(defn fork
+(defn clone
   ([] (fork (default)))
   ([context] (atom (select-keys @context [:config]))))
 
@@ -344,7 +344,7 @@
                   #(v/report-progress (v/text (:log @context))))
    (status @context topic)))
 
-(defn sp
+(defn start
   "Initiate model interactions. Args are:
    query - the prompt
    context - optional, atom keeping model interaction state
@@ -356,8 +356,9 @@
                  (sp (default) arg query)
                  (sp arg :default query)))
   ([context topic query]
-   (future
-     (perform-query context topic query nil))))
+   (v/involve context
+              #(perform-query % topic query nil)
+              status)))
 
 (defonce btw-current-id (atom 0))
 
