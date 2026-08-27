@@ -280,7 +280,7 @@
       (finally (swap! context dissoc :log)))))
 
 (defn clone
-  ([] (fork (default)))
+  ([] (clone (default)))
   ([context] (atom (select-keys @context [:config]))))
 
 (defn- view-with-reason [content reasoning]
@@ -351,10 +351,10 @@
              when omitted, (default) is used.
    topic - optional, a keyword representing a discussion topic
            topic holds separate context"
-  ([query] (sp (default) :default query))
+  ([query] (start (default) :default query))
   ([arg query] (if (keyword? arg)
-                 (sp (default) arg query)
-                 (sp arg :default query)))
+                 (start (default) arg query)
+                 (start arg :default query)))
   ([context topic query]
    (v/involve context
               #(perform-query % topic query nil)
