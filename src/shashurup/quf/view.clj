@@ -92,12 +92,10 @@
      (add-watch subj key handler)
      (conv @subj))))
 
-(defn start
-  ([f] (start f identity nil))
-  ([f conv] (start f conv nil))
-  ([f conv init]
-   (let [state (atom init)
-         key (str "event-handler-" (random-uuid))
+(defn involve
+  ([state f] (involve state f identity))
+  ([state f conv]
+   (let [key (str "event-handler-" (random-uuid))
          handler (change-dispatcher conv)]
      (add-watch state key handler)
      (let [nmbe no-more-background-events
@@ -107,8 +105,15 @@
                    (finally
                      (remove-watch state key)
                      (nmbe))))]
-       (expect-background-events #(future-cancel fut))
-       (conv @state)))))
+       (expect-background-events #(future-cancel fut))))))
+
+(defn start
+  ([f] (start f identity nil))
+  ([f conv] (start f conv nil))
+  ([f conv init]
+   (let [state (atom init)]
+     (involve state f conv)
+     (conv @state))))
 
 (def ^:dynamic defer identity)
 
