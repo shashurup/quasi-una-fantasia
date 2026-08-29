@@ -7,7 +7,7 @@
 (defonce cancel-fns (atom {}))
 
 (defn wrap-event-reporter [h]
-  (fn [{:keys [id session op] :as msg}]
+  (fn [{:keys [id session op cancel-id] :as msg}]
     (let [session-id (:id (meta session))]
       (condp = op
         "eval" (let [re (fn [subj]
@@ -31,8 +31,10 @@
                         #'v/expect-background-events ev-start
                         #'v/no-more-background-events ev-stop)
                  (h msg))
-        "cancel-events" (if-let [cancel (get-in @cancel-fns [session-id id])]
-                          (do (swap! cancel-fns update session-id dissoc id)
+        "cancel-events" (if-let [cancel (get-in @cancel-fns
+                                                [session-id cancel-id])]
+                          (do (swap! cancel-fns
+                                     update session-id dissoc cancel-id)
                               (cancel)
                               (t/respond-to msg :status #{:done}))
                           (t/respond-to msg :status #{:done :error :not-found}))
