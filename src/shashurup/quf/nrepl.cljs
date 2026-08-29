@@ -3,7 +3,11 @@
    [goog.events :as gevents]
    [cljs.tools.reader :refer [read-string]]))
 
-(defonce state (atom {:bg-events #{}}))
+(defn- local-id []
+  (.toString (rem (js/Date.now) 10000000) 36))
+
+(defonce state (atom {:bg-events #{}
+                      :client-id (local-id)}))
 
 (defn get-ns [] (:ns @state))
 
@@ -71,14 +75,16 @@
 
 (defn- send-message [op callback & {:keys [timeout wait-reply] :as params}]
   (let [msg (pr-str op)
-        req (js/XMLHttpRequest.)]
+        req (js/XMLHttpRequest.)
+        params (assoc params :client-id (:client-id @state))]
     (.open req "POST" (str "messages" (build-query-string params)))
     (.setRequestHeader req "Content-Type" "application/octet-stream")
     (gevents/listen req "loadend" #(handle-response req op callback))
     (.send req msg)))
 
 (defn- receive-messages [callback & {:keys [timeout] :as params}]
-  (let [req (js/XMLHttpRequest.)]
+  (let [req (js/XMLHttpRequest.)
+        params (assoc params :client-id (:client-id @state))]
     (.open req "GET" (str "messages" (build-query-string params)))
     (gevents/listen req "loadend" #(handle-response req nil callback))
     (.send req)))
@@ -112,6 +118,34 @@
        (send-message op handle-replies :wait-reply 1)
        (send-message op nil))
      id)))
+
+(defn- on-ws-message [event]
+  (.log js/console "ws message" (.-data event)))
+
+(defn- ws-connect [callback]
+  (let [ws (js/WebSocket. (str "ws?client-id="
+                               (:client-id @state)))]
+    (.addEventListener ws "open" #(when (= (.-readyState ws) 1)
+                                    (swap! state assoc :socket ws)
+                                    (callback)))
+    (.addEventListener ws "close" #(if (= :connecting (:socket @state))
+                                     (swap! state assoc :socket :missing)
+                                     (swap! state dissoc :socket)))
+    (.addEventListener ws "message" on-ws-message)
+    (.addEventListener ws "error" #(.log js/console "WebSocket error:" %))
+    (swap! state assoc :socket :connecting)))
+
+(defn send-op2
+  ([op callback] (send-op2 op callback :session))
+  ([op callback slot]
+   (let [sock (:socket @state)]
+     (cond
+       (nil? sock) (ws-connect #(send-op2 op callback slot))
+       (= sock :connecting) 2
+       (= sock :missing) 2
+       :else 3)
+     )
+   ))
 
 (defn send-clone
   ([callback] (send-clone callback :session))

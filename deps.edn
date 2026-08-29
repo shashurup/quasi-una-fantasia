@@ -1,10 +1,9 @@
 {:mvn/repos {"jetbrains" {:url "https://packages.jetbrains.team/maven/p/ij/intellij-dependencies/"}}
 
  :deps {org.clojure/clojure {:mvn/version "1.12.5"}
-        ring/ring-core {:mvn/version "1.15.2"}
-        ring/ring-jetty-adapter {:mvn/version "1.15.2"}
-        ;; 0.4.0 by default uses cookie-store we don't need
-        ring/ring-defaults {:mvn/version "0.3.4"}
+        ring/ring-core {:mvn/version "1.15.5"}
+        ring/ring-jetty-adapter {:mvn/version "1.15.5"}
+        ring/ring-defaults {:mvn/version "0.7.1"}
         nrepl/nrepl {:mvn/version "1.7.0"}
         compojure/compojure {:mvn/version "1.7.2"}}
 
@@ -15,12 +14,12 @@
                                 org.clojure/data.csv {:mvn/version "1.1.0"}
                                 org.clojure/java.jdbc {:mvn/version "0.7.12"}
                                 de.swiesend/secret-service {:mvn/version "1.8.1-jdk17"}
-                                org.postgresql/postgresql {:mvn/version "42.7.8"}
-                                org.apache.tika/tika-core {:mvn/version "3.2.3"}
-                                org.apache.tika/tika-parsers-standard-package {:mvn/version "3.2.3"}
-                                org.jetbrains.pty4j/pty4j {:mvn/version "0.13.11"}
+                                org.postgresql/postgresql {:mvn/version "42.7.13"}
+                                org.apache.tika/tika-core {:mvn/version "3.3.2"}
+                                org.apache.tika/tika-parsers-standard-package {:mvn/version "3.3.2"}
+                                org.jetbrains.pty4j/pty4j {:mvn/version "0.13.12"}
                                 clj-commons/clj-yaml {:mvn/version "1.0.29"}
-                                org.xerial/sqlite-jdbc {:mvn/version "3.53.2.0"}}
+                                org.xerial/sqlite-jdbc {:mvn/version "3.53.2.1"}}
                    :extra-paths ["extra/src" "extra/resources"]}
            :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.12.145"}
                                com.bhauman/figwheel-main {:mvn/version "0.2.20"}

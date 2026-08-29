@@ -10,6 +10,7 @@
             [ring.middleware.defaults :as d]
             [ring.adapter.jetty :as j]
             [ring.util.response :as u]
+            [ring.websocket :as ws]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [nrepl.transport :as t]
@@ -59,12 +60,14 @@
       result)))
 
 (defn handle-message [{session :session
-                       {transport :transport} :session
+                       {transports :transports} :session
                        method :request-method
                        body :body
                        {timeout :timeout
-                        wait-reply :wait-reply} :params}]
-  (let [transport (or transport (create-transport))
+                        wait-reply :wait-reply
+                        client-id :client-id} :params}]
+  (let [transport (or (get transports client-id)
+                      (create-transport))
         timeout (or (as-int timeout) TIMEOUT)]
     (when (= method :post)
       ;; TODO handle timeout (in case something is running already)
@@ -74,33 +77,67 @@
       (-> r
           pr-str
           u/response
-          (assoc :session (assoc session :transport transport))))))
+          (assoc :session (assoc-in session
+                                    [:transports client-id]
+                                    transport))))))
 
-(defroutes app
+(deftype SendOnlyTransport [callback]
+  t/Transport
+  (send [this msg]
+    (callback msg)
+    this)
+  (recv [_this])
+  (recv [_this timeout]))
 
-  (GET "/messages" req (handle-message req))
-  
-  (POST "/messages" req (handle-message req))
-  
-  (GET "/fs/*" {{path :*} :params}
-       (u/file-response (str "/" path)))
+(def nrepl-handler (srv/default-handler #'vars/wrap-update-vars
+                                        #'pruner/wrap-pruner
+                                        #'sweeper/wrap-sweeper
+                                        #'evt/wrap-event-reporter))
 
-  (GET "/" [] (->  (u/resource-response "index.html"
-                                        {:root "public"})
-                   (u/content-type "text/html; charset=utf-8")))
-  
-  (route/not-found "<h1>Page not found</h1>"))
+(defn process-message [msg callback]
+  (srv/handle* msg
+               nrepl-handler
+               (SendOnlyTransport. callback)))
+
+(defn connect-websocket [{session :session
+                          {sockets :sockets} session
+                          {client-id :client-id} :params}]
+  (let [sockets (or sockets (atom {}))
+        send-reply (fn [msg]
+                     (ws/send (@sockets client-id)
+                              (pr-str msg)))]
+    {:session (assoc session :sockets sockets)
+     ::ws/listener
+     {:on-open (fn [sock]
+                 (swap! sockets assoc client-id sock))
+      :on-message (fn [sock msg]
+                    (process-message (edn/read-string msg)
+                                     send-reply))
+      :on-close (fn [sock _ _]
+                  (swap! sockets dissoc client-id))}}))
+
+(def app
+  (d/wrap-defaults
+   (routes
+    (GET "/messages" req (handle-message req))
+    (POST "/messages" req (handle-message req))
+    (GET "/ws" req (connect-websocket req))
+    (GET "/fs/*" {{path :*} :params}
+         (u/file-response (str "/" path)))
+    (GET "/" [] (->  (u/resource-response "index.html"
+                                          {:root "public"})
+                     (u/content-type "text/html; charset=utf-8")))
+    (route/not-found "<h1>Page not found</h1>"))
+   (-> d/site-defaults
+       ;; site defaults uses cookie-store
+       ;; which we don't need
+       (update :session dissoc :store)
+       (update :security dissoc :anti-forgery))))
 
 (defn start
   ([port] (start port false))
   ([port join?]
-   (j/run-jetty (d/wrap-defaults app
-                                 (-> d/site-defaults
-                                     ;; site defaults uses cookie-store
-                                     ;; which we don't need
-                                     (update :session dissoc :store)
-                                     (update :security dissoc :anti-forgery)))
-                {:port port :join? join?})))
+   (j/run-jetty app {:port port :join? join?})))
 
 (defn -main [& args]
   (let [port (if-let [p (first args)]
