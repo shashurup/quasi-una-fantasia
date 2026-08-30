@@ -76,7 +76,7 @@
         (re {:type :value
              :value (conv new-state)})
         (catch Exception ex
-          (when (= (:reason (ex-data ex)) :timeout)
+          (when (= (:reason (ex-data ex)) :broken-pipe)
             (remove-watch subj key)))))))
 
 (defn track

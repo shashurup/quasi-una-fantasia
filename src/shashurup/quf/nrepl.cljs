@@ -124,7 +124,7 @@
   (process-callback (read-string (.-data event))))
 
 (defn- ws-connect [callback]
-  (let [ws (js/WebSocket. (str "ws?client-id="
+  (let [ws (js/WebSocket. (str "ws1111?client-id="
                                (:client-id @state)))]
     (.addEventListener ws "open" #((swap! state assoc :socket ws)
                                    (when callback

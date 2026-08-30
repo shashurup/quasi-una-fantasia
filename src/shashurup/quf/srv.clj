@@ -24,7 +24,7 @@
   t/Transport
   (send [this msg]
     (when-not (.offer out msg TIMEOUT TimeUnit/MILLISECONDS)
-      (throw (ex-info "Pipe timeout" {:reason :timeout})))
+      (throw (ex-info "Pipe timeout" {:reason :broken-pipe})))
     this)
   (recv [_this] (.take in))
   (recv [_this timeout] (.poll in timeout TimeUnit/MILLISECONDS)))
@@ -99,24 +99,54 @@
                nrepl-handler
                (SendOnlyTransport. callback)))
 
+(defn- buffer-put! [buffers client-id subj]
+  (swap! buffers
+         update client-id
+         (fn [v]
+           (if (get v client-id)
+             v
+             (assoc v client-id (ArrayBlockingQueue. SERVER-QUEUE-CAPACITY)))))
+  (let [^ArrayBlockingQueue q (@buffers client-id)]
+    (when-not (.offer q subj TIMEOUT TimeUnit/MILLISECONDS)
+      (throw (ex-info "Pipe timeout" {:reason :broken-pipe})))))
+
+(defn- buffer-take! [buffers client-id]
+  (when-let [^ArrayBlockingQueue q (@buffers client-id)]
+    (.poll q)))
+
+(def ws-log (atom []))
+
 (defn connect-websocket [{session :session
-                          {sockets :sockets} session
-                          {client-id :client-id} :params}]
+                          {buffers :buffers
+                           sockets :sockets} session
+                          {client-id :client-id} :params :as req}]
+  (swap! ws-log conj ["request" req])
+  (swap! ws-log conj ["before" client-id sockets])
   (let [sockets (or sockets (atom {}))
+        buffers (or buffers (atom {}))
         send-reply (fn [msg]
-                     ;; TODO handle disconnected socket
-                     ;; by queueing replies until limit
-                     ;; and throwing
-                     (ws/send (@sockets client-id)
-                              (pr-str msg)))]
-    {:session (assoc session :sockets sockets)
+                     (swap! ws-log conj ["reply" client-id msg sockets @sockets])
+                     (let [msg (pr-str msg)]
+                       (if-let [sock (@sockets client-id)]
+                         (ws/send sock msg)
+                         (buffer-put! buffers client-id msg))))]
+    (swap! ws-log conj ["connect" client-id sockets @sockets])
+    {:session (-> session
+                  (assoc :sockets sockets)
+                  (assoc :buffers buffers))
      ::ws/listener
      {:on-open (fn [sock]
-                 (swap! sockets assoc client-id sock))
+                 (swap! ws-log conj ["open" client-id sockets @sockets])
+                 (swap! sockets assoc client-id sock)
+                 (doseq [msg (->> #(buffer-take! buffers client-id)
+                                  repeatedly
+                                  (take-while identity))]
+                   (ws/send sock msg)))
       :on-message (fn [sock msg]
                     (process-message (edn/read-string msg)
                                      send-reply))
       :on-close (fn [sock _ _]
+                  (swap! ws-log conj ["close" client-id sockets @sockets])
                   (swap! sockets dissoc client-id))}}))
 
 (def app
@@ -126,10 +156,13 @@
     (POST "/messages" req (handle-message req))
     (GET "/ws" req (connect-websocket req))
     (GET "/fs/*" {{path :*} :params}
-         (u/file-response (str "/" path)))
+      (u/file-response (str "/" path)))
     (GET "/" [] (->  (u/resource-response "index.html"
                                           {:root "public"})
-                     (u/content-type "text/html; charset=utf-8")))
+                     (u/content-type "text/html; charset=utf-8")
+                     ;; Jetty doesn't set cookies on websocket
+                     ;; upgrade response, so we need to setup a sesssion
+                     (assoc :session {:bla "bla"})))
     (route/not-found "<h1>Page not found</h1>"))
    (-> d/site-defaults
        ;; site defaults uses cookie-store
@@ -140,7 +173,7 @@
 (defn start
   ([port] (start port false))
   ([port join?]
-   (j/run-jetty app {:port port :join? join?})))
+   (j/run-jetty (wrap-resp-logging app) {:port port :join? join?})))
 
 (defn -main [& args]
   (let [port (if-let [p (first args)]
