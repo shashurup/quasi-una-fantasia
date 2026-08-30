@@ -104,6 +104,9 @@
                           {client-id :client-id} :params}]
   (let [sockets (or sockets (atom {}))
         send-reply (fn [msg]
+                     ;; TODO handle disconnected socket
+                     ;; by queueing replies until limit
+                     ;; and throwing
                      (ws/send (@sockets client-id)
                               (pr-str msg)))]
     {:session (assoc session :sockets sockets)

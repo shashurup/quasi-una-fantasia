@@ -65,7 +65,7 @@
 (defn terminated? [statuses]
   (some #{:done "done"} statuses))
 
-(defn- handle-response [req op callback]
+(defn- handle-http-response [req op callback]
   (when callback
     (callback (if (= 200 (.-status req))
                 (read-string (.-responseText req))
@@ -73,79 +73,96 @@
                           :err (.-responseText req)}
                          (select-keys op [:id]))]))))
 
-(defn- send-message [op callback & {:keys [timeout wait-reply] :as params}]
+(defn- send-http-message [op callback & {:keys [timeout wait-reply] :as params}]
   (let [msg (pr-str op)
         req (js/XMLHttpRequest.)
         params (assoc params :client-id (:client-id @state))]
     (.open req "POST" (str "messages" (build-query-string params)))
     (.setRequestHeader req "Content-Type" "application/octet-stream")
-    (gevents/listen req "loadend" #(handle-response req op callback))
+    (gevents/listen req "loadend" #(handle-http-response req op callback))
     (.send req msg)))
 
-(defn- receive-messages [callback & {:keys [timeout] :as params}]
+(defn- receive-http-messages [callback & {:keys [timeout] :as params}]
   (let [req (js/XMLHttpRequest.)
         params (assoc params :client-id (:client-id @state))]
     (.open req "GET" (str "messages" (build-query-string params)))
-    (gevents/listen req "loadend" #(handle-response req nil callback))
+    (gevents/listen req "loadend" #(handle-http-response req nil callback))
     (.send req)))
 
-(defn- handle-replies [replies]
-  (doall (map (fn [{:keys [id status] :as reply}]
-                (when-let [callback (get-callback id)]
-                  (try
-                    (callback reply)
-                    (catch js/Object ex
-                      (. js/console error ex))))
-                (when (:expect-background-events status)
-                  (add-bg-event id))
-                (when (:no-more-background-events status)
-                  (remove-bg-event id)
-                  (remove-callback id))
-                (when (and id (terminated? status) (no-bg-event id))
-                  (remove-callback id)))
-              replies))
-  (when (pending-callbacks?)
-    (receive-messages handle-replies)))
+(defn- process-callback [{:keys [id status] :as reply}]
+  (when-let [callback (get-callback id)]
+    (try
+      (callback reply)
+      (catch js/Object ex
+        (. js/console error ex))))
+  (when (:expect-background-events status)
+    (add-bg-event id))
+  (when (:no-more-background-events status)
+    (remove-bg-event id)
+    (remove-callback id))
+  (when (and id (terminated? status) (no-bg-event id))
+    (remove-callback id)))
 
-(defn send-op
-  ([op callback] (send-op op callback :session))
+(defn- handle-http-replies [replies]
+  (doall (map process-callback replies))
+  (when (pending-callbacks?)
+    (receive-http-messages handle-http-replies)))
+
+(defn- send-op-http
+  ([op callback] (send-op-http op callback :session))
   ([op callback slot]
    (let [id (new-id)
          op (-> op
                 (assoc :id id)
                 (merge {:session (slot @state)}))]
      (if (empty? (:callbacks (add-callback id callback)))
-       (send-message op handle-replies :wait-reply 1)
-       (send-message op nil))
+       (send-http-message op handle-http-replies :wait-reply 1)
+       (send-http-message op nil))
      id)))
 
 (defn- on-ws-message [event]
-  (.log js/console "ws message" (.-data event)))
+  (process-callback (read-string (.-data event))))
 
 (defn- ws-connect [callback]
   (let [ws (js/WebSocket. (str "ws?client-id="
                                (:client-id @state)))]
-    (.addEventListener ws "open" #(when (= (.-readyState ws) 1)
-                                    (swap! state assoc :socket ws)
-                                    (callback)))
+    (.addEventListener ws "open" #((swap! state assoc :socket ws)
+                                   (when callback
+                                     (callback))))
     (.addEventListener ws "close" #(if (= :connecting (:socket @state))
-                                     (swap! state assoc :socket :missing)
-                                     (swap! state dissoc :socket)))
+                                     (do
+                                       (swap! state assoc :socket :missing)
+                                       (when callback
+                                         (callback)))
+                                     (do
+                                       (swap! state dissoc :socket)
+                                       (when (pending-callbacks?)
+                                         (ws-connect nil)))))
     (.addEventListener ws "message" on-ws-message)
     (.addEventListener ws "error" #(.log js/console "WebSocket error:" %))
     (swap! state assoc :socket :connecting)))
 
-(defn send-op2
-  ([op callback] (send-op2 op callback :session))
+(declare send-op)
+
+(defn- send-op-ws [op callback slot]
+  (let [sock (:socket @state)]
+    (cond
+      (nil? sock) (ws-connect #(send-op op callback slot))
+      (= sock :connecting) (js/setTimeout #(send-op op callback slot))
+      :else (let [id (new-id)
+                  op (-> op
+                         (assoc :id id)
+                         (merge {:session (slot @state)}))]
+              (add-callback id callback)
+              (.send sock (pr-str op))
+              id))))
+
+(defn send-op
+  ([op callback] (send-op op callback :session))
   ([op callback slot]
-   (let [sock (:socket @state)]
-     (cond
-       (nil? sock) (ws-connect #(send-op2 op callback slot))
-       (= sock :connecting) 2
-       (= sock :missing) 2
-       :else 3)
-     )
-   ))
+   (if (= (:socket @state) :missing)
+     (send-op-http op callback slot)
+     (send-op-ws op callback slot))))
 
 (defn send-clone
   ([callback] (send-clone callback :session))
