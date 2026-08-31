@@ -102,10 +102,7 @@
 (defn- buffer-put! [buffers client-id subj]
   (swap! buffers
          update client-id
-         (fn [v]
-           (if (get v client-id)
-             v
-             (assoc v client-id (ArrayBlockingQueue. SERVER-QUEUE-CAPACITY)))))
+         (fn [v] (if v v (ArrayBlockingQueue. SERVER-QUEUE-CAPACITY))))
   (let [^ArrayBlockingQueue q (@buffers client-id)]
     (when-not (.offer q subj TIMEOUT TimeUnit/MILLISECONDS)
       (throw (ex-info "Pipe timeout" {:reason :broken-pipe})))))
@@ -114,29 +111,22 @@
   (when-let [^ArrayBlockingQueue q (@buffers client-id)]
     (.poll q)))
 
-(def ws-log (atom []))
-
 (defn connect-websocket [{session :session
                           {buffers :buffers
-                           sockets :sockets} session
+                           sockets :sockets} :session
                           {client-id :client-id} :params :as req}]
-  (swap! ws-log conj ["request" req])
-  (swap! ws-log conj ["before" client-id sockets])
   (let [sockets (or sockets (atom {}))
         buffers (or buffers (atom {}))
         send-reply (fn [msg]
-                     (swap! ws-log conj ["reply" client-id msg sockets @sockets])
                      (let [msg (pr-str msg)]
                        (if-let [sock (@sockets client-id)]
                          (ws/send sock msg)
                          (buffer-put! buffers client-id msg))))]
-    (swap! ws-log conj ["connect" client-id sockets @sockets])
     {:session (-> session
                   (assoc :sockets sockets)
                   (assoc :buffers buffers))
      ::ws/listener
      {:on-open (fn [sock]
-                 (swap! ws-log conj ["open" client-id sockets @sockets])
                  (swap! sockets assoc client-id sock)
                  (doseq [msg (->> #(buffer-take! buffers client-id)
                                   repeatedly
@@ -146,23 +136,39 @@
                     (process-message (edn/read-string msg)
                                      send-reply))
       :on-close (fn [sock _ _]
-                  (swap! ws-log conj ["close" client-id sockets @sockets])
                   (swap! sockets dissoc client-id))}}))
+
+(defn wrap-auth [handler]
+  (fn
+    ([request]
+     (if (get-in request [:session :user])
+       (handler request)
+       {:status 401}))
+    ([request respond raise]
+     (if (get-in request [:session :user])
+       (handler request respond raise)
+       (respond {:status 401})))))
+
+(defn login []
+  {:status 302
+   :headers {"Location" "/"}
+   :session {:user "user"}})
 
 (def app
   (d/wrap-defaults
    (routes
-    (GET "/messages" req (handle-message req))
-    (POST "/messages" req (handle-message req))
-    (GET "/ws" req (connect-websocket req))
-    (GET "/fs/*" {{path :*} :params}
-      (u/file-response (str "/" path)))
-    (GET "/" [] (->  (u/resource-response "index.html"
-                                          {:root "public"})
-                     (u/content-type "text/html; charset=utf-8")
-                     ;; Jetty doesn't set cookies on websocket
-                     ;; upgrade response, so we need to setup a sesssion
-                     (assoc :session {:bla "bla"})))
+    (routes
+     (GET "/login" [] (login))
+     (GET "/" [] (->  (u/resource-response "index.html"
+                                           {:root "public"})
+                      (u/content-type "text/html; charset=utf-8"))))
+    (wrap-auth
+     (routes
+      (GET "/messages" req (handle-message req))
+      (POST "/messages" req (handle-message req))
+      (GET "/ws" req (connect-websocket req))
+      (GET "/fs/*" {{path :*} :params}
+        (u/file-response (str "/" path)))))
     (route/not-found "<h1>Page not found</h1>"))
    (-> d/site-defaults
        ;; site defaults uses cookie-store
@@ -173,7 +179,7 @@
 (defn start
   ([port] (start port false))
   ([port join?]
-   (j/run-jetty (wrap-resp-logging app) {:port port :join? join?})))
+   (j/run-jetty app {:port port :join? join?})))
 
 (defn -main [& args]
   (let [port (if-let [p (first args)]

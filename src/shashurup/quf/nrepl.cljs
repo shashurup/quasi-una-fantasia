@@ -66,12 +66,14 @@
   (some #{:done "done"} statuses))
 
 (defn- handle-http-response [req op callback]
-  (when callback
-    (callback (if (= 200 (.-status req))
-                (read-string (.-responseText req))
-                [(merge  {:status #{:done}
-                          :err (.-responseText req)}
-                         (select-keys op [:id]))]))))
+  (if (= 401 (.-status req))
+    (.assign (.-location js/window) "login")
+    (when callback
+      (callback (if (= 200 (.-status req))
+                  (read-string (.-responseText req))
+                  [(merge  {:status #{:done}
+                            :err (.-responseText req)}
+                           (select-keys op [:id]))])))))
 
 (defn- send-http-message [op callback & {:keys [timeout wait-reply] :as params}]
   (let [msg (pr-str op)
@@ -124,7 +126,7 @@
   (process-callback (read-string (.-data event))))
 
 (defn- ws-connect [callback]
-  (let [ws (js/WebSocket. (str "ws1111?client-id="
+  (let [ws (js/WebSocket. (str "ws?client-id="
                                (:client-id @state)))]
     (.addEventListener ws "open" #((swap! state assoc :socket ws)
                                    (when callback
