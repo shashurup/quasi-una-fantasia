@@ -102,7 +102,7 @@
 (defn- buffer-put! [buffers client-id subj]
   (swap! buffers
          update client-id
-         (fn [v] (if v v (ArrayBlockingQueue. SERVER-QUEUE-CAPACITY))))
+         #(or % (ArrayBlockingQueue. SERVER-QUEUE-CAPACITY)))
   (let [^ArrayBlockingQueue q (@buffers client-id)]
     (when-not (.offer q subj TIMEOUT TimeUnit/MILLISECONDS)
       (throw (ex-info "Pipe timeout" {:reason :broken-pipe})))))
