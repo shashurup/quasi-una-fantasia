@@ -20,6 +20,13 @@
 (def SERVER-QUEUE-CAPACITY 16)
 (def TIMEOUT (* 16 1000))
 
+(defn serialize-msg [subj]
+  ;; When the message is sent from the context of (print)
+  ;; the option may be nil so that serialization with
+  ;; special symbols such as \n may work incorrectly
+  (binding [*print-readably* true]
+    (pr-str subj)))
+
 (deftype QueueTransport [^ArrayBlockingQueue in ^ArrayBlockingQueue out]
   t/Transport
   (send [this msg]
@@ -75,7 +82,7 @@
     (let [r (when (or (= method :get) wait-reply)
               (response-seq transport timeout))]
       (-> r
-          pr-str
+          serialize-msg
           u/response
           (assoc :session (assoc-in session
                                     [:transports client-id]
@@ -118,7 +125,7 @@
   (let [sockets (or sockets (atom {}))
         buffers (or buffers (atom {}))
         send-reply (fn [msg]
-                     (let [msg (pr-str msg)]
+                     (let [msg (serialize-msg msg)]
                        (if-let [sock (@sockets client-id)]
                          (ws/send sock msg)
                          (buffer-put! buffers client-id msg))))]
