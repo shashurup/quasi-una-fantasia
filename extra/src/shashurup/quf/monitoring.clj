@@ -4,16 +4,6 @@
             [shashurup.quf.view :as v]
             [clojure.string :as s]))
 
-(defn- delta [subj interval]
-  (let [c (count subj)]
-    (if (> c 1)
-      (/ (- (last subj)
-            (nth subj (- c 2))) interval)
-      0)))
-
-(defn- cur [subj _]
-  (last subj))
-
 (defn- mem-free-kb []
   (get (linux/proc-meminfo) "MemFree"))
 
@@ -33,23 +23,37 @@
                          (subvec vals 5)))
        cpu-count)))
 
-(def sources
-  {:mem-free-kb [mem-free-kb cur]
-   :mem-free [mem-free cur]
-   :cpu [cpu-busy delta]})
+(defn wrap-delta [f]
+  (fn
+    ([] [0 (f)])
+    ([prev interval]
+     (let [v (f)]
+       [(/ (- v prev) interval) v]))))
 
-(defn- update-cache [subj keys]
-  (reduce (fn [m k]
-            (let [f (first (sources k))]
-              (update m k (fnil conj []) (f))))
-          subj
-          keys))
+(def cpu ["cpu" (wrap-delta cpu-busy)])
+(def free-mem ["free mem (%)" mem-free])
+(def free-mem-kb ["free mem (kb)" mem-free-kb])
 
-(defn- update-state [state cache keys interval samples]
-  (let [upd (fn [m k]
-              (let [f (second (sources k))]
-                (update m k (fnil conj []) (f (cache k) interval))))]
-    (update-vals (reduce upd state keys)
+(defn- gather-metrics [subj state interval]
+  (let [metrics (for [[k f] subj]
+                  (if-let [s (state k)]
+                    (let [[v new-state] (f s interval)]
+                      [k v new-state])
+                    (let [result (f)]
+                      (if (coll? result)
+                        (let [[v new-state] result]
+                          [k v new-state])
+                        [k result nil]))))]
+    [(into {} (map (fn [[k v _]] [k v])
+                   metrics))
+     (into {} (->> metrics
+                   (map (fn [[k _ s]] [k s]))
+                   (filter second)))]))
+
+(defn- update-plot [subj metrics samples]
+  (let [upd (fn [m [k v]]
+              (update m k (fnil conj []) v))]
+    (update-vals (reduce upd subj metrics)
                  (fn [v]
                    (let [c (count v)]
                      (if (> c samples)
@@ -57,18 +61,14 @@
                        v))))))
 
 (defn plot
-  ([subj] (plot subj 1000 120))
-  ([subj interval] (plot subj interval 120))
+  ([subj] (plot subj 1000 60))
+  ([subj interval] (plot subj interval 60))
   ([subj interval sample-count]
    (let [int-secs (/ interval 1000)
-         go (fn [state]
-              (loop [cache {}]
-                (let [cache (update-cache cache subj)]
-                  (swap! state #(update-state %
-                                              cache
-                                              subj
-                                              int-secs
-                                              sample-count))
+         go (fn [plot]
+              (loop [state {}]
+                (let [[metrics state] (gather-metrics subj state int-secs)]
+                  (swap! plot #(update-plot % metrics sample-count))
                   (Thread/sleep interval)
-                  (recur cache))))]
+                  (recur state))))]
      (v/start go chart/line))))
