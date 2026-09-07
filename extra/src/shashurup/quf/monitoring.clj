@@ -11,17 +11,37 @@
   (let [total (get (linux/proc-meminfo) "MemTotal")]
     (/ (* (mem-free-kb) 100) total)))
 
-(defn- cpu-busy []
-  (let [ps (linux/proc-stat)
-        cpu-count (->> ps
-                       keys
-                       (filter #(s/starts-with? % "cpu"))
-                       count
-                       dec)
-        vals (get ps "cpu")]
-    (/ (reduce + (concat (subvec vals 0 3)
-                         (subvec vals 5)))
-       cpu-count)))
+(defn- buffers-kb []
+  (get (linux/proc-meminfo) "Buffers"))
+
+(defn- buffers []
+  (let [total (get (linux/proc-meminfo) "MemTotal")]
+    (/ (* (buffers-kb) 100) total)))
+
+(defn- proc-mem-kb' [pid]
+  (* (second (linux/proc-pid-statm pid)) 4))
+
+(defn- proc-mem' [pid]
+  (let [total (get (linux/proc-meminfo) "MemTotal")]
+    (/ (* (proc-mem-kb' pid) 100) total)))
+
+(defn- cpu-busy
+  ([] (cpu-busy nil))
+  ([n]
+   (let [ps (linux/proc-stat)
+         cpu-count (->> ps
+                        keys
+                        (filter #(s/starts-with? % "cpu"))
+                        count
+                        dec)
+         vals (get ps (str "cpu" n))]
+     (/ (reduce + (concat (subvec vals 0 3)
+                          (subvec vals 5)))
+        cpu-count))))
+
+(defn- proc-busy [pid]
+  (let [ps (linux/proc-pid-stat pid)]
+    (+ (nth ps 13) (nth ps 14))))
 
 (defn wrap-delta [f]
   (fn
@@ -31,8 +51,20 @@
        [(/ (- v prev) interval) v]))))
 
 (def cpu ["cpu" (wrap-delta cpu-busy)])
+(defn cpu-core [n]
+  [(str "cpu core " n)
+   (wrap-delta #(cpu-busy n))])
+(defn proc-cpu [pid]
+  [(str pid " cpu (%)")
+   (wrap-delta #(proc-busy pid))])
 (def free-mem ["free mem (%)" mem-free])
 (def free-mem-kb ["free mem (kb)" mem-free-kb])
+(def mem-buffers ["mem buffers (%)" buffers])
+(def mem-buffers-kb ["mem buffers (kb)" buffers-kb])
+(defn proc-mem [pid]
+  [(str pid " mem (%)") #(proc-mem' pid)])
+(defn proc-mem-kb [pid]
+  [(str pid " mem (kb)") #(proc-mem-kb' pid)])
 
 (defn- gather-metrics [subj state interval]
   (let [metrics (for [[k f] subj]

@@ -28,3 +28,18 @@
               (let [[n & r] (s/split line #" +")]
                 [n (mapv parse-long r)])))
        (into {})))
+
+(defn proc-pid-stat [pid]
+  (let [[pid cmd state & rest] (-> (str "/proc/" pid "/stat")
+                                   read-zero-sized-file
+                                   first
+                                   (s/split #" "))]
+    (into [(parse-long pid) cmd state]
+          (map parse-long rest))))
+
+(defn proc-pid-statm [pid]
+  (let [vals (-> (str "/proc/" pid "/statm")
+                 read-zero-sized-file
+                 first
+                 (s/split #" "))]
+    (mapv parse-long vals)))
