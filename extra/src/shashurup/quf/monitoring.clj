@@ -110,6 +110,10 @@
   [(str interface " transmitted (bps)")
    (wrap-delta #(interface-transmitted interface))])
 
+(defn wifi-signal [interface]
+  [(str interface " signal (%)")
+   #(second (get (linux/proc-net-wireless) interface))])
+
 (defn reads [disk]
   [(str disk " read (ops)")
    (wrap-delta #(disk-reads disk))])

@@ -39,6 +39,18 @@
                      (s/split (s/trim ms) #" +"))]))
        (into {})))
 
+(defn proc-net-wireless []
+  (->> (read-zero-sized-file "/proc/net/wireless")
+       (drop 2)
+       (map #(s/split % #":"))
+       (map (fn [[i ms]]
+              [(s/trim i)
+               (let [[s q1 q2 q3 & rest] (s/split (s/trim ms) #" +")]
+                 (-> [s]
+                     (into (map parse-double [q1 q2 q3]))
+                     (into (map parse-long rest))))]))
+       (into {})))
+
 (defn proc-diskstats []
   (->> (read-zero-sized-file "/proc/diskstats")
        (map s/trim)
