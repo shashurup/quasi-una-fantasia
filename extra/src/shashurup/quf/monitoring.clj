@@ -18,6 +18,7 @@
   (let [total (get (linux/proc-meminfo) "MemTotal")]
     (/ (* (buffers-kb) 100) total)))
 
+;; TODO get page size from the system
 (defn- proc-mem-kb' [pid]
   (* (second (linux/proc-pid-statm pid)) 4))
 
@@ -25,6 +26,7 @@
   (let [total (get (linux/proc-meminfo) "MemTotal")]
     (/ (* (proc-mem-kb' pid) 100) total)))
 
+;; TODO get tick size from the system
 (defn- cpu-busy
   ([] (cpu-busy nil))
   ([n]
@@ -43,6 +45,24 @@
   (let [ps (linux/proc-pid-stat pid)]
     (+ (nth ps 13) (nth ps 14))))
 
+(defn- interface-received [subj]
+  (first ((linux/proc-net-dev) subj)))
+
+(defn- interface-transmitted [subj]
+  (nth ((linux/proc-net-dev) subj) 8))
+
+(defn interfaces []
+  (keys (linux/proc-net-dev)))
+
+(defn- disk-reads [subj]
+  (first ((linux/proc-diskstats) subj)))
+
+(defn- disk-writes [subj]
+  (nth ((linux/proc-diskstats) subj) 4))
+
+(defn disks []
+  (keys (linux/proc-diskstats)))
+
 (defn wrap-delta [f]
   (fn
     ([] [0 (f)])
@@ -51,20 +71,52 @@
        [(/ (- v prev) interval) v]))))
 
 (def cpu ["cpu" (wrap-delta cpu-busy)])
+
 (defn cpu-core [n]
   [(str "cpu core " n)
    (wrap-delta #(cpu-busy n))])
+
 (defn proc-cpu [pid]
   [(str pid " cpu (%)")
    (wrap-delta #(proc-busy pid))])
+
 (def free-mem ["free mem (%)" mem-free])
+
 (def free-mem-kb ["free mem (kb)" mem-free-kb])
+
 (def mem-buffers ["mem buffers (%)" buffers])
+
 (def mem-buffers-kb ["mem buffers (kb)" buffers-kb])
+
 (defn proc-mem [pid]
   [(str pid " mem (%)") #(proc-mem' pid)])
+
 (defn proc-mem-kb [pid]
   [(str pid " mem (kb)") #(proc-mem-kb' pid)])
+
+(defn proc-read [pid]
+  [(str pid " read (bps)")
+   (wrap-delta #(get (linux/proc-pid-io pid) "read_bytes"))])
+
+(defn proc-written [pid]
+  [(str pid " written (bps)")
+   (wrap-delta #(get (linux/proc-pid-io pid) "write_bytes"))] )
+
+(defn received [interface]
+  [(str interface " received (bps)")
+   (wrap-delta #(interface-received interface))])
+
+(defn transmitted [interface]
+  [(str interface " transmitted (bps)")
+   (wrap-delta #(interface-transmitted interface))])
+
+(defn reads [disk]
+  [(str disk " read (ops)")
+   (wrap-delta #(disk-reads disk))])
+
+(defn writes [disk]
+  [(str disk " writes (ops)")
+   (wrap-delta #(disk-writes disk))])
 
 (defn- gather-metrics [subj state interval]
   (let [metrics (for [[k f] subj]
