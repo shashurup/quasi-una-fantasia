@@ -36,6 +36,13 @@ div.quf-result-collapsed {
     border: 1px dashed grey;
 }
 
+.the-only-element {
+    border: solid;
+    padding: 3em;
+    box-shadow: var(--color-fg) 1ch 1ch 0.3ch;
+    border-radius: 0.5ch;
+}
+
 .quf-wide {
     max-width: 80vw;
 }

@@ -337,9 +337,11 @@
   (nrepl/send-interrupt (get-in @app-state [:requests (str id)])))
 
 (defn hide-all-but [subj]
-  (let [hide (gcls/contains subj "quf-result-the-only")]
+  (let [hide (gcls/contains subj "quf-result-the-only")
+        cell (.-parentElement subj)]
+    (gcls/enable cell "the-only-element" hide)
     (doseq [el (.querySelectorAll js/document "div.quf-cell")]
-      (when-not (identical? el (.-parentElement subj))
+      (when-not (identical? el cell)
         (set! (.-hidden el) hide)))))
 
 (defn cycle-result-height
