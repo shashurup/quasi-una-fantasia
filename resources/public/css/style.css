@@ -33,7 +33,7 @@ div.quf-result-collapsed {
     overflow: hidden;
     padding: 1em;
     margin: 0;
-    border: 1px dashed grey;
+    border-bottom: thick double;
 }
 
 .the-only-element {
