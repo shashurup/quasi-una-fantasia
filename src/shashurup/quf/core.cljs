@@ -336,13 +336,31 @@
 (defn interrupt-eval [id]
   (nrepl/send-interrupt (get-in @app-state [:requests (str id)])))
 
+(defn hide-all-but [subj]
+  (let [hide (gcls/contains subj "quf-result-the-only")]
+    (doseq [el (.querySelectorAll js/document "div.quf-cell")]
+      (when-not (identical? el (.-parentElement subj))
+        (set! (.-hidden el) hide)))))
+
 (defn cycle-result-height
   "Cycles result height between full/medium/short"
   {:keymap/key :cycle-result-height}
   [id]
-  (u/cycle-style (get-result-element id) [""
-                                          "quf-result-tall"
-                                          "quf-result-collapsed"]))
+  (let [el (get-result-element id)]
+    (u/cycle-style el ["" "quf-result-collapsed" "quf-result-the-only"])
+    (hide-all-but el)))
+
+(defn toggle-collapse-all-cells
+  "Collapse/expand all cells"
+  {:keymap/key :toggle-collapse-all-cells}
+  [_]
+  (let [results (.querySelectorAll js/document
+                                   "div.quf-cell > div.quf-result")
+        f (if (gcls/contains (first results) "quf-result-collapsed")
+            gcls/remove
+            gcls/add)]
+    (doseq [el results]
+      (f el "quf-result-collapsed"))))
 
 (defn populate-cells [exprs]
   (let [last-input (last (gdom/getElementsByClass "quf-input"))]

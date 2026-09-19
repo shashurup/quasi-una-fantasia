@@ -22,6 +22,7 @@
                             "C-p" :search-history
                             "C-h" :toggle-doc
                             "C-s" :cycle-result-height
+                            "A-C-s" :toggle-collapse-all-cells
                             "C-." :load-ns-dialog
                             "A-C-t" :new-tab
                             "C-m" :show-checkboxes
