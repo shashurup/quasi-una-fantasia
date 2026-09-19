@@ -18,10 +18,12 @@
 (defn find-parent-tag [subj tag]
   (first (filter #(= (.-tagName %) tag) (parent-elements subj))))
 
-(defn cycle-style [el style-map]
-  (let [class (or (first (set/intersection (set (keys style-map))
-                                           (set (gcls/get el)))) "")]
-    (gcls/addRemove el class (style-map class))))
+(defn cycle-style [el styles]
+  (let [class (or (first (set/intersection (set styles)
+                                           (set (gcls/get el)))) "")
+        style-map (into {} (partitionv 2 1 [(first styles)] styles))]
+    (when-let [next-class (style-map class)]
+      (gcls/addRemove el class next-class))))
 
 (defn add-style-ref [ref]
   (gdom/appendChild 

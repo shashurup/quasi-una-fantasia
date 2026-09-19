@@ -281,16 +281,12 @@
       (keys row)
       (range (count row)))))
 
-(def col-width-cycle {"" "quf-full"
-                      "quf-full" "quf-collapsed"
-                      "quf-collapsed" ""})
-
 (defn cycle-col-width [table col-idx]
   (let [tbody (first (gdom/getElementsByTagName "tbody" table))
         rows (gdom/getElementsByTagName "tr" tbody)]
     (doall (for [row rows]
              (u/cycle-style (nth (seq (gdom/getElementsByTagName "td" row)) col-idx)
-                            col-width-cycle)))))
+                            ["" "quf-full" "quf-collapsed"])))))
 
 (defn header-click [e]
   (let [header (.-target e)
