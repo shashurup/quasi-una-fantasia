@@ -160,13 +160,13 @@
 (defn- render-mode [keymap mode]
   [:div
    [:h3 (mode-names mode)]
-   [:table.quf
-    [:tr.quf [:th.quf "Key"] [:th.quf "Function"] [:th.quf "Description"]]
+   [:table.quf.quf-data
+    [:tr [:th "Key"] [:th "Function"] [:th "Description"]]
     (for [[key fn-key] (sort (get keymap mode))]
-      [:tr.quf
-       [:td.quf.quf-string key]
-       [:td.quf.quf-keyword fn-key]
-       [:td.quf (:doc (meta (@fn-map fn-key)))]])]])
+      [:tr
+       [:td.quf-string key]
+       [:td.quf-keyword fn-key]
+       [:td (:doc (meta (@fn-map fn-key)))]])]])
 
 (defmethod render :keymap [subj]
   (let [merge-fn (u/gen-js-call #(merge-keymap! subj))

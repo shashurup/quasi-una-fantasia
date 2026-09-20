@@ -268,61 +268,59 @@ table.quf {
     border-style: none;
 }
 
-th.quf, td.quf {
-    padding: 0 1ch;
+
+table.quf th,
+table.quf td {
+    padding: 0.5ch 1ch;
     border: solid 1px;
     border-color: grey;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-td.quf {
+table.quf td {
     border-left-style: none;
     border-bottom-style: none;
     border-top-style: none;
     border-right-style: solid;
-    white-space: pre;
     vertical-align: top;
 }
 
-th.quf {
+table.quf th {
     border-left-style: none;
     border-bottom-style: solid;
     border-top-style: none;
     border-right-style: solid;
 }
 
-td.quf:last-child {
+table.quf td:last-child {
     border-right-style: none;
 }
 
-th.quf:last-child {
+table.quf th:last-child {
     border-right-style: none;
 }
 
-td.quf {
+table.quf-data td {
+    padding: 0 1ch;
+}
+
+table.quf-data td {
+    white-space: pre;
     max-width: 50vw;
 }
 
-td.quf-collapsed {
+table.quf-data td.quf-collapsed {
     max-width: 3ch;
 }
 
-td.quf-full {
+table.quf-data td.quf-full {
     max-width: unset;
 }
 
-td.quf div {
+table.quf td div {
     display: contents;
     white-space: normal;
-}
-
-td.quf > :first-child, td.quf > div > :first-child {
-  margin-top: 0;
-}
-
-td.quf > :last-child, td.quf > div > :last-child {
-  margin-bottom: 0;
 }
 
 td.quf-number-cell {
@@ -380,11 +378,11 @@ th.quf-check-cell {
     height: 27vh;
 }
 
-td.quf .quf-intrinsically-sized {
+table.quf td > .quf-intrinsically-sized {
     margin: 1ch;
 }
 
-td.quf .quf-tall {
+table.quf td > .quf-tall {
     margin: 1ch;
 }
 

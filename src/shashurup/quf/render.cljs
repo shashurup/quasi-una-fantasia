@@ -255,25 +255,23 @@
 (defmulti render-cell type)
 
 (defmethod render-cell :default [value]
-  [:td.quf (if (coll? value)
-             (if (and (= :tag (:shashurup.quf/hint (meta value)))
-                      (= 'object (first value)) )
-               (last (second value))
-               (render value))
-             (pr-str value))])
+  [:td (if (coll? value)
+         (if (and (= :tag (:shashurup.quf/hint (meta value)))
+                  (= 'object (first value)) )
+           (last (second value))
+           (render value))
+         (pr-str value))])
 
-(defmethod render-cell nil [_] [:td.quf])
+(defmethod render-cell nil [_] [:td])
 
 (defmethod render-cell js/String [value]
-  [:td {:class (str "quf " "quf-string-cell")} value])
+  [:td.quf-string-cell value])
 
 (defmethod render-cell js/Number [value]
-  [:td {:class (str "quf " "quf-number-cell")}
-   (.format (js/Intl.NumberFormat.) value)])
+  [:td.quf-number-cell (.format (js/Intl.NumberFormat.) value)])
 
 (defmethod render-cell js/Date [value]
-  [:td {:class (str "quf " "quf-date-cell")}
-   (.toISOString value)])
+  [:td.quf-date-cell (.toISOString value)])
 
 (defn guess-columns [data]
   (let [row (first data)]
@@ -298,7 +296,7 @@
     (cycle-col-width table col-idx)))
 
 (defn render-header [name]
-  (let [header (crate/html [:th.quf name])]
+  (let [header (crate/html [:th name])]
     (.addEventListener header "click" header-click)
     header))
 
@@ -306,13 +304,13 @@
   [:input.quf-check {:type "checkbox"
                      :value val}])
 
-(defmethod render :table [data]
+(defn render-table [data compact]
   (let [[type-key columns] (hint-args data)
         get-key (get-in @desc/object-types [type-key :key])
         col-desc (desc/column-descriptors type-key
                                           (or columns
                                               (guess-columns data)))]
-    [:table.quf.quf-container
+    [:table {:class (str "quf" " quf-container" (when compact " quf-data"))}
      [:thead [:tr
               (when get-key [:th.quf-check-cell])
               (for [[title _] col-desc]
@@ -330,6 +328,12 @@
                          #(.-parentElement (.-parentElement %))
                          render
                          #(first (.getElementsByTagName % "tbody"))))]])]]))
+
+(defmethod render :table [data]
+  (render-table data true))
+
+(defmethod render :text-table [data]
+  (render-table data false))
 
 (defn render-obj [obj col-desc show-attr-names get-key]
   [:div.quf-object 

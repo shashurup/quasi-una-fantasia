@@ -468,7 +468,7 @@
   ([] (log (default)))
   ([arg] (if (keyword? arg)
            (log (default) arg)
-           (v/table
+           (v/text-table
             [:idx :topic :role :content]
             (with-meta
               (map render-log-entry
@@ -478,7 +478,7 @@
               ;; Just a hack - tables dont expect complex cell content
               {:shashurup.quf/range {:more? false}}))))
   ([context topic]
-   (v/table
+   (v/text-table
     [:idx :role :content]
     (map render-log-entry
          (map-indexed #(assoc %2 :idx %1)

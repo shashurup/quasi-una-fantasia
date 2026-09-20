@@ -19,6 +19,10 @@
   ([cols subj] (hint subj [:table cols]))
   ([subj] (hint subj :table)))
 
+(defn text-table
+  ([cols subj] (hint subj [:text-table cols]))
+  ([subj] (hint subj :table)))
+
 (defn tree
   ([opts subj] (hint subj [:tree opts]))
   ([subj] (hint subj :tree)))
