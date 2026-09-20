@@ -353,6 +353,11 @@ th.quf-check-cell {
     max-width: 90vw;
 }
 
+.quf-text {
+    font-family: serif;
+    max-width: 43em;
+}
+
 .quf-medium-sized {
     height: 50vh;
     aspect-ratio: 16 / 9;

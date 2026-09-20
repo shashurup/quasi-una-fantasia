@@ -21,14 +21,14 @@
     (str "<table class=quf >"
          "<thead><tr>"
          (apply str (for [h (.-header subj)]
-                      (str "<th class=quf>" (rndr h) "</th>")))
+                      (str "<th>" (rndr h) "</th>")))
          "</tr></thead>"
          "<tbody>"
          (apply str (for [row (.-rows subj)]
                       (apply str
                              "<tr>"
                              (apply str (for [cell row]
-                                          (str "<td class=quf>"
+                                          (str "<td>"
                                                (rndr cell)
                                                "</td>")))
                              "</tr>"
@@ -39,8 +39,8 @@
 (.use js/marked (clj->js {:renderer {:code render-code
                                      :table render-table}}))
 
-(.use js/marked (js/markedKatex #js{:throwOnError false
-                                    :nonStandard true}))
+(.use js/marked (js/markedKatex (clj->js {:throwOnError false
+                                          :nonStandard true})))
 
 (defn- from-raw-html [subj]
   (let [templ (.createElement js/document "template")]
@@ -48,7 +48,7 @@
     (.-content templ)))
 
 (defmethod render :markdown [subj]
-  [:div (from-raw-html (parse (s/join "\n" subj)))])
+  [:div.quf-text (from-raw-html (parse (s/join "\n" subj)))])
 
 (defonce startup-dummy
   (u/add-style-ref "css/katex.min.css"))
