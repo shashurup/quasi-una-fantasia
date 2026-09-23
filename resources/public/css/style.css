@@ -34,6 +34,7 @@ div.quf-result-collapsed {
     padding: 1em;
     margin: 0;
     border-bottom: thick double;
+    margin-bottom: 1em;
 }
 
 .the-only-element {
