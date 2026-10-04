@@ -627,7 +627,7 @@
                                     last)]
                 [anchor p (count w)]))
       :word (parent-element anchor)
-      :element anchor)))
+      :element (when-not (root? anchor) anchor))))
 
 (defn top-segment [sel]
   (let [anchor (get-anchor-node sel)]
