@@ -48,7 +48,8 @@
          "expr-bottom" expr-bottom
          "expr-top" expr-top)
       (set! (.-left style) (str expr-left-offset "px"))
-      (if (> (+ expr-bottom height) viewport-height)
+      (if (and (> expr-bottom (/ viewport-height 2))
+               (> (+ expr-bottom height) viewport-height))
         (set! (.-top style) (str (- expr-top-offset height) "px"))
         (set! (.-top style) "auto"))
       (set! (.-visibility style) "visible"))))
