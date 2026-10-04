@@ -167,9 +167,10 @@
   (apply-candidate id (select-prev-candidate id)))
 
 (defn find-first-matching-candidate [parent substring]
-  (->> (gdom/getElementsByTagName "span" parent)
-       (filter #(s/includes? (gdom/getTextContent %) substring))
-       first))
+  (when (not-empty substring)
+    (->> (gdom/getElementsByTagName "span" parent)
+         (filter #(s/includes? (gdom/getTextContent %) substring))
+         first)))
 
 (defmulti render-candidate #(when (map? %1) (:type %)))
 
