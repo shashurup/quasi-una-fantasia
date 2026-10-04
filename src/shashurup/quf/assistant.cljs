@@ -172,25 +172,11 @@
          (filter #(s/includes? (gdom/getTextContent %) substring))
          first)))
 
-(defmulti render-candidate #(when (map? %1) (:type %)))
-
-(defmethod render-candidate :default [subj class]
-  (crate/html [:span {:class class}
-               (editor/structure->html (markup/parse subj))]))
-
-(defmethod render-candidate :function [subj class] (render-candidate (:candidate subj) class))
-
-(defmethod render-candidate :keyword [subj class] (render-candidate (:candidate subj) class))
-
-(defmethod render-candidate :macro [subj class] (render-candidate (:candidate subj) class))
-
-(defmethod render-candidate :namespace [subj class] (render-candidate (:candidate subj) class))
-
-(defmethod render-candidate :var [subj class] (render-candidate (:candidate subj) class))
-
-(defmethod render-candidate :special-form [subj class] (render-candidate (:candidate subj) class))
-
-(defmethod render-candidate :class [subj class] (render-candidate (:candidate subj) class))
+(defn render-candidate [subj class]
+  (let [cont (if (map? subj) :span :div)
+        text (if (map? subj) (:candidate subj) subj)]
+    (crate/html [cont {:class class}
+                 (editor/structure->html (markup/parse text))])))
 
 (def max-completions 16)
 
