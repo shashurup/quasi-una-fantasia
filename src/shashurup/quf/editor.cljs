@@ -261,7 +261,10 @@
 (defn set-position!
   ([selection node] (set-position! selection node 0))
   ([selection node offset]
-   (.setPosition selection node offset)
+   (let [offset (if (= offset :end)
+                  (count (text-content node))
+                  offset)]
+     (.setPosition selection node offset))
    selection))
 
 ;; Looks a bit overcomplicated
@@ -895,6 +898,52 @@
   (or (= (.-inputType e) "insertLineBreak")
       (and (= (.-inputType e) "insertText")
            (nil? (.-data e)))))
+
+(defn ident-ref [sexp]
+  (when sexp
+    (let [ch (children sexp)
+          open (first (filter open-paren? ch))
+          call? (= (text-content open) "(")]
+      (if call?
+        (let [has-new-line? #(s/includes? (text-content %) "\n")
+              elements (->> ch
+                            (take-while #(not (has-new-line? %)))
+                            (filter element?))]
+          (condp = (count elements)
+            0 [open 1]
+            1 [open 2]
+            [(second elements) 0]))
+        [open 1]))))
+
+(defn ident-all
+  "Autoident the cell"
+  {:keymap/key :ident}
+  [id]
+  (let [f (fn [[start columns result] node]
+            (let [text (text-content node)
+                  text-len (count text)
+                  newline-pos (s/last-index-of text "\n")
+                  parents (rest (parent-nodes node))
+                  sexp (first (filter sexp? parents))
+                  columns (merge (into {} (for [p parents] [p start]))
+                                 columns)]
+              (if newline-pos
+                (let [[ref-node offset] (ident-ref sexp)
+                      col (+ (columns ref-node 0) offset)
+                      delta (- col (- text-len newline-pos 1))]
+                  [col columns (conj result [node delta])])
+                [(+ start text-len) columns result])))
+        [_ _ adj] (reduce f [0 {} []] (text-node-seq (get-input-element id)))]
+    (doseq [[node delta] adj]
+      (cond
+        (pos? delta) (let [sel (get-selection)
+                           move-to-end? (at-the-end? sel)]
+                       (.appendData node (s/join (repeat delta " ")))
+                       (when move-to-end?
+                         (set-position! sel node :end)))
+        (neg? delta) (.deleteData node
+                                  (+ (count (text-content node)) delta)
+                                  (abs delta))))))
 
 ;; Paren highlight
 

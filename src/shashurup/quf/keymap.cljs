@@ -52,7 +52,8 @@
                                  "S-[" :wrap-with-a-brace
                                  "S-'" :wrap-with-quotes
                                  "u" :unwrap
-                                 "r" :raise-sexp}})
+                                 "r" :raise-sexp
+                                 "=" :ident}})
 
 (defonce symbol-codes {"=" "Equal"
                        "[" "BracketLeft"
