@@ -50,6 +50,9 @@
 (defn text-content [node]
   (.-textContent node))
 
+(defn text-len [node]
+  (.-length node))
+
 (defn insert-text-at-caret [text]
   (when-let [orig-sel (get-selection)]
     (.deleteFromDocument orig-sel)
@@ -231,21 +234,6 @@
         (last text)))))
 
 (defn children [node] (seq (.-childNodes node)))
-
-(defn sibling-elements-before-caret [sel]
-  (let [node (get-anchor-node sel)
-        parent (parent-element node)
-        base (cond
-               (left-edge-of-atom? sel) (prev-leaf-node node)
-               (left-edge-of-sexp? sel) (prev-leaf-node node)
-               (right-edge-of-sexp? sel) (parent-element parent)
-               (atom? parent) parent
-               (paren? parent) parent
-               :else node)]
-    (->> base
-         (iterate previous-sibling)
-         (take-while identity)
-         (filter element?))))
 
 (defn enclosing-sexp [sel]
   (let [node (get-common-ancestor sel)
@@ -843,7 +831,7 @@
              (->> el
                   text-node-seq
                   (reductions (fn [[start end cur] node]
-                                [end (+ end (.-length node)) node])
+                                [end (+ end (text-len node)) node])
                               [0 0 nil])
                   rest
                   (filter (fn [[_ end _]] (<= pos end)))
@@ -860,41 +848,7 @@
 
 ;; autoident
 
-(defn indent-reference [before sexp]
-  (let [open (first (filter open-paren? (.-childNodes sexp)))
-        call? (= (.-textContent open) "(")
-        atoms (reverse before)
-        atom-count (count atoms)]
-    (if (= 0 atom-count)
-      [open 3]
-      (if call?
-        (if (> atom-count 1)
-          [(second atoms) 0]
-          [(first atoms) 2])
-        [(first atoms) 0]))))
-
-(defn indent-column [node]
-  (let [[head tail] (->> (iterate prev-leaf-node node)
-                         (rest)
-                         (take-while identity)
-                         (map #(.-textContent %))
-                         (split-with #(not (s/includes? % "\n"))))]
-    (+ (apply + (map count head))
-       (when tail
-         (count (last (s/split-lines (first tail))))))))
-
-(defn indent []
-  (let [sel (get-selection)
-        node (get-anchor-node sel)
-        before (sibling-elements-before-caret sel)]
-    (when-let [sexp (enclosing-sexp sel)]
-      (let [[ref-node offset] (indent-reference before sexp)
-            column (indent-column ref-node)
-            pos (get-anchor-offset sel)]
-        (.insertData node pos (.repeat " " (+ column offset)))
-        (set-position! sel node (+ pos column offset))))))
-
-(defn need-indent? [e]
+(defn need-ident? [e]
   (or (= (.-inputType e) "insertLineBreak")
       (and (= (.-inputType e) "insertText")
            (nil? (.-data e)))))
@@ -915,35 +869,61 @@
             [(second elements) 0]))
         [open 1]))))
 
+(defn- collect-positions [[pos result] node]
+  (let [text (text-content node)
+        newline-pos (s/last-index-of text "\n")
+        parents (rest (parent-nodes node))
+        result (merge (into {} (for [p parents] [p pos]))
+                      result)]
+    (if newline-pos
+      [(- (text-len node) newline-pos 1) result]
+      [(+ pos (text-len node)) result])))
+
+(defn- calculate-idents [[pos els result] node]
+  (let [[pos els] (collect-positions [pos els] node)
+        sexp (first (filter sexp? (parent-nodes node)))]
+    (if (s/includes? (text-content node) "\n")
+      (let [[ref-node offset] (ident-ref sexp)
+            new-pos (+ (els ref-node 0) offset)]
+        [new-pos els (conj result [node (- new-pos pos)])])
+      [pos els result])))
+
+(defn- adjust-ident [node delta]
+  (cond
+    (pos? delta) (let [sel (get-selection)
+                       move-to-end? (at-the-end? sel)]
+                   (.appendData node (s/join (repeat delta " ")))
+                   (when move-to-end?
+                     (set-position! sel node :end)))
+    (neg? delta) (.deleteData node
+                              (+ (text-len node) delta)
+                              (abs delta))))
+
 (defn ident-all
   "Autoident the cell"
   {:keymap/key :ident}
   [id]
-  (let [f (fn [[start columns result] node]
-            (let [text (text-content node)
-                  text-len (count text)
-                  newline-pos (s/last-index-of text "\n")
-                  parents (rest (parent-nodes node))
-                  sexp (first (filter sexp? parents))
-                  columns (merge (into {} (for [p parents] [p start]))
-                                 columns)]
-              (if newline-pos
-                (let [[ref-node offset] (ident-ref sexp)
-                      col (+ (columns ref-node 0) offset)
-                      delta (- col (- text-len newline-pos 1))]
-                  [col columns (conj result [node delta])])
-                [(+ start text-len) columns result])))
-        [_ _ adj] (reduce f [0 {} []] (text-node-seq (get-input-element id)))]
+  (let [[_ _ adj] (reduce calculate-idents
+                          [0 {} []]
+                          (text-node-seq (get-input-element id)))]
     (doseq [[node delta] adj]
-      (cond
-        (pos? delta) (let [sel (get-selection)
-                           move-to-end? (at-the-end? sel)]
-                       (.appendData node (s/join (repeat delta " ")))
-                       (when move-to-end?
-                         (set-position! sel node :end)))
-        (neg? delta) (.deleteData node
-                                  (+ (count (text-content node)) delta)
-                                  (abs delta))))))
+      (adjust-ident node delta))))
+
+(defn ident-current []
+  (let [sel (get-selection)
+        r0 (get-range-0 sel)
+        root (root-node (get-anchor-node sel))
+        nodes (take-while #(neg? (.comparePoint r0 % 0))
+                          (text-node-seq root))
+        [_ els] (reduce collect-positions [0 {}] nodes)
+        node (->> nodes
+                  (filter whitespace?)
+                  (filter #(s/includes? (text-content %) "\n"))
+                  last)]
+    (when node
+      (when-let [sexp (first (filter sexp? (parent-nodes node)))]
+        (let [[ref-node offset] (ident-ref sexp)]
+          (adjust-ident node (+ (els ref-node 0) offset)))))))
 
 ;; Paren highlight
 
@@ -982,9 +962,9 @@
 
 (defn- handle-input-change [e]
   (handle-pairs e)
-  (when (need-indent? e)
-    (indent))
-  (restructure (.-target e)))
+  (restructure (.-target e))
+  (when (need-ident? e)
+    (ident-current)))
 
 (defn plug [input]
   (.addEventListener input "input" handle-input-change)
