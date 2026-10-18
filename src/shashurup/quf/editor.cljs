@@ -853,15 +853,18 @@
       (and (= (.-inputType e) "insertText")
            (nil? (.-data e)))))
 
+(defn whitespace-with-nl? [subj]
+  (and (whitespace? subj)
+       (s/includes? (text-content subj) "\n")))
+
 (defn ident-ref [sexp]
   (when sexp
     (let [ch (children sexp)
           open (first (filter open-paren? ch))
           call? (= (text-content open) "(")]
       (if call?
-        (let [has-new-line? #(s/includes? (text-content %) "\n")
-              elements (->> ch
-                            (take-while #(not (has-new-line? %)))
+        (let [elements (->> ch
+                            (take-while #(not (whitespace-with-nl? %)))
                             (filter element?))]
           (condp = (count elements)
             0 [open 1]
@@ -882,7 +885,7 @@
 (defn- calculate-idents [[pos els result] node]
   (let [[pos els] (collect-positions [pos els] node)
         sexp (first (filter sexp? (parent-nodes node)))]
-    (if (s/includes? (text-content node) "\n")
+    (if (whitespace-with-nl? node)
       (let [[ref-node offset] (ident-ref sexp)
             new-pos (+ (els ref-node 0) offset)]
         [new-pos els (conj result [node (- new-pos pos)])])
@@ -916,10 +919,7 @@
         nodes (take-while #(neg? (.comparePoint r0 % 0))
                           (text-node-seq root))
         [_ els] (reduce collect-positions [0 {}] nodes)
-        node (->> nodes
-                  (filter whitespace?)
-                  (filter #(s/includes? (text-content %) "\n"))
-                  last)]
+        node (->> nodes (filter whitespace-with-nl?) last)]
     (when node
       (when-let [sexp (first (filter sexp? (parent-nodes node)))]
         (let [[ref-node offset] (ident-ref sexp)]
