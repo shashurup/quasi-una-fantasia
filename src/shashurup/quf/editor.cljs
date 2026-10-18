@@ -919,8 +919,10 @@
         nodes (take-while #(neg? (.comparePoint r0 % 0))
                           (text-node-seq root))
         [_ els] (reduce collect-positions [0 {}] nodes)
-        node (->> nodes (filter whitespace-with-nl?) last)]
-    (when node
+        node (->> nodes
+                  (filter #(s/includes? (text-content %) "\n"))
+                  last)]
+    (when (whitespace? node)
       (when-let [sexp (first (filter sexp? (parent-nodes node)))]
         (let [[ref-node offset] (ident-ref sexp)]
           (adjust-ident node (+ (els ref-node 0) offset)))))))
