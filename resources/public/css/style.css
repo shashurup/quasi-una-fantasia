@@ -16,6 +16,10 @@
     --color-regex: aquamarine;
 }
 
+.quf-prompt {
+    font-weight: bold;
+}
+
 div.quf-result {
     margin: 1em;
 }
@@ -33,7 +37,7 @@ div.quf-result-collapsed {
     overflow: hidden;
     padding: 1em;
     margin: 0;
-    border-bottom: dashed;
+    border-bottom: 2px dashed;
     margin-bottom: 1em;
 }
 
@@ -259,7 +263,7 @@ div.quf-input {
     min-width: 80ch;
     max-width: 100%;
     white-space: break-spaces;
-    border: 1px dotted;
+    border: 1px solid;
     border-radius: 4px;
 }
 
