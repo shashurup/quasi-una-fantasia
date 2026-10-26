@@ -279,6 +279,26 @@
         (swap! context assoc :exception ex))
       (finally (swap! context dissoc :log)))))
 
+(defn- topic-num [subj]
+  (let [n (name subj)]
+    (or (when (s/starts-with? n "p")
+          (parse-long (subs n 1)))
+        0)))
+
+(defn current-topic-num [{msgs :messages}]
+  (->> msgs
+       keys
+       (map topic-num)
+       (remove nil?)
+       (or [0])
+       (apply max)))
+
+(defn- current-topic [ctx]
+  (keyword (str "p" (current-topic-num ctx))))
+
+(defn- next-topic [ctx]
+  (keyword (str "p" (inc (current-topic-num ctx)))))
+
 (defn clone
   ([] (clone (default)))
   ([context] (atom (select-keys @context [:config]))))
@@ -291,8 +311,8 @@
     content))
 
 (defn status
-  ([] (status @(default) :default))
-  ([context] (status context :default))
+  ([] (status @(default) (current-topic @(default))))
+  ([context] (status context (current-topic context)))
   ([context topic]
    (if-let [ex (:exception context)]
      (v/highlight (ex-message ex) "error")
@@ -305,29 +325,6 @@
          (view-with-reason (v/hint content :markdown)
                            reasoning))))))
 
-(defn clear
-  "Clear model context. Args can be:
-   context - optional, atom keeping model interaction state
-             when omitted, (default) is used.
-   topic - optional, a keyword representing a topic to clear"
-  ([] (clear (default)))
-  ([arg] (if (or (coll? arg) (keyword? arg))
-           (clear (default) arg)
-           (swap! arg dissoc :messages)))
-  ([context arg]
-   (if (keyword? arg)
-     (swap! context
-            update :messages
-            dissoc arg)
-     (if (keyword? (first arg))
-       (let [[topic num] arg
-             nums (set (if (coll? num) num [num]))]
-         (delete-messages context topic nums))
-       (doseq [[topic pairs] (group-by first arg)]
-         (let [nums (set (map second pairs))]
-           (delete-messages context topic nums)))))
-   nil))
-
 (defn p
   "Prompt the model. Args are:
    query - the prompt
@@ -335,14 +332,27 @@
              when omitted, (default) is used.
    topic - optional, a keyword representing a discussion topic
            topic holds separate context"
-  ([query] (p (default) :default query))
+  ([query] (p (default) (current-topic @(default)) query))
   ([arg query] (if (keyword? arg)
                  (p (default) arg query)
-                 (p arg :default query)))
+                 (p arg (current-topic @arg) query)))
   ([context topic query]
    (perform-query context topic query
                   #(v/report-progress (v/text (:log @context))))
    (status @context topic)))
+
+(defn p*
+  "Prompt the model with a clean context. Args are:
+   query - the prompt
+   context - optional, atom keeping model interaction state
+             when omitted, (default) is used.
+   topic - optional, a keyword representing a discussion topic
+           topic holds separate context"
+  ([query] (p (default) (next-topic @(default)) query))
+  ([arg query] (if (keyword? arg)
+                 (p (default) arg query)
+                 (p arg (next-topic @arg) query)))
+  ([context topic query] (p context topic query)))
 
 (defn start
   "Initiate model interactions. Args are:
@@ -351,41 +361,14 @@
              when omitted, (default) is used.
    topic - optional, a keyword representing a discussion topic
            topic holds separate context"
-  ([query] (start (default) :default query))
+  ([query] (start (default) (current-topic @(default)) query))
   ([arg query] (if (keyword? arg)
                  (start (default) arg query)
-                 (start arg :default query)))
+                 (start arg (current-topic @arg) query)))
   ([context topic query]
    (v/involve context
               #(perform-query % topic query nil)
               status)))
-
-(defonce btw-current-id (atom 0))
-
-(defn btw
-  "Prompt the model with empty context.
-   Convinient when you don't want to spoil
-   conversation context with unrelated question.
-   Args, are:
-   query - the prompt
-   context - optional, atom keeping model interaction state
-             when omitted, (default) is used."
-  ([query] (btw (default) query))
-  ([context query]
-   (let [topic (keyword (str "btw-" (swap! btw-current-id inc)))]
-     (p context topic query))))
-
-(defn btww
-  "Prompt the model with the context of previous btw.
-   Args, are:
-   query - the prompt
-   context - optional, atom keeping model interaction state
-             when omitted, (default) is used."
-  ([query] (btww (default) query))
-  ([context query]
-   (let [topic (keyword (str "btw-" @btw-current-id))]
-     (p context topic query))))
-
 
 (defn stop-mcp-servers
   "Stop all MCP servers.
