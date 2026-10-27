@@ -285,12 +285,12 @@
           (parse-long (subs n 1)))
         0)))
 
-(defn current-topic-num [{msgs :messages}]
+(defn- current-topic-num [{msgs :messages}]
   (->> msgs
        keys
        (map topic-num)
        (remove nil?)
-       (or [0])
+       (into [0])
        (apply max)))
 
 (defn- current-topic [ctx]
