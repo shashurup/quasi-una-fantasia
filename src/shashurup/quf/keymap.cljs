@@ -19,6 +19,8 @@
                             "A-y" :append-cell-with-expr
                             "C-j" :cell-below
                             "C-k" :cell-above
+                            "ArrowDown" :cell-below
+                            "ArrowUp" :cell-above
                             "C-p" :search-history
                             "C-h" :toggle-doc
                             "C-s" :cycle-result-height
@@ -29,7 +31,9 @@
                             "C-e" :expand-client-vars
                             "C-[" :sexp-mode}
                      :completions {"C-j" :use-next-candidate
+                                   "ArrowDown" :use-next-candidate
                                    "C-k" :use-prev-candidate
+                                   "ArrowUp" :use-prev-candidate
                                    "Escape" :hide-completion-candidates}
                      :sexp-mode {"i" :insert-mode
                                  "d" :delete-selection
